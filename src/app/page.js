@@ -26,12 +26,12 @@ export default function Home() {
   const alarmRef = useRef();
 
   const updateTimeDefaultValue = () => {
-    setPomodoro(pomodoroRef.current.value);
-    setShortBreaks(shortBreakRef.current.value);
-    setLongBreaks(longBreakRef.current.value);
-    localStorage.setItem("pomodoro", pomodoroRef.current.value);
-    localStorage.setItem("shortBreaks", shortBreakRef.current.value);
-    localStorage.setItem("longBreaks", longBreakRef.current.value);
+    setPomodoro(25);
+    setShortBreaks(5);
+    setLongBreaks(10);
+    localStorage.setItem("pomodoro", 25);
+    localStorage.setItem("shortBreaks", 5);
+    localStorage.setItem("longBreaks", 10);
     setOpenSettings(false);
     setSeconds(0);
     setConsumedSeconds(0);
