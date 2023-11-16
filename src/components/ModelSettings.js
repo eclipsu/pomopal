@@ -1,5 +1,7 @@
 import React from "react";
 import { FiX } from "react-icons/fi";
+import supabase from "@/app/lib/supabase";
+import { useEffect, useState } from "react";
 
 function components({
   pomodoro,
@@ -11,6 +13,7 @@ function components({
   setOpenSettings,
   openSettings,
   updateTimeDefaultValue,
+  username,
 }) {
   const inputs = [
     {
@@ -29,6 +32,21 @@ function components({
       defaultValue: longBreaks,
     },
   ];
+
+  const [user, setUser] = useState({});
+
+  useEffect(() => {
+    async function getUserData() {
+      await supabase.auth.getUser().then((value) => {
+        if (value.data?.user) {
+          console.log("sex", value.data.user);
+          setUser(value.data.user);
+        }
+      });
+    }
+    getUserData();
+  }, []);
+
   return (
     <div
       className={`absolute h-full w-full left-0 top-0 bg-black bg-opacity-30 ${
@@ -45,7 +63,9 @@ function components({
           }}
         >
           <div className="text-gray-400 flex justify-between items-center">
-            <h1 className="uppercase font-bold tracking-wider">Time Settings</h1>
+            <h1 className="uppercase font-bold tracking-wider">
+              {user.user_metadata?.full_name || "User"}'s SETTINGS
+            </h1>
             <FiX className="text-2xl cursor-pointer" onClick={() => setOpenSettings(false)} />
           </div>
           <div className="h-1 w-full bg-gray-400 my-5"></div>
