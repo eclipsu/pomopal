@@ -11,9 +11,37 @@ const supabase = createClient(
 
 function Login() {
   const router = useRouter();
-  supabase.auth.onAuthStateChange(async (event) => {
-    if (event == "SIGNED_IN") {
-      //   router.push("/success");
+
+  supabase.auth.onAuthStateChange(async (event, session) => {
+    if (event === "SIGNED_IN") {
+      // User is signed in, check and update User table
+      const { user } = session;
+
+      // Check if the user already exists in the auth.users table
+      const { data: existingUser } = await supabase
+        .from("auth.users")
+        .select("*")
+        .eq("id", user.id);
+
+      // If the user doesn't exist, insert a new record
+      if (!existingUser || existingUser.length === 0) {
+        const { data, error } = await supabase.from("auth.users").insert([
+          {
+            user_id: user.id,
+            username: user.user_metadata.username,
+            email: user.email,
+          },
+        ]);
+
+        if (error) {
+          console.error("Error inserting user:", error);
+        } else {
+          console.log("User inserted:", data);
+        }
+      }
+
+      // Redirect to the success page or perform additional logic
+      router.push("/success");
     }
   });
 
