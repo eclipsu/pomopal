@@ -9,6 +9,8 @@ import ModelSettings from "@/components/ModelSettings";
 import { useEffect, useRef, useState } from "react";
 import { clearInterval, setInterval } from "worker-timers";
 
+import supabase from "./lib/supabase";
+
 export default function Home() {
   const [pomodoro, setPomodoro] = useState(25);
   const [shortBreaks, setShortBreaks] = useState(5);
@@ -26,10 +28,68 @@ export default function Home() {
   const longBreakRef = useRef();
   const alarmRef = useRef();
 
-  const updateTimeDefaultValue = () => {
+  const [user, setUser] = useState({});
+  const [settings, setSettings] = useState();
+
+  useEffect(() => {
+    async function getUserData() {
+      await supabase.auth.getUser().then(async (value) => {
+        if (value.data?.user) {
+          setUser(value.data.user);
+        }
+      });
+    }
+
+    getUserData();
+  }, []);
+
+  useEffect(() => {
+    async function getSettings() {
+      if (Object.keys(user).length !== 0) {
+        const { data: settingsData, error: settingsError } = await supabase
+          .from("settings")
+          .select("*")
+          .eq("user_id", user.id);
+
+        if (settingsError) {
+          console.error("Error fetching settings data:", settingsError.message);
+          return;
+        }
+
+        if (settingsData.length > 0) {
+          console.log("Settings data:", settingsData[0]);
+          setPomodoro(settingsData[0].work_duration);
+          setShortBreaks(settingsData[0].break_duration);
+          setLongBreaks(settingsData[0].long_break_duration);
+        }
+      }
+    }
+    getSettings();
+  }, [user]);
+
+  const updateTimeDefaultValue = async () => {
+    console.log(pomodoroRef.current.value);
+    console.log(shortBreakRef.current.value);
+    console.log(longBreakRef.current.value);
+    console.log(user.id);
+    const { data, error } = await supabase
+      .from("settings")
+      .update({
+        work_duration: pomodoroRef.current.value,
+        break_duration: shortBreakRef.current.value,
+        long_break_duration: longBreakRef.current.value,
+      })
+      .eq("user_id", user.id);
+
+    if (error) {
+      console.error("Error updating settings:", error.message);
+    } else {
+      console.log("Settings updated successfully:", data);
+    }
     setPomodoro(pomodoroRef.current.value);
     setShortBreaks(shortBreakRef.current.value);
     setLongBreaks(longBreakRef.current.value);
+
     localStorage.setItem("pomodoro", pomodoroRef.current.value);
     localStorage.setItem("shortBreaks", shortBreakRef.current.value);
     localStorage.setItem("longBreaks", longBreakRef.current.value);
