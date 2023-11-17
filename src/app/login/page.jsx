@@ -15,7 +15,9 @@ function Login() {
   supabase.auth.onAuthStateChange(async (event, session) => {
     if (event === "SIGNED_IN") {
       // User is signed in, check and update User table
-      const { user } = session;
+      const user = session.user;
+
+      console.log(user);
 
       // Check if the user already exists in the auth.users table
       const { data: existingUser } = await supabase

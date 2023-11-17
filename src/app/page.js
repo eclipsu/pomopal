@@ -7,6 +7,7 @@ import Alarm from "@/components/Alarm";
 import ModelSettings from "@/components/ModelSettings";
 
 import { useEffect, useRef, useState } from "react";
+import { clearInterval, setInterval } from "worker-timers";
 
 export default function Home() {
   const [pomodoro, setPomodoro] = useState(25);
@@ -124,15 +125,15 @@ export default function Home() {
     const storedLongBreaks = localStorage.getItem("longBreaks");
     const storedSelected = localStorage.getItem("selected");
 
-    if (storedPomodoro) setPomodoro(Number(storedPomodoro));
-    if (storedShortBreaks) setShortBreaks(Number(storedShortBreaks));
-    if (storedLongBreaks) setLongBreaks(Number(storedLongBreaks));
-    if (storedSelected) setSelected(Number(storedSelected));
+    // if (storedPomodoro) setPomodoro(Number(storedPomodoro));
+    // if (storedShortBreaks) setShortBreaks(Number(storedShortBreaks));
+    // if (storedLongBreaks) setLongBreaks(Number(storedLongBreaks));
+    // if (storedSelected) setSelected(Number(storedSelected));
   }, []);
 
   return (
     <div className="bg-gray-900 min-h-screen">
-      <div className="max-w-2xl min-h-screen mx-auto">
+      <div className="max-w-2xl min-h-screen mx-auto overflow-y-hidden">
         <Navigation setOpenSettings={setOpenSettings} />
         <Timer
           selected={selected}

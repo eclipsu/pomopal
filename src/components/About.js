@@ -27,7 +27,7 @@ function components() {
         <p className="mt-5 tracking-wide opacity-70 text-lg flex items-center">
           <FaDiscord className="text-xl mr-4" />
           To be updated, join our&nbsp;
-          <Link className="underline" href="https://discord.gg/Jt9Zv7FNtR" target="_blank">
+          <Link className="underline" href="https://discord.gg/czx5d2vx" target="_blank">
             Discord
           </Link>
         </p>
