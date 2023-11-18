@@ -9,6 +9,11 @@ import ModelSettings from "@/components/ModelSettings";
 import { useEffect, useRef, useState } from "react";
 import { clearInterval, setInterval } from "worker-timers";
 
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+
+import Error from "./lib/settingsError";
+
 import supabase from "./lib/supabase";
 
 export default function Home() {
@@ -68,11 +73,13 @@ export default function Home() {
   }, [user]);
 
   const updateTimeDefaultValue = async () => {
-    console.log(pomodoroRef.current.value);
-    console.log(shortBreakRef.current.value);
-    console.log(longBreakRef.current.value);
-    console.log(user.id);
-    const { data, error } = await supabase
+    if (
+      pomodoroRef.current.value < 0 ||
+      shortBreakRef.current.value < 0 ||
+      shortBreakRef.current.value < 0
+    )
+      return Error("Something went wrong");
+    const { data } = await supabase
       .from("settings")
       .update({
         work_duration: pomodoroRef.current.value,
@@ -82,7 +89,7 @@ export default function Home() {
       .eq("user_id", user.id);
 
     if (error) {
-      console.error("Error updating settings:", error.message);
+      Error("Error updating settings:", error.message);
     } else {
       console.log("Settings updated successfully:", data);
     }
@@ -137,6 +144,7 @@ export default function Home() {
   const timesUp = () => {
     reset();
     setIsTimesUp(true);
+    setSelected(selected == 0 ? 1 : selected == 1 ? 0 : 0);
     alarmRef.current.play();
   };
 
@@ -172,6 +180,13 @@ export default function Home() {
       if (ticking) {
         setConsumedSeconds((value) => value + 1);
         clockTicking();
+        document.title = `${getTime()}:${
+          parseInt(seconds.toString().padStart(2, "0") - 1) < 0
+            ? seconds.toString().padStart(2, "0")
+            : seconds.toString().padStart(2, "0") - 1
+        } - Pomopal`;
+      } else {
+        document.title = `Pomopal`;
       }
     }, 1000);
     return () => {
@@ -179,17 +194,17 @@ export default function Home() {
     };
   }, [seconds, pomodoro, shortBreaks, longBreaks, ticking]);
 
-  useEffect(() => {
-    const storedPomodoro = localStorage.getItem("pomodoro");
-    const storedShortBreaks = localStorage.getItem("shortBreaks");
-    const storedLongBreaks = localStorage.getItem("longBreaks");
-    const storedSelected = localStorage.getItem("selected");
+  // useEffect(() => {
+  //   const storedPomodoro = localStorage.getItem("pomodoro");
+  //   const storedShortBreaks = localStorage.getItem("shortBreaks");
+  //   const storedLongBreaks = localStorage.getItem("longBreaks");
+  //   const storedSelected = localStorage.getItem("selected");
 
-    // if (storedPomodoro) setPomodoro(Number(storedPomodoro));
-    // if (storedShortBreaks) setShortBreaks(Number(storedShortBreaks));
-    // if (storedLongBreaks) setLongBreaks(Number(storedLongBreaks));
-    // if (storedSelected) setSelected(Number(storedSelected));
-  }, []);
+  //   // if (storedPomodoro) setPomodoro(Number(storedPomodoro));
+  //   // if (storedShortBreaks) setShortBreaks(Number(storedShortBreaks));
+  //   // if (storedLongBreaks) setLongBreaks(Number(storedLongBreaks));
+  //   // if (storedSelected) setSelected(Number(storedSelected));
+  // }, []);
 
   return (
     <div className="bg-gray-900 min-h-screen">
@@ -221,6 +236,18 @@ export default function Home() {
           updateTimeDefaultValue={updateTimeDefaultValue}
         />
       </div>
+      <ToastContainer
+        position="top-right"
+        autoClose={5000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="dark"
+      />
     </div>
   );
 }
