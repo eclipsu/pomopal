@@ -5,6 +5,7 @@ import Timer from "@/components/Timer";
 import About from "@/components/About";
 import Alarm from "@/components/Alarm";
 import ModelSettings from "@/components/ModelSettings";
+import cryptoRandomString from "crypto-random-string";
 
 import { useEffect, useRef, useState } from "react";
 import { clearInterval, setInterval } from "worker-timers";
@@ -36,6 +37,10 @@ export default function Home() {
   const [user, setUser] = useState({});
   const [settings, setSettings] = useState();
 
+  const [elapsedTime, setElapsedTime] = useState(0);
+
+  const [usageId, setUsageId] = useState(cryptoRandomString({ length: 10, type: "alphanumeric" }));
+
   useEffect(() => {
     async function getUserData() {
       await supabase.auth.getUser().then(async (value) => {
@@ -60,7 +65,7 @@ export default function Home() {
           console.error("Error fetching settings data:", settingsError.message);
           return;
         }
-
+        console.log(settingsData);
         if (settingsData.length > 0) {
           console.log("Settings data:", settingsData[0]);
           setPomodoro(settingsData[0].work_duration);
@@ -79,7 +84,7 @@ export default function Home() {
       shortBreakRef.current.value < 0
     )
       return Error("Something went wrong");
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("settings")
       .update({
         work_duration: pomodoroRef.current.value,
@@ -108,6 +113,8 @@ export default function Home() {
   const switchSelected = (index) => {
     const isYes = consumeSeconds && selected !== index ? confirm("Are you Sure") : false;
     if (isYes) {
+      setConsumedSeconds(0);
+      setSeconds(0);
       reset();
       setSelected(index);
       localStorage.setItem("selected", index);
@@ -138,14 +145,52 @@ export default function Home() {
   const reset = () => {
     setConsumedSeconds(0);
     setTicking(false);
-    updateTimeDefaultValue();
+    setUsageId(cryptoRandomString({ length: 10, type: "alphanumeric" }));
   };
 
-  const timesUp = () => {
+  const timesUp = async () => {
     reset();
     setIsTimesUp(true);
     setSelected(selected == 0 ? 1 : selected == 1 ? 0 : 0);
     alarmRef.current.play();
+    setElapsedTime(0);
+    await updateDatabase(0, true);
+  };
+
+  const updateDatabase = async (elapsedTime, completed) => {
+    // Check if an entry already exists for the current user and usage ID
+    const { data: existingData, error } = await supabase
+      .from("useage")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("usage_id", usageId);
+
+    console.log(existingData);
+
+    if (error) {
+      console.error("Error checking for existing entry:", error.message);
+      return;
+    }
+
+    if (existingData.length != 0) {
+      const updatedDuration = existingData[0].duration + elapsedTime; // +10 because every 10sec
+      const { error } = await supabase
+        .from("useage")
+        .update({ duration: updatedDuration, completed: true })
+        .eq("user_id", user.id)
+        .eq("usage_id", usageId);
+    } else {
+      // If no entry exists, insert a new record
+      await supabase.from("useage").insert([
+        {
+          user_id: user.id,
+          usage_id: usageId,
+          timestamp: new Date(),
+          duration: elapsedTime,
+          completed,
+        },
+      ]);
+    }
   };
 
   const clockTicking = () => {
@@ -158,6 +203,14 @@ export default function Home() {
       setSeconds(59);
     } else {
       setSeconds((seconds) => seconds - 1);
+    }
+    console.log(elapsedTime);
+    if (selected == 0) {
+      setElapsedTime((prevElapsedTime) => prevElapsedTime + 1);
+      // Update the database every 10 seconds
+      if (elapsedTime % 10 === 0) {
+        updateDatabase(10, false);
+      }
     }
   };
 
@@ -180,11 +233,7 @@ export default function Home() {
       if (ticking) {
         setConsumedSeconds((value) => value + 1);
         clockTicking();
-        document.title = `${getTime()}:${
-          parseInt(seconds.toString().padStart(2, "0") - 1) < 0
-            ? seconds.toString().padStart(2, "0")
-            : seconds.toString().padStart(2, "0") - 1
-        } - Pomopal`;
+        document.title = `${getTime()}:${seconds.toString().padStart(2, "0")} - Pomopal`;
       } else {
         document.title = `Pomopal`;
       }
