@@ -1,7 +1,7 @@
 "use client";
 import { createContext, useEffect, useState } from "react";
 import { ID } from "appwrite";
-import { account } from "@/app/lib/appwrite";
+import { account, client } from "@/app/lib/appwrite";
 
 export const UserContext = createContext({
   user: null,
@@ -15,18 +15,19 @@ export function UserProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // ✅ Load current session only on client
   useEffect(() => {
-    if (typeof window === "undefined") return; // skip server side
+    if (typeof window === "undefined") return;
 
     const loadUser = async () => {
       try {
         const current = await account.get();
         setUser(current);
       } catch (error) {
-        // ❗ Appwrite throws “User (role: guests) missing scopes (["account"])”
-        // when there’s no valid session — we ignore that safely.
-        if (error?.code !== 401) console.error("Appwrite error:", error.message);
+        if (error?.code === 401 || error?.message?.includes('missing scopes (["account"])')) {
+          // No active session — fine
+        } else {
+          console.error("Appwrite error:", error);
+        }
       } finally {
         setLoading(false);
       }
@@ -35,20 +36,18 @@ export function UserProvider({ children }) {
     loadUser();
   }, []);
 
-  // ✅ Login user
   async function login(email, password) {
     try {
       await account.createEmailPasswordSession(email, password);
-      const response = await account.get();
-      setUser(response);
-      return { success: true, user: response };
+      const userData = await account.get();
+      setUser(userData);
+      return { success: true, user: userData };
     } catch (error) {
       console.error("Login error:", error.message);
       return { success: false, message: error.message };
     }
   }
 
-  // ✅ Register new user
   async function register(email, password) {
     try {
       await account.create(ID.unique(), email, password);
@@ -59,7 +58,6 @@ export function UserProvider({ children }) {
     }
   }
 
-  // ✅ Logout user
   async function logout() {
     try {
       await account.deleteSession("current");

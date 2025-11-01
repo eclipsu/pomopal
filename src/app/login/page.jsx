@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { UserPlus, Mail, Lock, User } from "lucide-react";
 import Button from "@/components/Button";
 import Input from "@/components/Input";
@@ -8,6 +9,7 @@ import { useUser } from "@/hooks/useUser";
 
 export default function Login() {
   const { login } = useUser();
+  const router = useRouter();
 
   const [formData, setFormData] = useState({
     name: "",
