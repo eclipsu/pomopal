@@ -26,19 +26,13 @@ export default function Login() {
   const validateForm = () => {
     const newErrors = {};
 
-    if (!formData.name.trim() || formData.name.length < 2) {
-      newErrors.name = "Full name must be at least 2 characters.";
-    }
-
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email)) {
       newErrors.email = "Please enter a valid email address.";
     }
 
-    const passwordRegex = /^(?=.*[A-Z])(?=.*\d).{8,}$/;
-    if (!passwordRegex.test(formData.password)) {
-      newErrors.password =
-        "Password must be at least 8 characters long, include one uppercase letter and one number.";
+    if (!formData.password) {
+      newErrors.password = "Please enter your password.";
     }
 
     setErrors(newErrors);
@@ -51,13 +45,23 @@ export default function Login() {
     if (!validateForm()) return;
 
     setIsLoading(true);
-    console.log("Register attempt:", formData);
+    console.log("Login attempt:", formData);
 
-    await login(formData.email, formData.password);
-    setTimeout(() => {
+    try {
+      const result = await login(formData.email, formData.password);
+      if (!result.success) {
+        setErrors({ password: result.message });
+        setIsLoading(false);
+        return;
+      }
+
+      router.push("/");
+    } catch (error) {
+      setErrors({ password: error.message });
+      console.log(error);
+    } finally {
       setIsLoading(false);
-      console.log("Registration successful!");
-    }, 1000);
+    }
   };
 
   return (

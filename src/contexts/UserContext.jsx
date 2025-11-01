@@ -30,9 +30,9 @@ export function UserProvider({ children }) {
       const response = await account.get();
       setUser(response);
       console.log(response);
-      console.log("Logged in as: ", response.email);
+      return { success: true, user: response };
     } catch (error) {
-      console.log(error);
+      return { success: false, message: error.message };
     }
   }
 
@@ -42,7 +42,7 @@ export function UserProvider({ children }) {
       console.log("reg");
       await login(email, password);
     } catch (error) {
-      console.log(error);
+      return { success: false, message: error.message };
     }
   }
   async function logout() {

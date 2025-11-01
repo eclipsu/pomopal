@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { FiX } from "react-icons/fi";
-import { account } from "@/app/lib/appwrite";
 import { useRouter } from "next/navigation";
+import { useUser } from "@/hooks/useUser";
 
 function SettingsPopup({ setOpenSettings, openSettings }) {
   const [user, setUser] = useState(null);
   const router = useRouter();
+  const { logout } = useUser();
 
   useEffect(() => {
     async function getUserData() {
@@ -21,7 +22,7 @@ function SettingsPopup({ setOpenSettings, openSettings }) {
 
   const handleSignout = async () => {
     try {
-      await account.deleteSession("current");
+      await logout();
       router.push("/login");
     } catch (error) {
       console.error("Error signing out:", error.message);
