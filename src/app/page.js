@@ -14,8 +14,11 @@ import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 import Error from "./lib/settingsError";
+import { account, databases } from "./lib/appwrite";
 
-import supabase from "./lib/supabase";
+const DATABASE_ID = "YOUR_DATABASE_ID";
+const SETTINGS_COLLECTION_ID = "settings";
+const USAGE_COLLECTION_ID = "useage";
 
 export default function Home() {
   const [pomodoro, setPomodoro] = useState(25);
@@ -35,42 +38,36 @@ export default function Home() {
   const alarmRef = useRef();
 
   const [user, setUser] = useState({});
-  const [settings, setSettings] = useState();
-
   const [elapsedTime, setElapsedTime] = useState(0);
-
   const [usageId, setUsageId] = useState(cryptoRandomString({ length: 10, type: "alphanumeric" }));
 
   useEffect(() => {
     async function getUserData() {
-      await supabase.auth.getUser().then(async (value) => {
-        if (value.data?.user) {
-          setUser(value.data.user);
-        }
-      });
+      try {
+        const userData = await account.get();
+        setUser(userData);
+      } catch (error) {
+        console.error("User not logged in:", error);
+      }
     }
-
     getUserData();
   }, []);
 
   useEffect(() => {
     async function getSettings() {
-      if (Object.keys(user).length !== 0) {
-        const { data: settingsData, error: settingsError } = await supabase
-          .from("settings")
-          .select("*")
-          .eq("user_id", user.id);
-
-        if (settingsError) {
-          console.error("Error fetching settings data:", settingsError.message);
-          return;
-        }
-        console.log(settingsData);
-        if (settingsData.length > 0) {
-          console.log("Settings data:", settingsData[0]);
-          setPomodoro(settingsData[0].work_duration);
-          setShortBreaks(settingsData[0].break_duration);
-          setLongBreaks(settingsData[0].long_break_duration);
+      if (user.$id) {
+        try {
+          const result = await databases.listDocuments(DATABASE_ID, SETTINGS_COLLECTION_ID, [
+            { key: "user_id", value: user.$id, operator: "equal" },
+          ]);
+          if (result.documents.length > 0) {
+            const s = result.documents[0];
+            setPomodoro(s.work_duration);
+            setShortBreaks(s.break_duration);
+            setLongBreaks(s.long_break_duration);
+          }
+        } catch (err) {
+          console.error("Error fetching settings:", err);
         }
       }
     }
@@ -81,30 +78,33 @@ export default function Home() {
     if (
       pomodoroRef.current.value < 0 ||
       shortBreakRef.current.value < 0 ||
-      shortBreakRef.current.value < 0
+      longBreakRef.current.value < 0
     )
-      return Error("Something went wrong");
-    const { data, error } = await supabase
-      .from("settings")
-      .update({
-        work_duration: pomodoroRef.current.value,
-        break_duration: shortBreakRef.current.value,
-        long_break_duration: longBreakRef.current.value,
-      })
-      .eq("user_id", user.id);
+      return Error("Invalid values");
 
-    if (error) {
+    try {
+      const result = await databases.listDocuments(DATABASE_ID, SETTINGS_COLLECTION_ID, [
+        { key: "user_id", value: user.$id, operator: "equal" },
+      ]);
+      if (result.documents.length > 0) {
+        await databases.updateDocument(
+          DATABASE_ID,
+          SETTINGS_COLLECTION_ID,
+          result.documents[0].$id,
+          {
+            work_duration: Number(pomodoroRef.current.value),
+            break_duration: Number(shortBreakRef.current.value),
+            long_break_duration: Number(longBreakRef.current.value),
+          }
+        );
+      }
+    } catch (error) {
       Error("Error updating settings:", error.message);
-    } else {
-      console.log("Settings updated successfully:", data);
     }
-    setPomodoro(pomodoroRef.current.value);
-    setShortBreaks(shortBreakRef.current.value);
-    setLongBreaks(longBreakRef.current.value);
 
-    localStorage.setItem("pomodoro", pomodoroRef.current.value);
-    localStorage.setItem("shortBreaks", shortBreakRef.current.value);
-    localStorage.setItem("longBreaks", longBreakRef.current.value);
+    setPomodoro(Number(pomodoroRef.current.value));
+    setShortBreaks(Number(shortBreakRef.current.value));
+    setLongBreaks(Number(longBreakRef.current.value));
     setOpenSettings(false);
     setSeconds(0);
     setConsumedSeconds(0);
@@ -158,38 +158,30 @@ export default function Home() {
   };
 
   const updateDatabase = async (elapsedTime, completed) => {
-    // Check if an entry already exists for the current user and usage ID
-    const { data: existingData, error } = await supabase
-      .from("useage")
-      .select("*")
-      .eq("user_id", user.id)
-      .eq("usage_id", usageId);
+    try {
+      const existing = await databases.listDocuments(DATABASE_ID, USAGE_COLLECTION_ID, [
+        { key: "user_id", value: user.$id, operator: "equal" },
+        { key: "usage_id", value: usageId, operator: "equal" },
+      ]);
 
-    console.log(existingData);
-
-    if (error) {
-      console.error("Error checking for existing entry:", error.message);
-      return;
-    }
-
-    if (existingData.length != 0) {
-      const updatedDuration = existingData[0].duration + elapsedTime; // +10 because every 10sec
-      const { error } = await supabase
-        .from("useage")
-        .update({ duration: updatedDuration, completed: true })
-        .eq("user_id", user.id)
-        .eq("usage_id", usageId);
-    } else {
-      // If no entry exists, insert a new record
-      await supabase.from("useage").insert([
-        {
-          user_id: user.id,
+      if (existing.documents.length > 0) {
+        const doc = existing.documents[0];
+        const updatedDuration = doc.duration + elapsedTime;
+        await databases.updateDocument(DATABASE_ID, USAGE_COLLECTION_ID, doc.$id, {
+          duration: updatedDuration,
+          completed,
+        });
+      } else {
+        await databases.createDocument(DATABASE_ID, USAGE_COLLECTION_ID, "unique()", {
+          user_id: user.$id,
           usage_id: usageId,
-          timestamp: new Date(),
+          timestamp: new Date().toISOString(),
           duration: elapsedTime,
           completed,
-        },
-      ]);
+        });
+      }
+    } catch (err) {
+      console.error("Error updating usage data:", err);
     }
   };
 
@@ -198,16 +190,15 @@ export default function Home() {
     const setMinute = updateMinute();
 
     if (minute === 0 && seconds === 0) timesUp();
-    else if (seconds == 0) {
+    else if (seconds === 0) {
       setMinute((minute) => minute - 1);
       setSeconds(59);
     } else {
       setSeconds((seconds) => seconds - 1);
     }
-    console.log(elapsedTime);
-    if (selected == 0) {
-      setElapsedTime((prevElapsedTime) => prevElapsedTime + 1);
-      // Update the database every 10 seconds
+
+    if (selected === 0) {
+      setElapsedTime((prev) => prev + 1);
       if (elapsedTime % 10 === 0) {
         updateDatabase(10, false);
       }
@@ -217,7 +208,7 @@ export default function Home() {
   const startTimer = () => {
     setIsTimesUp(false);
     muteAlarm();
-    setTicking((ticking) => !ticking);
+    setTicking((t) => !t);
   };
 
   const muteAlarm = () => {
@@ -231,29 +222,15 @@ export default function Home() {
     };
     const timer = setInterval(() => {
       if (ticking) {
-        setConsumedSeconds((value) => value + 1);
+        setConsumedSeconds((v) => v + 1);
         clockTicking();
         document.title = `${getTime()}:${seconds.toString().padStart(2, "0")} - Pomopal`;
       } else {
         document.title = `Pomopal`;
       }
     }, 1000);
-    return () => {
-      clearInterval(timer);
-    };
+    return () => clearInterval(timer);
   }, [seconds, pomodoro, shortBreaks, longBreaks, ticking]);
-
-  // useEffect(() => {
-  //   const storedPomodoro = localStorage.getItem("pomodoro");
-  //   const storedShortBreaks = localStorage.getItem("shortBreaks");
-  //   const storedLongBreaks = localStorage.getItem("longBreaks");
-  //   const storedSelected = localStorage.getItem("selected");
-
-  //   // if (storedPomodoro) setPomodoro(Number(storedPomodoro));
-  //   // if (storedShortBreaks) setShortBreaks(Number(storedShortBreaks));
-  //   // if (storedLongBreaks) setLongBreaks(Number(storedLongBreaks));
-  //   // if (storedSelected) setSelected(Number(storedSelected));
-  // }, []);
 
   return (
     <div className="bg-gray-900 min-h-screen">
@@ -285,18 +262,7 @@ export default function Home() {
           updateTimeDefaultValue={updateTimeDefaultValue}
         />
       </div>
-      <ToastContainer
-        position="top-right"
-        autoClose={5000}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-        theme="dark"
-      />
+      <ToastContainer position="top-right" autoClose={5000} theme="dark" />
     </div>
   );
 }

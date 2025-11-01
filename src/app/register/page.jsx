@@ -1,28 +1,36 @@
 "use client";
-import Link from "next/link";
+
 import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { UserPlus, Mail, Lock, User } from "lucide-react";
 import Button from "@/components/Button";
 import Input from "@/components/Input";
 import { useUser } from "@/hooks/useUser";
 
-export default function Login() {
-  const { login } = useUser();
+export default function Register() {
+  const { register } = useUser();
+  const router = useRouter();
 
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     password: "",
+    confirmPassword: "",
   });
 
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
+  const [generalError, setGeneralError] = useState("");
 
+  // Handle field change
   const handleChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     setErrors((prev) => ({ ...prev, [field]: "" })); // clear specific error when typing
+    setGeneralError("");
   };
 
+  // Validate fields
   const validateForm = () => {
     const newErrors = {};
 
@@ -41,23 +49,32 @@ export default function Login() {
         "Password must be at least 8 characters long, include one uppercase letter and one number.";
     }
 
+    if (formData.password !== formData.confirmPassword) {
+      newErrors.confirmPassword = "Passwords do not match.";
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
+  // Handle submit
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     if (!validateForm()) return;
 
     setIsLoading(true);
-    console.log("Register attempt:", formData);
+    setGeneralError("");
 
-    await login(formData.email, formData.password);
-    setTimeout(() => {
+    try {
+      await register(formData.email, formData.password);
+      console.log("✅ Registration successful!");
+      router.push("/"); // redirect to home (or dashboard)
+    } catch (error) {
+      console.error("❌ Registration failed:", error);
+      setGeneralError("Something went wrong. Try a different email.");
+    } finally {
       setIsLoading(false);
-      console.log("Registration successful!");
-    }, 1000);
+    }
   };
 
   return (
@@ -72,17 +89,32 @@ export default function Login() {
             <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center">
               <span className="text-white font-bold text-xl">🍅</span>
             </div>
-            <Link href="/">
-              <h1 className="text-3xl font-bold text-white">Pomopal</h1>
-            </Link>
+            <h1 className="text-3xl font-bold text-white">Pomopal</h1>
           </div>
         </div>
 
         {/* Register Form */}
         <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10 shadow-xl">
-          <h2 className="text-2xl font-bold text-white mb-6">Login to your Account</h2>
+          <h2 className="text-2xl font-bold text-white mb-6">Create Account</h2>
 
           <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+            {/* Full Name */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-300">Full Name</label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Input
+                  type="text"
+                  placeholder="Ram Bahadur"
+                  value={formData.name}
+                  onChange={(e) => handleChange("name", e.target.value)}
+                  className="pl-11 bg-white/10 text-white placeholder:text-gray-500 h-12"
+                  required
+                />
+              </div>
+              {errors.name && <p className="text-red-400 text-xs">{errors.name}</p>}
+            </div>
+
             {/* Email */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-300">Email Address</label>
@@ -90,11 +122,10 @@ export default function Login() {
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <Input
                   type="email"
-                  placeholder="Ram@Bahadur.com"
+                  placeholder="ram@bahadur.com"
                   value={formData.email}
                   onChange={(e) => handleChange("email", e.target.value)}
                   className="pl-11 bg-white/10 text-white placeholder:text-gray-500 h-12"
-                  error={errors.email}
                   required
                 />
               </div>
@@ -112,7 +143,6 @@ export default function Login() {
                   value={formData.password}
                   onChange={(e) => handleChange("password", e.target.value)}
                   className="pl-11 bg-white/10 text-white placeholder:text-gray-500 h-12"
-                  error={errors.password}
                   required
                   minLength={8}
                 />
@@ -120,30 +150,28 @@ export default function Login() {
               {errors.password && <p className="text-red-400 text-xs">{errors.password}</p>}
             </div>
 
-            {/* Terms */}
-            {/* <div className="flex items-start gap-2 text-sm">
-              <input
-                type="checkbox"
-                className="rounded border-white/20 bg-white/10 mt-0.5"
-                required
-              />
-              <label className="text-gray-300">
-                I agree to the{" "}
-                <button
-                  type="button"
-                  className="text-blue-400 hover:text-blue-300 transition-colors"
-                >
-                  Terms of Service
-                </button>{" "}
-                and{" "}
-                <button
-                  type="button"
-                  className="text-blue-400 hover:text-blue-300 transition-colors"
-                >
-                  Privacy Policy
-                </button>
-              </label>
-            </div> */}
+            {/* Confirm Password */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-300">Confirm Password</label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Input
+                  type="password"
+                  placeholder="••••••••"
+                  value={formData.confirmPassword}
+                  onChange={(e) => handleChange("confirmPassword", e.target.value)}
+                  className="pl-11 bg-white/10 text-white placeholder:text-gray-500 h-12"
+                  required
+                  minLength={8}
+                />
+              </div>
+              {errors.confirmPassword && (
+                <p className="text-red-400 text-xs">{errors.confirmPassword}</p>
+              )}
+            </div>
+
+            {/* Form error */}
+            {generalError && <p className="text-red-400 text-sm text-center">{generalError}</p>}
 
             {/* Submit */}
             <Button
@@ -159,30 +187,25 @@ export default function Login() {
               ) : (
                 <div className="flex items-center gap-2">
                   <UserPlus className="w-5 h-5" />
-                  Login
+                  Create Account
                 </div>
               )}
             </Button>
           </form>
 
-          {/* Register link */}
+          {/* Login link */}
           <div className="mt-6 text-center">
             <p className="text-gray-400 text-sm">
               Already have an account?{" "}
               <Link
-                href={"/register"}
+                href={"/login"}
                 className="text-blue-400 hover:text-blue-300 font-semibold transition-colors"
               >
-                Register
+                Login
               </Link>
             </p>
           </div>
         </div>
-
-        {/* Footer */}
-        {/* <p className="text-center text-gray-500 text-xs mt-8">
-          © 2025 Pomopal. All rights reserved.
-        </p> */}
       </div>
     </div>
   );
