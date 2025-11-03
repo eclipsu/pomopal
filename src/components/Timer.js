@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { account } from "@/app/lib/appwrite"; // Appwrite client
+import { account } from "@/app/lib/appwrite";
 import { FiBellOff } from "react-icons/fi";
 import { FaLock } from "react-icons/fa";
 
@@ -53,22 +53,12 @@ export default function PomodoroTimer({
       </div>
 
       <div className="flex items-center gap-2">
-        {user ? (
-          <button
-            onClick={startTimer}
-            className="px-16 py-2 text-2xl rounded-md bg-white text-blue-500 uppercase font-bold w-56"
-          >
-            {ticking ? "Stop" : "Start"}
-          </button>
-        ) : (
-          <button
-            disabled
-            className="px-16 py-2 text-2xl rounded-md bg-white text-blue-500 uppercase font-bold"
-          >
-            <FaLock />
-          </button>
-        )}
-
+        <button
+          onClick={startTimer}
+          className="px-16 py-2 text-2xl rounded-md bg-white text-blue-500 uppercase font-bold w-56"
+        >
+          {ticking ? "Stop" : "Start"}
+        </button>
         {isTimesUp && (
           <FiBellOff className="text-3xl text-white cursor-pointer" onClick={muteAlarm} />
         )}
