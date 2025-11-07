@@ -160,7 +160,7 @@ export default function Login() {
               {isLoading ? (
                 <div className="flex items-center gap-2">
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Creating account...
+                  Loading account...
                 </div>
               ) : (
                 <div className="flex items-center gap-2">
@@ -174,7 +174,7 @@ export default function Login() {
           {/* Register link */}
           <div className="mt-6 text-center">
             <p className="text-gray-400 text-sm">
-              Already have an account?{" "}
+              Don't have an account?{" "}
               <Link
                 href={"/register"}
                 className="text-blue-400 hover:text-blue-300 font-semibold transition-colors"

@@ -7,6 +7,7 @@ import { UserPlus, Mail, Lock, User } from "lucide-react";
 import Button from "@/components/Button";
 import Input from "@/components/Input";
 import { useUser } from "@/hooks/useUser";
+import { databases } from "@/app/lib/appwrite";
 
 export default function Register() {
   const { register } = useUser();
@@ -30,6 +31,20 @@ export default function Register() {
     setGeneralError("");
   };
 
+  const createUserMeta = async (user) => {
+    await databases.createDocument(
+      DATABASE_ID,
+      USERS_META_COLLECTION_ID,
+      "unique()",
+      {
+        user_id: user.$id,
+        total_study_time: 0,
+        sessions_completed: 0,
+        rank_points: 0,
+      },
+      [Permission.read(Role.user(user.$id)), Permission.write(Role.user(user.$id))]
+    );
+  };
   // Validate fields
   const validateForm = () => {
     const newErrors = {};

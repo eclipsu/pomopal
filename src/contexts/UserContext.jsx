@@ -2,6 +2,8 @@
 import { createContext, useEffect, useState } from "react";
 import { ID } from "appwrite";
 import { account, client } from "@/app/lib/appwrite";
+import { createDefaultSettings } from "@/app/services/settings";
+import { createDefaultMeta } from "@/app/services/users";
 
 export const UserContext = createContext({
   user: null,
@@ -50,8 +52,17 @@ export function UserProvider({ children }) {
 
   async function register(email, password) {
     try {
-      await account.create(ID.unique(), email, password);
-      return await login(email, password);
+      const newUser = await account.create(ID.unique(), email, password);
+
+      // login first to create a valid session
+      const loginResult = await login(email, password);
+      if (!loginResult.success) throw new Error("Login failed right after registration");
+
+      // now you have a session; safe to create documents
+      await createDefaultMeta(newUser.$id);
+      await createDefaultSettings(newUser.$id);
+
+      return loginResult;
     } catch (error) {
       console.error("Register error:", error.message);
       return { success: false, message: error.message };

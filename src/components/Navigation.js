@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { FiSettings } from "react-icons/fi";
 import { GiTomato } from "react-icons/gi";
 import Link from "next/link";
-import { account } from "@/app/lib/appwrite"; // Appwrite client
+import { account } from "@/app/lib/appwrite";
 import Image from "next/image";
 import SignOut from "./SignOut";
 
