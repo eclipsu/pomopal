@@ -4,8 +4,10 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { UserPlus, Mail, Lock, User } from "lucide-react";
+
 import Button from "@/components/Button";
 import Input from "@/components/Input";
+import ProfileUploader from "@/components/ProfilePictureUploader";
 import { useUser } from "@/hooks/useUser";
 import { databases } from "@/app/lib/appwrite";
 
@@ -113,6 +115,8 @@ export default function Register() {
           <h2 className="text-2xl font-bold text-white mb-6">Create Account</h2>
 
           <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+            {/* Profile Picture */}
+            <ProfileUploader />
             {/* Full Name */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-300">Full Name</label>
@@ -129,7 +133,6 @@ export default function Register() {
               </div>
               {errors.name && <p className="text-red-400 text-xs">{errors.name}</p>}
             </div>
-
             {/* Email */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-300">Email Address</label>
@@ -146,7 +149,6 @@ export default function Register() {
               </div>
               {errors.email && <p className="text-red-400 text-xs">{errors.email}</p>}
             </div>
-
             {/* Password */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-300">Password</label>
@@ -164,7 +166,6 @@ export default function Register() {
               </div>
               {errors.password && <p className="text-red-400 text-xs">{errors.password}</p>}
             </div>
-
             {/* Confirm Password */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-300">Confirm Password</label>
@@ -184,10 +185,8 @@ export default function Register() {
                 <p className="text-red-400 text-xs">{errors.confirmPassword}</p>
               )}
             </div>
-
             {/* Form error */}
             {generalError && <p className="text-red-400 text-sm text-center">{generalError}</p>}
-
             {/* Submit */}
             <Button
               type="submit"
