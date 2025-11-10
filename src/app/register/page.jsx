@@ -81,7 +81,7 @@ export default function Register() {
     setGeneralError("");
 
     try {
-      await register(formData.email, formData.password);
+      await register(formData.email, formData.password, formData.name);
       console.log("✅ Registration successful!");
       router.push("/"); // redirect to home (or dashboard)
     } catch (error) {

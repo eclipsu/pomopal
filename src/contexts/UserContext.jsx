@@ -50,9 +50,18 @@ export function UserProvider({ children }) {
     }
   }
 
-  async function register(email, password) {
+  async function register(email, password, name) {
     try {
-      const newUser = await account.create(ID.unique(), email, password);
+      const newUser = await account.create(ID.unique(), email, password, name);
+      await newUser.updatePrefs(newUser.$id, {
+        pomodoro_duration: 25,
+        break_duration: 5,
+        long_break_duration: 15,
+        alarm_enabled: true,
+        total_pomodoros: 0,
+        total_minutes: 0,
+        current_streak: 0,
+      });
 
       // login first to create a valid session
       const loginResult = await login(email, password);

@@ -17,8 +17,9 @@ function SettingsPopup({ setOpenSettings, openSettings }) {
   useEffect(() => {
     async function getUserData() {
       try {
-        const userData = await account.get(); // requires active session
+        const userData = await account.get();
         setUser(userData);
+        console.log(userData);
       } catch (error) {
         console.log("No active session:", error.message);
         setUser(null); // explicitly set null if not logged in
