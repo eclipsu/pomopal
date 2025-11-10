@@ -32,13 +32,13 @@ function Navigation({ setOpenSettings }) {
       <div className="flex w-32 justify-between items-center cursor-pointer">
         {user ? (
           <>
-            {user.prefs?.avatar_url ? (
+            {user.prefs?.avatar ? (
               <Image
                 onClick={() => setOpenSignOut((value) => !value)}
                 width={500}
                 height={500}
-                className="w-10 h-10 rounded"
-                src={user.prefs.avatar_url}
+                className="w-10 h-10 rounded-full object-cover"
+                src={user.prefs.avatar}
                 alt={user.name || "User"}
               />
             ) : (

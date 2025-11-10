@@ -1,20 +1,18 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import { storage, ID } from "@/app/lib/appwrite";
 import Cropper from "react-easy-crop";
 import { getCroppedImg } from "@/app/lib/cropImage";
 import { motion, AnimatePresence } from "framer-motion";
 
-export default function ProfilePictureUploader({ onUpload }) {
-  const [selectedFileURL, setSelectedFileURL] = useState(null); // raw selected image
-  const [imageSrc, setImageSrc] = useState(null); // for cropper
+export default function ProfilePictureUploader({ value, onChange }) {
+  const [imageSrc, setImageSrc] = useState(null);
+  const [selectedFileURL, setSelectedFileURL] = useState(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [rotation, setRotation] = useState(0);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
-  const [croppedPreview, setCroppedPreview] = useState(null); // final cropped
-  const [uploading, setUploading] = useState(false);
+  const [croppedPreview, setCroppedPreview] = useState(null);
   const [editing, setEditing] = useState(false);
 
   const onCropComplete = useCallback((_, croppedPixels) => {
@@ -24,50 +22,31 @@ export default function ProfilePictureUploader({ onUpload }) {
   const handleFileSelect = (e) => {
     const file = e.target.files[0];
     if (!file) return;
+
     const url = URL.createObjectURL(file);
     setSelectedFileURL(url);
     setImageSrc(url);
     setCroppedPreview(null);
+
+    onChange(file);
   };
 
   const handleCrop = async () => {
     try {
       const croppedImage = await getCroppedImg(imageSrc, croppedAreaPixels, rotation);
       const previewUrl = URL.createObjectURL(croppedImage);
+
       setCroppedPreview(previewUrl);
       setEditing(false);
+
+      const finalImage = new File([croppedImage], "profile.jpg", { type: "image/jpeg" });
+      onChange(finalImage);
     } catch (e) {
-      console.error(e);
+      console.error("Crop failed:", e);
     }
   };
 
-  const handleUpload = async () => {
-    const finalImage = croppedPreview || selectedFileURL;
-    if (!finalImage) return alert("Please select or crop a photo first!");
-
-    setUploading(true);
-    const response = await fetch(finalImage);
-    const blob = await response.blob();
-    const file = new File([blob], "profile.jpg", { type: "image/jpeg" });
-
-    try {
-      const res = await storage.createFile(
-        process.env.NEXT_PUBLIC_APPWRITE_BUCKET,
-        ID.unique(),
-        file
-      );
-      const fileUrl = storage.getFilePreview(process.env.NEXT_PUBLIC_APPWRITE_BUCKET, res.$id).href;
-      if (onUpload) onUpload(fileUrl);
-      alert("Profile uploaded successfully!");
-    } catch (err) {
-      console.error(err);
-      alert("Upload failed!");
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  // Cleanup blob URLs to prevent memory leaks
+  // Clean up temp URLs
   useEffect(() => {
     return () => {
       if (selectedFileURL) URL.revokeObjectURL(selectedFileURL);
@@ -82,19 +61,18 @@ export default function ProfilePictureUploader({ onUpload }) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
     >
-      {/* Profile Image Preview */}
+      {/* Image Preview */}
       <motion.div
         className="relative w-32 h-32 rounded-full overflow-hidden border-2 border-gray-500 shadow-md"
         whileHover={{ scale: 1.05 }}
       >
         <img
-          src={croppedPreview || selectedFileURL || "/default-avatar.png"}
+          src={croppedPreview || selectedFileURL || value || "/default-avatar.png"}
           alt="Profile"
           className="object-cover w-full h-full"
         />
       </motion.div>
 
-      {/* Upload + Edit Controls */}
       <div className="flex gap-2">
         <label
           htmlFor="upload"
@@ -144,8 +122,8 @@ export default function ProfilePictureUploader({ onUpload }) {
                   rotation={rotation}
                   aspect={1}
                   onCropChange={setCrop}
-                  onRotationChange={setRotation}
                   onZoomChange={setZoom}
+                  onRotationChange={setRotation}
                   onCropComplete={onCropComplete}
                 />
               </div>
@@ -159,7 +137,7 @@ export default function ProfilePictureUploader({ onUpload }) {
                     max={3}
                     step={0.1}
                     value={zoom}
-                    onChange={(e) => setZoom(e.target.value)}
+                    onChange={(e) => setZoom(Number(e.target.value))}
                   />
                 </div>
                 <div className="flex items-center gap-2">
@@ -192,16 +170,6 @@ export default function ProfilePictureUploader({ onUpload }) {
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Upload Button */}
-      <motion.button
-        onClick={handleUpload}
-        disabled={uploading}
-        whileTap={{ scale: 0.95 }}
-        className="px-5 py-2 bg-blue-600 text-white rounded-md disabled:bg-gray-500"
-      >
-        {uploading ? "Uploading..." : "Upload"}
-      </motion.button>
     </motion.div>
   );
 }

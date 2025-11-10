@@ -1,7 +1,10 @@
-import { databases, ID, Permission, Role } from "@/app/lib/appwrite";
+import { databases, ID, Permission, Role, account, storage } from "@/app/lib/appwrite";
 
 const DATABASE_ID = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID;
 const META_COLLECTION_ID = process.env.NEXT_PUBLIC_APPWRITE_USERS_META_ID;
+const END_POINT = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT;
+const BUCKET_ID = process.env.NEXT_PUBLIC_APPWRITE_BUCKET;
+const PROJECT_ID = process.env.NEXT_PUBLIC_APPWRITE_PROJECT;
 
 // To initialize with default values
 export async function createDefaultMeta(userId) {
@@ -31,5 +34,21 @@ export async function updateUserStats(userId, data) {
       docs.documents[0].$id,
       data
     );
+  }
+}
+
+export async function updateAvatar(userId, avatarFile) {
+  try {
+    try {
+      await storage.deleteFile(BUCKET_ID, userId);
+    } catch {}
+
+    const uploaded = await storage.createFile(BUCKET_ID, userId, avatarFile);
+    const previewUrl = storage.getFileView(BUCKET_ID, uploaded.$id);
+
+    return previewUrl;
+  } catch (error) {
+    console.error("❌ updateAvatar error:", error.message);
+    return null;
   }
 }

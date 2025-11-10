@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { FiX } from "react-icons/fi";
 import { account } from "@/app/lib/appwrite";
+import Image from "next/image";
 
 function ModelSettings({
   pomodoro,
@@ -47,6 +48,18 @@ function ModelSettings({
           style={{ transform: "translate(-50%, -50%)" }}
         >
           <div className="text-gray-400 flex justify-between items-center">
+            {user.prefs?.avatar ? (
+              <Image
+                onClick={() => setOpenSignOut((value) => !value)}
+                width={500}
+                height={500}
+                className="w-10 h-10 rounded-full object-cover"
+                src={user.prefs.avatar}
+                alt={user.name || "User"}
+              />
+            ) : (
+              <></>
+            )}
             <h1 className="uppercase font-bold tracking-wider">{user.name || "User"}'s SETTINGS</h1>
             <FiX className="text-2xl cursor-pointer" onClick={() => setOpenSettings(false)} />
           </div>

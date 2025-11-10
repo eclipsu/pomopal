@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useUser } from "@/hooks/useUser";
 import { account } from "@/app/lib/appwrite";
 import Button from "./Button";
+import Image from "next/image";
 
 function SettingsPopup({ setOpenSettings, openSettings }) {
   const [user, setUser] = useState(null);
@@ -48,6 +49,18 @@ function SettingsPopup({ setOpenSettings, openSettings }) {
     <div className="absolute h-full w-full left-0 top-0 bg-black bg-opacity-30 flex items-center justify-center">
       <div className="p-5 rounded-md max-w-xl bg-white sm:w-86 w-11/12">
         <div className="text-gray-400 flex justify-between items-center">
+          {user?.prefs?.avatar ? (
+            <Image
+              onClick={() => setOpenSignOut((value) => !value)}
+              width={500}
+              height={500}
+              className="w-10 h-10 rounded-full object-cover"
+              src={user?.prefs?.avatar}
+              alt={user?.name || "User"}
+            />
+          ) : (
+            <></>
+          )}
           <h1 className="uppercase font-bold tracking-wider">{user?.name || "User"}’s SETTINGS</h1>
           <FiX className="text-2xl cursor-pointer" onClick={() => setOpenSettings(false)} />
         </div>

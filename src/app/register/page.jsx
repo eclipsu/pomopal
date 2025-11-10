@@ -4,12 +4,12 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { UserPlus, Mail, Lock, User } from "lucide-react";
+import { ID, storage } from "@/app/lib/appwrite";
 
 import Button from "@/components/Button";
 import Input from "@/components/Input";
-import ProfileUploader from "@/components/ProfilePictureUploader";
+import ProfilePictureUploader from "@/components/ProfilePictureUploader";
 import { useUser } from "@/hooks/useUser";
-import { databases } from "@/app/lib/appwrite";
 
 export default function Register() {
   const { register } = useUser();
@@ -20,72 +20,54 @@ export default function Register() {
     email: "",
     password: "",
     confirmPassword: "",
+    profilePic: null,
   });
 
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [generalError, setGeneralError] = useState("");
 
-  // Handle field change
+  // 📌 Handle field change
   const handleChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
-    setErrors((prev) => ({ ...prev, [field]: "" })); // clear specific error when typing
+    setErrors((prev) => ({ ...prev, [field]: "" }));
     setGeneralError("");
   };
 
-  const createUserMeta = async (user) => {
-    await databases.createDocument(
-      DATABASE_ID,
-      USERS_META_COLLECTION_ID,
-      "unique()",
-      {
-        user_id: user.$id,
-        total_study_time: 0,
-        sessions_completed: 0,
-        rank_points: 0,
-      },
-      [Permission.read(Role.user(user.$id)), Permission.write(Role.user(user.$id))]
-    );
-  };
-  // Validate fields
+  // 📌 Validation
   const validateForm = () => {
     const newErrors = {};
 
-    if (!formData.name.trim() || formData.name.length < 2) {
+    if (!formData.name.trim() || formData.name.length < 2)
       newErrors.name = "Full name must be at least 2 characters.";
-    }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email)) {
-      newErrors.email = "Please enter a valid email address.";
-    }
+    if (!emailRegex.test(formData.email)) newErrors.email = "Please enter a valid email address.";
 
     const passwordRegex = /^(?=.*[A-Z])(?=.*\d).{8,}$/;
-    if (!passwordRegex.test(formData.password)) {
+    if (!passwordRegex.test(formData.password))
       newErrors.password =
-        "Password must be at least 8 characters long, include one uppercase letter and one number.";
-    }
+        "Password must be at least 8 characters, include one uppercase letter and one number.";
 
-    if (formData.password !== formData.confirmPassword) {
+    if (formData.password !== formData.confirmPassword)
       newErrors.confirmPassword = "Passwords do not match.";
-    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  // Handle submit
+  // 📤 Handle submit
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
-
     setIsLoading(true);
     setGeneralError("");
 
     try {
-      await register(formData.email, formData.password, formData.name);
+      await register(formData.email, formData.password, formData.name, formData.profilePic);
+
       console.log("✅ Registration successful!");
-      router.push("/"); // redirect to home (or dashboard)
+      router.push("/");
     } catch (error) {
       console.error("❌ Registration failed:", error);
       setGeneralError("Something went wrong. Try a different email.");
@@ -114,9 +96,15 @@ export default function Register() {
         <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10 shadow-xl">
           <h2 className="text-2xl font-bold text-white mb-6">Create Account</h2>
 
+          {/* ✅ Profile Picture */}
+          <div className="flex justify-center mb-6">
+            <ProfilePictureUploader
+              value={formData.profilePic}
+              onChange={(file) => handleChange("profilePic", file)}
+            />
+          </div>
+
           <form onSubmit={handleSubmit} className="space-y-5" noValidate>
-            {/* Profile Picture */}
-            <ProfileUploader />
             {/* Full Name */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-300">Full Name</label>
@@ -133,6 +121,7 @@ export default function Register() {
               </div>
               {errors.name && <p className="text-red-400 text-xs">{errors.name}</p>}
             </div>
+
             {/* Email */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-300">Email Address</label>
@@ -149,6 +138,7 @@ export default function Register() {
               </div>
               {errors.email && <p className="text-red-400 text-xs">{errors.email}</p>}
             </div>
+
             {/* Password */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-300">Password</label>
@@ -166,6 +156,7 @@ export default function Register() {
               </div>
               {errors.password && <p className="text-red-400 text-xs">{errors.password}</p>}
             </div>
+
             {/* Confirm Password */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-300">Confirm Password</label>
@@ -185,8 +176,10 @@ export default function Register() {
                 <p className="text-red-400 text-xs">{errors.confirmPassword}</p>
               )}
             </div>
-            {/* Form error */}
+
+            {/* General Error */}
             {generalError && <p className="text-red-400 text-sm text-center">{generalError}</p>}
+
             {/* Submit */}
             <Button
               type="submit"
@@ -207,7 +200,7 @@ export default function Register() {
             </Button>
           </form>
 
-          {/* Login link */}
+          {/* Login Link */}
           <div className="mt-6 text-center">
             <p className="text-gray-400 text-sm">
               Already have an account?{" "}
