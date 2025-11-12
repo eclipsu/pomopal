@@ -6,6 +6,7 @@ import About from "@/components/About";
 import Alarm from "@/components/Alarm";
 import ModelSettings from "@/components/ModelSettings";
 import cryptoRandomString from "crypto-random-string";
+import { useUser } from "@/hooks/useUser";
 
 import { useEffect, useRef, useState } from "react";
 import { clearInterval, setInterval } from "worker-timers";
@@ -46,6 +47,7 @@ export default function Home() {
       try {
         const userData = await account.get();
         setUser(userData);
+        console.log(userData);
       } catch (error) {
         console.error("User not logged in:", error);
       }
@@ -54,60 +56,56 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    async function getSettings() {
-      if (user.$id) {
-        try {
-          const result = await databases.listDocuments(DATABASE_ID, SETTINGS_COLLECTION_ID, [
-            { key: "user_id", value: user.$id, operator: "equal" },
-          ]);
-          if (result.documents.length > 0) {
-            const s = result.documents[0];
-            setPomodoro(s.work_duration);
-            setShortBreaks(s.break_duration);
-            setLongBreaks(s.long_break_duration);
-          }
-        } catch (err) {
-          console.error("Error fetching settings:", err);
-        }
+    async function getUserPrefs() {
+      try {
+        const prefs = user.prefs || {};
+        setPomodoro(prefs.pomodoro || 25);
+        setShortBreaks(prefs.shortBreak || 5);
+        setLongBreaks(prefs.longBreak || 10);
+      } catch (error) {
+        console.error("Error fetching user preferences:", error);
       }
     }
-    getSettings();
+    getUserPrefs();
   }, [user]);
 
   const updateTimeDefaultValue = async () => {
-    if (
-      pomodoroRef.current.value < 0 ||
-      shortBreakRef.current.value < 0 ||
-      longBreakRef.current.value < 0
-    )
-      return Error("Invalid values");
+    const pomodoroVal = Number(pomodoroRef.current.value);
+    const shortVal = Number(shortBreakRef.current.value);
+    const longVal = Number(longBreakRef.current.value);
 
-    try {
-      const result = await databases.listDocuments(DATABASE_ID, SETTINGS_COLLECTION_ID, [
-        { key: "user_id", value: user.$id, operator: "equal" },
-      ]);
-      if (result.documents.length > 0) {
-        await databases.updateDocument(
-          DATABASE_ID,
-          SETTINGS_COLLECTION_ID,
-          result.documents[0].$id,
-          {
-            work_duration: Number(pomodoroRef.current.value),
-            break_duration: Number(shortBreakRef.current.value),
-            long_break_duration: Number(longBreakRef.current.value),
-          }
-        );
-      }
-    } catch (error) {
-      Error("Error updating settings:", error.message);
+    if (pomodoroVal < 0 || shortVal < 0 || longVal < 0) {
+      console.error("Invalid values");
+      return;
     }
 
-    setPomodoro(Number(pomodoroRef.current.value));
-    setShortBreaks(Number(shortBreakRef.current.value));
-    setLongBreaks(Number(longBreakRef.current.value));
-    setOpenSettings(false);
-    setSeconds(0);
-    setConsumedSeconds(0);
+    try {
+      if (user?.$id) {
+        await account.updatePrefs({
+          pomodoro: pomodoroVal,
+          shortBreak: shortVal,
+          longBreak: longVal,
+        });
+      } else {
+        localStorage.setItem(
+          "pomodoroSettings",
+          JSON.stringify({
+            pomodoro: pomodoroVal,
+            shortBreak: shortVal,
+            longBreak: longVal,
+          })
+        );
+      }
+
+      setPomodoro(pomodoroVal);
+      setShortBreaks(shortVal);
+      setLongBreaks(longVal);
+      setOpenSettings(false);
+      setSeconds(0);
+      setConsumedSeconds(0);
+    } catch (error) {
+      console.error("Error updating preferences:", error.message);
+    }
   };
 
   const switchSelected = (index) => {

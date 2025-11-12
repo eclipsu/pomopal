@@ -71,10 +71,10 @@ function ModelSettings({
               <div key={index}>
                 <h1 className="text-gray-400 text-sm">{input.value}</h1>
                 <input
-                  defaultValue={input.defaultValue}
+                  value={input.ref.current?.value ?? input.defaultValue}
+                  onChange={(e) => (input.ref.current.value = e.target.value)}
                   type="number"
                   className="w-full bg-gray-400 bg-opacity-30 py-2 rounded outline-none text-center"
-                  ref={input.ref}
                 />
               </div>
             ))}
