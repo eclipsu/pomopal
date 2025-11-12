@@ -47,7 +47,6 @@ export default function Home() {
       try {
         const userData = await account.get();
         setUser(userData);
-        console.log(userData);
       } catch (error) {
         console.error("User not logged in:", error);
       }
@@ -105,7 +104,9 @@ export default function Home() {
       setConsumedSeconds(0);
     } catch (error) {
       console.error("Error updating preferences:", error.message);
+      return false;
     }
+    return true;
   };
 
   const switchSelected = (index) => {

@@ -47,7 +47,7 @@ export default function Login() {
     if (!validateForm()) return;
 
     setIsLoading(true);
-    console.log("Login attempt:", formData);
+    // console.log("Login attempt:", formData);
 
     try {
       const result = await login(formData.email, formData.password);

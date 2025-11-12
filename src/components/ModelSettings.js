@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { FiX } from "react-icons/fi";
 import { account } from "@/app/lib/appwrite";
 import Image from "next/image";
+import Button from "./Button";
 
 function ModelSettings({
   pomodoro,
@@ -14,13 +15,24 @@ function ModelSettings({
   openSettings,
   updateTimeDefaultValue,
 }) {
-  const inputs = [
-    { value: "Pomodoro", ref: pomodoroRef, defaultValue: pomodoro },
-    { value: "Short Break", ref: shortBreakRef, defaultValue: shortBreaks },
-    { value: "Long Break", ref: longBreakRef, defaultValue: longBreaks },
-  ];
-
   const [user, setUser] = useState({});
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Sync latest prop values into refs whenever settings reopen or change
+  useEffect(() => {
+    if (pomodoroRef.current) pomodoroRef.current.value = pomodoro;
+    if (shortBreakRef.current) shortBreakRef.current.value = shortBreaks;
+    if (longBreakRef.current) longBreakRef.current.value = longBreaks;
+  }, [pomodoro, shortBreaks, longBreaks, openSettings]);
+
+  const handleUpdate = async () => {
+    try {
+      setIsLoading(true);
+      await updateTimeDefaultValue();
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
     async function getUserData() {
@@ -33,6 +45,12 @@ function ModelSettings({
     }
     getUserData();
   }, []);
+
+  const inputs = [
+    { label: "Pomodoro", ref: pomodoroRef },
+    { label: "Short Break", ref: shortBreakRef },
+    { label: "Long Break", ref: longBreakRef },
+  ];
 
   return (
     <div
@@ -50,16 +68,13 @@ function ModelSettings({
           <div className="text-gray-400 flex justify-between items-center">
             {user.prefs?.avatar ? (
               <Image
-                onClick={() => setOpenSignOut((value) => !value)}
                 width={500}
                 height={500}
                 className="w-10 h-10 rounded-full object-cover"
                 src={user.prefs.avatar}
                 alt={user.name || "User"}
               />
-            ) : (
-              <></>
-            )}
+            ) : null}
             <h1 className="uppercase font-bold tracking-wider">{user.name || "User"}'s SETTINGS</h1>
             <FiX className="text-2xl cursor-pointer" onClick={() => setOpenSettings(false)} />
           </div>
@@ -69,10 +84,9 @@ function ModelSettings({
           <div className="flex gap-5">
             {inputs.map((input, index) => (
               <div key={index}>
-                <h1 className="text-gray-400 text-sm">{input.value}</h1>
+                <h1 className="text-gray-400 text-sm">{input.label}</h1>
                 <input
-                  value={input.ref.current?.value ?? input.defaultValue}
-                  onChange={(e) => (input.ref.current.value = e.target.value)}
+                  ref={input.ref}
                   type="number"
                   className="w-full bg-gray-400 bg-opacity-30 py-2 rounded outline-none text-center"
                 />
@@ -80,12 +94,21 @@ function ModelSettings({
             ))}
           </div>
 
-          <button
-            className="bg-green-600 uppercase w-full mt-5 text-white rounded py-2"
-            onClick={updateTimeDefaultValue}
+          <Button
+            type="button"
+            disabled={isLoading}
+            className="w-full h-12 uppercase mt-5 rounded py-2 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-xl transition-all duration-200 shadow-lg shadow-blue-500/20"
+            onClick={handleUpdate}
           >
-            Save
-          </button>
+            {isLoading ? (
+              <div className="flex items-center gap-2">
+                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                Updating Settings
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">Update Settings</div>
+            )}
+          </Button>
         </div>
       </div>
     </div>

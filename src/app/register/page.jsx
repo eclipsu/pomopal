@@ -66,7 +66,7 @@ export default function Register() {
     try {
       await register(formData.email, formData.password, formData.name, formData.profilePic);
 
-      console.log("✅ Registration successful!");
+      // console.log("✅ Registration successful!");
       router.push("/");
     } catch (error) {
       console.error("❌ Registration failed:", error);

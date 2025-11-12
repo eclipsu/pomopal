@@ -20,7 +20,7 @@ function SettingsPopup({ setOpenSettings, openSettings }) {
       try {
         const userData = await account.get();
         setUser(userData);
-        console.log(userData);
+        // console.log(userData);
       } catch (error) {
         console.log("No active session:", error.message);
         setUser(null); // explicitly set null if not logged in
