@@ -150,7 +150,15 @@ export default function Home() {
   const timesUp = async () => {
     reset();
     setIsTimesUp(true);
-    setSelected(selected == 0 ? 1 : selected == 1 ? 0 : 0);
+    const prefs = user.prefs || {};
+    const nextStage = selected == 0 ? 1 : selected == 1 ? 0 : 0;
+
+    setSelected(nextStage);
+
+    setPomodoro(prefs.pomodoro || 25);
+    setShortBreaks(prefs.shortBreak || 5);
+    setLongBreaks(prefs.longBreak || 10);
+
     alarmRef.current.play();
     setElapsedTime(0);
     await updateDatabase(0, true);
