@@ -1,0 +1,272 @@
+{
+  "projectId": "68f95f3f000ba74e0c35",
+  "projectName": "pomopal",
+  "databases": [
+    {
+      "$id": "pomopal_database",
+      "name": "Pomodoro Database",
+      "$permissions": [],
+      "enabled": true,
+      "collections": [
+        {
+          "$id": "sessions",
+          "$permissions": [],
+          "databaseId": "pomopal_database",
+          "name": "Sessions",
+          "enabled": true,
+          "documentSecurity": true,
+          "attributes": [
+            {
+              "key": "userId",
+              "type": "string",
+              "status": "available",
+              "error": "",
+              "required": true,
+              "array": false,
+              "size": 255,
+              "default": null
+            },
+            {
+              "key": "sessionType",
+              "type": "enum",
+              "status": "available",
+              "error": "",
+              "required": true,
+              "array": false,
+              "elements": ["pomodoro", "short_break", "long_break"],
+              "format": "",
+              "default": null
+            },
+            {
+              "key": "duration",
+              "type": "integer",
+              "status": "available",
+              "error": "",
+              "required": true,
+              "array": false,
+              "min": 1,
+              "max": 120,
+              "default": null
+            },
+            {
+              "key": "actualDuration",
+              "type": "integer",
+              "status": "available",
+              "error": "",
+              "required": false,
+              "array": false,
+              "min": 0,
+              "max": 120,
+              "default": null
+            },
+            {
+              "key": "startTime",
+              "type": "datetime",
+              "status": "available",
+              "error": "",
+              "required": true,
+              "array": false,
+              "format": "datetime",
+              "default": null
+            },
+            {
+              "key": "endTime",
+              "type": "datetime",
+              "status": "available",
+              "error": "",
+              "required": false,
+              "array": false,
+              "format": "datetime",
+              "default": null
+            },
+            {
+              "key": "completed",
+              "type": "boolean",
+              "status": "available",
+              "error": "",
+              "required": true,
+              "array": false,
+              "default": false
+            },
+            {
+              "key": "tags",
+              "type": "string",
+              "status": "available",
+              "error": "",
+              "required": false,
+              "array": true,
+              "size": 50,
+              "default": null
+            },
+            {
+              "key": "notes",
+              "type": "string",
+              "status": "available",
+              "error": "",
+              "required": false,
+              "array": false,
+              "size": 5000,
+              "default": null
+            }
+          ],
+          "indexes": [
+            {
+              "key": "userId_idx",
+              "type": "key",
+              "status": "available",
+              "error": "",
+              "attributes": ["userId"],
+              "orders": ["ASC"]
+            },
+            {
+              "key": "startTime_idx",
+              "type": "key",
+              "status": "available",
+              "error": "",
+              "attributes": ["startTime"],
+              "orders": ["DESC"]
+            },
+            {
+              "key": "sessionType_idx",
+              "type": "key",
+              "status": "available",
+              "error": "",
+              "attributes": ["sessionType"],
+              "orders": ["ASC"]
+            },
+            {
+              "key": "userId_startTime_idx",
+              "type": "key",
+              "status": "available",
+              "error": "",
+              "attributes": ["userId", "startTime"],
+              "orders": ["ASC", "DESC"]
+            }
+          ]
+        },
+        {
+          "$id": "daily_logs",
+          "$permissions": [],
+          "databaseId": "pomopal_database",
+          "name": "Daily Logs",
+          "enabled": true,
+          "documentSecurity": true,
+          "attributes": [
+            {
+              "key": "userId",
+              "type": "string",
+              "status": "available",
+              "error": "",
+              "required": true,
+              "array": false,
+              "size": 255,
+              "default": null
+            },
+            {
+              "key": "date",
+              "type": "string",
+              "status": "available",
+              "error": "",
+              "required": true,
+              "array": false,
+              "size": 10,
+              "default": null
+            },
+            {
+              "key": "pomodorosCompleted",
+              "type": "integer",
+              "status": "available",
+              "error": "",
+              "required": true,
+              "array": false,
+              "min": 0,
+              "max": 1000,
+              "default": 0
+            },
+            {
+              "key": "shortBreaksCompleted",
+              "type": "integer",
+              "status": "available",
+              "error": "",
+              "required": true,
+              "array": false,
+              "min": 0,
+              "max": 1000,
+              "default": 0
+            },
+            {
+              "key": "longBreaksCompleted",
+              "type": "integer",
+              "status": "available",
+              "error": "",
+              "required": true,
+              "array": false,
+              "min": 0,
+              "max": 1000,
+              "default": 0
+            },
+            {
+              "key": "totalFocusTime",
+              "type": "integer",
+              "status": "available",
+              "error": "",
+              "required": true,
+              "array": false,
+              "min": 0,
+              "max": 10000,
+              "default": 0
+            },
+            {
+              "key": "sessionsAbandoned",
+              "type": "integer",
+              "status": "available",
+              "error": "",
+              "required": true,
+              "array": false,
+              "min": 0,
+              "max": 1000,
+              "default": 0
+            }
+          ],
+          "indexes": [
+            {
+              "key": "userId_date_idx",
+              "type": "unique",
+              "status": "available",
+              "error": "",
+              "attributes": ["userId", "date"],
+              "orders": ["ASC", "ASC"]
+            },
+            {
+              "key": "date_idx",
+              "type": "key",
+              "status": "available",
+              "error": "",
+              "attributes": ["date"],
+              "orders": ["DESC"]
+            },
+            {
+              "key": "userId_idx",
+              "type": "key",
+              "status": "available",
+              "error": "",
+              "attributes": ["userId"],
+              "orders": ["ASC"]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "collections": [
+    {
+      "$id": "6924dd4b001b55c62282",
+      "databaseId": "pomopal_database",
+      "name": "pomodoro_collections",
+      "documentSecurity": false,
+      "attributes": [],
+      "indexes": [],
+      "enabled": true
+    }
+  ]
+}
