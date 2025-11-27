@@ -5,21 +5,17 @@ import Timer from "@/components/Timer";
 import About from "@/components/About";
 import Alarm from "@/components/Alarm";
 import ModelSettings from "@/components/ModelSettings";
-import cryptoRandomString from "crypto-random-string";
-import { useUser } from "@/hooks/useUser";
 
 import { useEffect, useRef, useState } from "react";
 import { clearInterval, setInterval } from "worker-timers";
 
-import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
-import Error from "./lib/settingsError";
 import { account, databases } from "./lib/appwrite";
 
-const DATABASE_ID = "YOUR_DATABASE_ID";
-const SETTINGS_COLLECTION_ID = "settings";
-const USAGE_COLLECTION_ID = "useage";
+const DATABASE_ID = "pomodoro_sessions_db";
+const SESSIONS_COLLECTION_ID = "sessions";
+const DAILY_LOGS_COLLECTION_ID = "daily_logs";
 
 export default function Home() {
   const [pomodoro, setPomodoro] = useState(25);
@@ -40,8 +36,11 @@ export default function Home() {
 
   const [user, setUser] = useState({});
   const [elapsedTime, setElapsedTime] = useState(0);
-  const [usageId, setUsageId] = useState(cryptoRandomString({ length: 10, type: "alphanumeric" }));
+  const [currentSessionId, setCurrentSessionId] = useState(null);
 
+  const [showStats, setShowStats] = useState(false);
+
+  // Get user data
   useEffect(() => {
     async function getUserData() {
       try {
@@ -54,6 +53,7 @@ export default function Home() {
     getUserData();
   }, []);
 
+  // Get user preferences
   useEffect(() => {
     async function getUserPrefs() {
       try {
@@ -67,6 +67,79 @@ export default function Home() {
     }
     getUserPrefs();
   }, [user]);
+
+  // Session recovery on mount
+  useEffect(() => {
+    if (!user.$id) return;
+
+    const savedSession = localStorage.getItem("activeSession");
+
+    if (savedSession) {
+      const session = JSON.parse(savedSession);
+      const now = new Date();
+      const startTime = new Date(session.startTime);
+      const elapsed = (now.getTime() - startTime.getTime()) / 1000; // seconds
+
+      // If session was started recently (within last 2 hours)
+      if (elapsed < 7200 && elapsed > 0) {
+        const elapsedMinutes = Math.floor(elapsed / 60);
+        const shouldRecover = confirm(
+          `You have an unfinished ${session.sessionType} from ${elapsedMinutes} minute(s) ago. Continue?`
+        );
+
+        if (shouldRecover) {
+          // Restore session state
+          setCurrentSessionId(session.sessionId);
+          setSelected(session.selected);
+          setElapsedTime(Math.floor(elapsed));
+
+          // Calculate remaining time
+          const totalSeconds = session.duration * 60;
+          const remaining = totalSeconds - Math.floor(elapsed);
+
+          if (remaining > 0) {
+            const remainingMinutes = Math.floor(remaining / 60);
+            const remainingSeconds = remaining % 60;
+
+            if (session.selected === 0) setPomodoro(remainingMinutes);
+            else if (session.selected === 1) setShortBreaks(remainingMinutes);
+            else setLongBreaks(remainingMinutes);
+
+            setSeconds(remainingSeconds);
+            setTicking(true);
+          } else {
+            // Time already expired
+            markSessionAbandoned(session.sessionId, Math.floor(elapsed));
+            localStorage.removeItem("activeSession");
+          }
+        } else {
+          // User chose to abandon
+          markSessionAbandoned(session.sessionId, Math.floor(elapsed));
+          localStorage.removeItem("activeSession");
+        }
+      } else {
+        // Too old or invalid, mark as abandoned
+        if (session.sessionId) {
+          markSessionAbandoned(session.sessionId, 0);
+        }
+        localStorage.removeItem("activeSession");
+      }
+    }
+  }, [user.$id]);
+
+  const markSessionAbandoned = async (sessionId, actualDuration) => {
+    if (!sessionId || !user.$id) return;
+
+    try {
+      await databases.updateDocument(DATABASE_ID, SESSIONS_COLLECTION_ID, sessionId, {
+        endTime: new Date().toISOString(),
+        actualDuration: Math.floor(actualDuration / 60), // convert to minutes
+        completed: false,
+      });
+    } catch (error) {
+      console.error("Error marking session as abandoned:", error);
+    }
+  };
 
   const updateTimeDefaultValue = async () => {
     const pomodoroVal = Number(pomodoroRef.current.value);
@@ -144,10 +217,145 @@ export default function Home() {
   const reset = () => {
     setConsumedSeconds(0);
     setTicking(false);
-    setUsageId(cryptoRandomString({ length: 10, type: "alphanumeric" }));
+    setCurrentSessionId(null);
+    localStorage.removeItem("activeSession");
+  };
+
+  const createSession = async () => {
+    if (!user.$id) return null;
+
+    const sessionTypeMap = {
+      0: "pomodoro",
+      1: "short_break",
+      2: "long_break",
+    };
+
+    try {
+      const session = await databases.createDocument(
+        DATABASE_ID,
+        SESSIONS_COLLECTION_ID,
+        "unique()",
+        {
+          userId: user.$id,
+          sessionType: sessionTypeMap[selected],
+          duration: getTime(),
+          startTime: new Date().toISOString(),
+          completed: false,
+        }
+      );
+
+      setCurrentSessionId(session.$id);
+
+      // Save to localStorage
+      localStorage.setItem(
+        "activeSession",
+        JSON.stringify({
+          sessionId: session.$id,
+          startTime: session.startTime,
+          duration: getTime(),
+          selected: selected,
+          sessionType: sessionTypeMap[selected],
+        })
+      );
+
+      return session.$id;
+    } catch (error) {
+      console.error("Error creating session:", error);
+      return null;
+    }
+  };
+
+  const updateSession = async (completed = false) => {
+    if (!currentSessionId || !user.$id) return;
+
+    try {
+      await databases.updateDocument(DATABASE_ID, SESSIONS_COLLECTION_ID, currentSessionId, {
+        endTime: new Date().toISOString(),
+        actualDuration: Math.floor(elapsedTime / 60), // convert to minutes
+        completed: completed,
+      });
+    } catch (error) {
+      console.error("Error updating session:", error);
+    }
+  };
+
+  const updateUserStats = async () => {
+    if (!user.$id || selected !== 0) return; // Only update for pomodoros
+
+    try {
+      const prefs = user.prefs || {};
+      await account.updatePrefs({
+        ...prefs,
+        total_pomodoros: (prefs.total_pomodoros || 0) + 1,
+        total_minutes: (prefs.total_minutes || 0) + Math.floor(elapsedTime / 60),
+      });
+    } catch (error) {
+      console.error("Error updating user stats:", error);
+    }
+  };
+
+  const updateDailyLog = async () => {
+    if (!user.$id) return;
+
+    const today = new Date().toISOString().split("T")[0];
+
+    try {
+      // Check if today's log exists
+      const existing = await databases.listDocuments(DATABASE_ID, DAILY_LOGS_COLLECTION_ID, [
+        `userId=${user.$id}`,
+        `date=${today}`,
+      ]);
+
+      const fieldMap = {
+        0: "pomodorosCompleted",
+        1: "shortBreaksCompleted",
+        2: "longBreaksCompleted",
+      };
+
+      const field = fieldMap[selected];
+
+      if (existing.documents.length > 0) {
+        // Update existing
+        const log = existing.documents[0];
+        const updates = {
+          [field]: (log[field] || 0) + 1,
+        };
+
+        if (selected === 0) {
+          updates.totalFocusTime = (log.totalFocusTime || 0) + Math.floor(elapsedTime / 60);
+        }
+
+        await databases.updateDocument(DATABASE_ID, DAILY_LOGS_COLLECTION_ID, log.$id, updates);
+      } else {
+        // Create new
+        const newLog = {
+          userId: user.$id,
+          date: today,
+          pomodorosCompleted: 0,
+          shortBreaksCompleted: 0,
+          longBreaksCompleted: 0,
+          totalFocusTime: 0,
+          sessionsAbandoned: 0,
+        };
+
+        newLog[field] = 1;
+        if (selected === 0) {
+          newLog.totalFocusTime = Math.floor(elapsedTime / 60);
+        }
+
+        await databases.createDocument(DATABASE_ID, DAILY_LOGS_COLLECTION_ID, "unique()", newLog);
+      }
+    } catch (error) {
+      console.error("Error updating daily log:", error);
+    }
   };
 
   const timesUp = async () => {
+    // Complete the session
+    await updateSession(true);
+    await updateUserStats();
+    await updateDailyLog();
+
     reset();
     setIsTimesUp(true);
     const prefs = user.prefs || {};
@@ -161,61 +369,39 @@ export default function Home() {
 
     alarmRef.current.play();
     setElapsedTime(0);
-    await updateDatabase(0, true);
-  };
 
-  const updateDatabase = async (elapsedTime, completed) => {
-    try {
-      const existing = await databases.listDocuments(DATABASE_ID, USAGE_COLLECTION_ID, [
-        { key: "user_id", value: user.$id, operator: "equal" },
-        { key: "usage_id", value: usageId, operator: "equal" },
-      ]);
-
-      if (existing.documents.length > 0) {
-        const doc = existing.documents[0];
-        const updatedDuration = doc.duration + elapsedTime;
-        await databases.updateDocument(DATABASE_ID, USAGE_COLLECTION_ID, doc.$id, {
-          duration: updatedDuration,
-          completed,
-        });
-      } else {
-        await databases.createDocument(DATABASE_ID, USAGE_COLLECTION_ID, "unique()", {
-          user_id: user.$id,
-          usage_id: usageId,
-          timestamp: new Date().toISOString(),
-          duration: elapsedTime,
-          completed,
-        });
-      }
-    } catch (err) {
-      console.error("Error updating usage data:", err);
-    }
+    // Clear localStorage on completion
+    localStorage.removeItem("activeSession");
   };
 
   const clockTicking = () => {
     const minute = getTime(selected);
     const setMinute = updateMinute();
 
-    if (minute === 0 && seconds === 0) timesUp();
-    else if (seconds === 0) {
+    if (minute === 0 && seconds === 0) {
+      timesUp();
+    } else if (seconds === 0) {
       setMinute((minute) => minute - 1);
       setSeconds(59);
     } else {
       setSeconds((seconds) => seconds - 1);
     }
 
-    if (selected === 0) {
-      setElapsedTime((prev) => prev + 1);
-      if (elapsedTime % 10 === 0) {
-        updateDatabase(10, false);
-      }
-    }
+    // Track elapsed time
+    setElapsedTime((prev) => prev + 1);
   };
 
-  const startTimer = () => {
+  const startTimer = async () => {
     setIsTimesUp(false);
     muteAlarm();
-    setTicking((t) => !t);
+
+    const newTicking = !ticking;
+    setTicking(newTicking);
+
+    // Create session when starting
+    if (newTicking && !currentSessionId) {
+      await createSession();
+    }
   };
 
   const muteAlarm = () => {
@@ -223,10 +409,31 @@ export default function Home() {
     alarmRef.current.currentTime = 0;
   };
 
+  // Main timer effect
   useEffect(() => {
+    // Warn before closing tab with active timer
     window.onbeforeunload = () => {
-      return consumeSeconds ? "Show Warning" : null;
+      if (consumeSeconds && ticking && selected === 0) {
+        // Update localStorage with latest state
+        if (currentSessionId) {
+          localStorage.setItem(
+            "activeSession",
+            JSON.stringify({
+              sessionId: currentSessionId,
+              startTime: new Date(Date.now() - elapsedTime * 1000).toISOString(),
+              duration: pomodoro,
+              selected: selected,
+              sessionType: "pomodoro",
+              elapsedTime: elapsedTime,
+            })
+          );
+        }
+
+        return "You have an active pomodoro. Are you sure you want to leave?";
+      }
+      return null;
     };
+
     const timer = setInterval(() => {
       if (ticking) {
         setConsumedSeconds((v) => v + 1);
@@ -236,13 +443,25 @@ export default function Home() {
         document.title = `Pomopal`;
       }
     }, 1000);
-    return () => clearInterval(timer);
-  }, [seconds, pomodoro, shortBreaks, longBreaks, ticking]);
+
+    return () => {
+      clearInterval(timer);
+    };
+  }, [
+    seconds,
+    pomodoro,
+    shortBreaks,
+    longBreaks,
+    ticking,
+    consumeSeconds,
+    elapsedTime,
+    currentSessionId,
+  ]);
 
   return (
     <div className="bg-gray-900 min-h-screen">
       <div className="max-w-2xl min-h-screen mx-auto overflow-y-hidden">
-        <Navigation setOpenSettings={setOpenSettings} />
+        <Navigation setOpenSettings={setOpenSettings} setShowStats={setShowStats} />
         <Timer
           selected={selected}
           switchSelected={switchSelected}
@@ -269,7 +488,6 @@ export default function Home() {
           updateTimeDefaultValue={updateTimeDefaultValue}
         />
       </div>
-      <ToastContainer position="top-right" autoClose={5000} theme="dark" />
     </div>
   );
 }
