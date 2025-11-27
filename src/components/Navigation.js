@@ -5,8 +5,9 @@ import Link from "next/link";
 import { account } from "@/app/lib/appwrite";
 import Image from "next/image";
 import SignOut from "./SignOut";
+import { ChartNoAxesCombined } from "lucide-react";
 
-function Navigation({ setOpenSettings }) {
+function Navigation({ setOpenSettings, setShowStats }) {
   const [user, setUser] = useState(null);
   const [openSignOut, setOpenSignOut] = useState(false);
 
@@ -59,8 +60,12 @@ function Navigation({ setOpenSettings }) {
           className="text-2xl cursor-pointer"
           onClick={() => setOpenSettings((value) => !value)}
         />
+        <ChartNoAxesCombined
+          className="text-2xl cursor-pointer"
+          onClick={() => setShowStats((value) => !value)}
+        />
       </div>
-      <SignOut openSettings={openSignOut} setOpenSettings={setOpenSignOut} />
+      {user && <SignOut openSettings={openSignOut} setOpenSettings={setOpenSignOut} />}
     </nav>
   );
 }

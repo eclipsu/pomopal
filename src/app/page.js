@@ -5,6 +5,7 @@ import Timer from "@/components/Timer";
 import About from "@/components/About";
 import Alarm from "@/components/Alarm";
 import ModelSettings from "@/components/ModelSettings";
+import ModelStatistics from "@/components/ModelStatistics";
 
 import { useEffect, useRef, useState } from "react";
 import { clearInterval, setInterval } from "worker-timers";
@@ -487,6 +488,7 @@ export default function Home() {
           setOpenSettings={setOpenSettings}
           updateTimeDefaultValue={updateTimeDefaultValue}
         />
+        <ModelStatistics openSettings={showStats} setOpenSettings={setShowStats} />
       </div>
     </div>
   );

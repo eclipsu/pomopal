@@ -25,7 +25,7 @@ export function UserProvider({ children }) {
         setUser(current);
       } catch (error) {
         if (error?.code === 401 || error?.message?.includes('missing scopes (["account"])')) {
-          // No active session — ignore
+          setUser(null);
         } else {
           console.error("Appwrite error:", error);
         }
@@ -44,7 +44,7 @@ export function UserProvider({ children }) {
       let preferences = null;
       try {
         preferences = await account.getPrefs();
-      } catch {}
+      } catch (error) {}
       setUser({ userData, preferences });
       return { success: true, user: userData };
     } catch (error) {
