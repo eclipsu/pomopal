@@ -6,6 +6,7 @@ import Image from "next/image";
 import Box from "@mui/material/Box";
 import { BarChart } from "@mui/x-charts/BarChart";
 import { Clock, Calendar, Flame } from "lucide-react";
+import { getStreak } from "@/app/services/analytics";
 
 const StatCard = ({ icon: Icon, value, label }) => (
   <div className="bg-gray-50 rounded-xl p-4 flex flex-col items-center justify-center aspect-square w-28 border border-gray-200">
@@ -17,8 +18,8 @@ const StatCard = ({ icon: Icon, value, label }) => (
 
 function ModelSettings({ setOpenSettings, openSettings }) {
   const [user, setUser] = useState({});
+  const [streak, setStreak] = useState(0);
   const workData = [4, 0, 15, 9, 6, 3, 2];
-  const breakData = [3, 8, 2, 5, 10, 4, 6];
   const xLabels = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
   useEffect(() => {
@@ -26,6 +27,8 @@ function ModelSettings({ setOpenSettings, openSettings }) {
       try {
         const userData = await account.get();
         setUser(userData);
+        const s = await getStreak(userData.$id);
+        setStreak(s ?? 0);
       } catch (err) {
         console.error("Error fetching user data:", err);
       }
@@ -72,10 +75,10 @@ function ModelSettings({ setOpenSettings, openSettings }) {
             <div className="h-px w-full bg-gray-300"></div>
           </div>
 
-          <div className="flex gap-4 justify-center mb-6">
-            <StatCard icon={Clock} value="361" label="hours focused" />
-            <StatCard icon={Calendar} value="118" label="days accessed" />
-            <StatCard icon={Flame} value="0" label="day streak" />
+          <div className="flex gap-4">
+            {/* <StatCard icon={Clock} value="361" label="hours focused" /> */}
+            {/* <StatCard icon={Calendar} value="118" label="days accessed" /> */}
+            <StatCard icon={Flame} value={streak} label="day streak" />
           </div>
           <div className="my-6">
             <h2 className="text-gray-600 text-lg font-semibold mb-2">Your Hours</h2>
@@ -84,10 +87,7 @@ function ModelSettings({ setOpenSettings, openSettings }) {
           <div className="flex flex-col items-center">
             <Box sx={{ width: "100%", height: 300 }}>
               <BarChart
-                series={[
-                  { data: workData, label: "Work", id: "workId", stack: "total" },
-                  { data: breakData, label: "Break", id: "breakId", stack: "total" },
-                ]}
+                series={[{ data: workData, label: "Work", id: "workId", stack: "total" }]}
                 xAxis={[{ data: xLabels }]}
                 yAxis={[{ width: 50 }]}
               />

@@ -224,6 +224,31 @@ export default function Home() {
     }
   };
 
+  const incrementStreak = async () => {
+    try {
+      let existing;
+
+      try {
+        existing = await databases.getDocument("pomodoro_sessions_db", "analytics", user.$id);
+      } catch (_) {
+        await databases.createDocument("pomodoro_sessions_db", "analytics", user.$id, {
+          userId: user.$id,
+          streak: 1,
+          hours_focused: 0,
+          lastActiveDate: new Date().toISOString().split("T")[0],
+        });
+        return;
+      }
+
+      await databases.updateDocument("pomodoro_sessions_db", "analytics", user.$id, {
+        streak: existing.streak + 1,
+        lastActiveDate: new Date().toISOString().split("T")[0],
+      });
+    } catch (e) {
+      console.error("Streak update failed:", e);
+    }
+  };
+
   const clockTicking = () => {
     const minute = getTime();
     const setMinute = updateMinute();
@@ -245,7 +270,10 @@ export default function Home() {
     const newTicking = !ticking;
     setTicking(newTicking);
 
-    if (newTicking && !currentSessionId) await createSession();
+    if (newTicking && !currentSessionId) {
+      if (selected === 0) await incrementStreak();
+      await createSession();
+    }
 
     if (!newTicking && currentSessionId) {
       await updateSession(false);
