@@ -10,6 +10,8 @@ import ModelStatistics from "@/components/ModelStatistics";
 import { useEffect, useRef, useState } from "react";
 import { clearInterval, setInterval } from "worker-timers";
 
+import { incrementStreak } from "@/app/services/analytics";
+
 import "react-toastify/dist/ReactToastify.css";
 
 import { account, databases } from "./lib/appwrite";
@@ -68,17 +70,17 @@ export default function Home() {
   }, []);
 
   // Get user preferences
-  useEffect(() => {
-    async function getUserPrefs() {
-      try {
-        const prefs = user.prefs || {};
-        setPomodoro(prefs.pomodoro || 25);
-        setShortBreaks(prefs.shortBreak || 5);
-        setLongBreaks(prefs.longBreak || 10);
-      } catch (error) {
-        console.error("Error fetching user preferences:", error);
-      }
+  async function getUserPrefs() {
+    try {
+      const prefs = user.prefs || {};
+      setPomodoro(prefs.pomodoro || 25);
+      setShortBreaks(prefs.shortBreak || 5);
+      setLongBreaks(prefs.longBreak || 10);
+    } catch (error) {
+      console.error("Error fetching user preferences:", error);
     }
+  }
+  useEffect(() => {
     getUserPrefs();
   }, [user]);
 
@@ -224,31 +226,6 @@ export default function Home() {
     }
   };
 
-  const incrementStreak = async () => {
-    try {
-      let existing;
-
-      try {
-        existing = await databases.getDocument("pomodoro_sessions_db", "analytics", user.$id);
-      } catch (_) {
-        await databases.createDocument("pomodoro_sessions_db", "analytics", user.$id, {
-          userId: user.$id,
-          streak: 1,
-          hours_focused: 0,
-          lastActiveDate: new Date().toISOString(),
-        });
-        return;
-      }
-
-      await databases.updateDocument("pomodoro_sessions_db", "analytics", user.$id, {
-        streak: existing.streak + 1,
-        lastActiveDate: new Date().toISOString().split("T")[0],
-      });
-    } catch (e) {
-      console.error("Streak update failed:", e);
-    }
-  };
-
   const clockTicking = () => {
     const minute = getTime();
     const setMinute = updateMinute();
@@ -270,8 +247,9 @@ export default function Home() {
     const newTicking = !ticking;
     setTicking(newTicking);
 
+    await incrementStreak(user.$id);
+
     if (newTicking && !currentSessionId) {
-      if (selected === 0) await incrementStreak();
       await createSession();
     }
 
@@ -285,11 +263,29 @@ export default function Home() {
 
   const timesUp = async () => {
     await updateSession(true);
-    reset();
-    setIsTimesUp(true);
+
     alarmRef.current.play();
-    setElapsedTime(0);
+
     localStorage.removeItem("activeSession");
+    setElapsedTime(0);
+
+    if (selected === 0) {
+      getUserPrefs();
+      setSelected(1);
+      setShortBreaks((prev) => prev || shortBreaks);
+      setSeconds(0);
+    } else {
+      getUserPrefs();
+
+      setSelected(0);
+      setPomodoro((prev) => prev || pomodoro);
+      setSeconds(0);
+    }
+
+    setIsTimesUp(false);
+
+    setTicking(true);
+    startTimer();
   };
 
   useEffect(() => {
