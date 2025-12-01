@@ -235,7 +235,7 @@ export default function Home() {
           userId: user.$id,
           streak: 1,
           hours_focused: 0,
-          lastActiveDate: new Date().toISOString().split("T")[0],
+          lastActiveDate: new Date().toISOString(),
         });
         return;
       }
