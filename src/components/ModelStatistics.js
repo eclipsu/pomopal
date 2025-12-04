@@ -17,11 +17,49 @@ const StatCard = ({ icon: Icon, value, label }) => (
   </div>
 );
 
+async function fetchAnalytics(userId) {
+  try {
+    const res = await fetch(`/api/analytics`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "x-user-id": userId,
+      },
+    });
+
+    if (!res.ok) {
+      const error = await res.json();
+      console.error("API Error:", error);
+      return null;
+    }
+
+    const data = await res.json();
+    return data;
+  } catch (err) {
+    console.error("Fetch error:", err);
+    return null;
+  }
+}
+
 function ModelSettings({ setOpenSettings, openSettings }) {
   const [user, setUser] = useState({});
   const [streak, setStreak] = useState(0);
-  const workData = [4, 0, 15, 9, 6, 3, 2];
-  const xLabels = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const xLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const [workData, setWorkData] = useState(new Array(7).fill(0));
+
+  useEffect(() => {
+    if (!user.$id) return;
+
+    async function fetchAnalyticsData() {
+      const analyticsData = await fetchAnalytics(user.$id);
+      if (analyticsData) {
+        setStreak(analyticsData.streak || 0);
+        setWorkData(analyticsData.studyHours || new Array(7).fill(0));
+      }
+    }
+
+    fetchAnalyticsData();
+  }, [user.$id]);
 
   useEffect(() => {
     async function getUserData() {

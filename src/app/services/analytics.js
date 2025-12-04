@@ -1,30 +1,27 @@
 import { databases, Query, ID } from "@/app/lib/appwrite";
 import { isOlderThan24Hours, getWeeksDates } from "@/app/services/dates";
+import { jsonToString, stringToJson, createObject } from "@/app/services/jsonString";
 
 const DATABASE_ID = "pomodoro_sessions_db";
 const COLLECTION_ID = "analytics";
-
 export async function getStreak(userId) {
+  if (!userId) return 0;
   const result = await databases.listDocuments(DATABASE_ID, COLLECTION_ID, [
     Query.equal("userId", userId),
   ]);
 
   if (result.total === 0) {
-    // console.log("Analytics not found - creating new one");
-    await databases.createDocument(DATABASE_ID, COLLECTION_ID, userId, {
+    await databases.createDocument(DATABASE_ID, COLLECTION_ID, ID.unique(), {
       userId,
       streak: 0,
       hours_focused: 0,
       lastActiveDate: null,
     });
-
     return 0;
   }
 
-  // Exactly one doc
   return result.documents[0].streak;
 }
-
 export async function incrementStreak(userId) {
   try {
     const result = await databases.listDocuments(DATABASE_ID, COLLECTION_ID, [
@@ -62,6 +59,7 @@ export async function incrementStreak(userId) {
   }
 }
 export async function getStudyHours(userId) {
+  if (!userId) return new Array(7).fill(0);
   const SESSIONS_COLLECTION_ID = "sessions";
   const HOURS_COLLECTION_ID = "study_hours";
   const weekDates = getWeeksDates();
@@ -71,20 +69,33 @@ export async function getStudyHours(userId) {
     Query.equal("startDate", weekDates[0]),
   ]);
 
+  // if not in database, calculate from sessions
+  // we are going to get the values back
   if (result.total <= 0) {
     const sessions = await databases.listDocuments(DATABASE_ID, SESSIONS_COLLECTION_ID, [
       Query.equal("userId", userId),
       Query.createdAfter("2025-01-01T00:00:00Z"),
     ]);
-    const totalMilliseconds = sessions.documents.reduce((acc, session) => {
-      const start = new Date(session.startTime).getTime();
-      const end = new Date(session.endTime).getTime();
-      return acc + (end - start);
-    }, 0);
 
-    const totalHours = totalMilliseconds / (1000 * 60 * 60);
+    const minutes = createObject(getWeeksDates());
+    for (const session of sessions.documents) {
+      const date = new Date(session.startTime).toISOString().split("T")[0];
+      if (!minutes.hasOwnProperty(date)) continue;
+      minutes[date] += session.actualDuration;
+    }
+
+    await databases.createDocument(DATABASE_ID, HOURS_COLLECTION_ID, ID.unique(), {
+      userId,
+      startDate: weekDates[0],
+      minutes: jsonToString(minutes),
+    });
+
+    return Object.values(minutes);
   }
 
-  // console.log(sessions.documents);
-  // return sessions.documents;
+  return Object.values(stringToJson(result.documents[0].minutes));
+
+  // return existing hours database
+  // hours is stored as a JSON string with week as keys and hours as values
+  // return Object.values(stringToJson(result.documents[0].hours));
 }

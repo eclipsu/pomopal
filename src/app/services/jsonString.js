@@ -1,4 +1,4 @@
-export function toJsonString(data) {
+export function jsonToString(data) {
   try {
     return JSON.stringify(data);
   } catch (err) {
@@ -7,11 +7,15 @@ export function toJsonString(data) {
   }
 }
 
-export function toJsonObject(str) {
+export function stringToJson(str) {
   try {
     return JSON.parse(str);
   } catch (err) {
     console.error("JSON parse error:", err);
     return null;
   }
+}
+
+export function createObject(keys) {
+  return Object.fromEntries(keys.map((key) => [key, 0]));
 }
