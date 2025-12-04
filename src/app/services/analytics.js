@@ -1,22 +1,16 @@
 import { databases, Query, ID } from "@/app/lib/appwrite";
+import { isOlderThan24Hours, getWeeksDates } from "@/app/services/dates";
 
 const DATABASE_ID = "pomodoro_sessions_db";
 const COLLECTION_ID = "analytics";
 
-function isOlderThan24Hours(inputDate) {
-  const given = new Date(inputDate).getTime();
-  const now = Date.now();
-
-  const diff = now - given;
-  return diff > 24 * 60 * 60 * 1000;
-}
 export async function getStreak(userId) {
   const result = await databases.listDocuments(DATABASE_ID, COLLECTION_ID, [
     Query.equal("userId", userId),
   ]);
 
   if (result.total === 0) {
-    console.log("Analytics not found - creating new one");
+    // console.log("Analytics not found - creating new one");
     await databases.createDocument(DATABASE_ID, COLLECTION_ID, userId, {
       userId,
       streak: 0,
@@ -53,9 +47,6 @@ export async function incrementStreak(userId) {
     const doc = result.documents[0];
 
     if (!isOlderThan24Hours(doc.lastActiveDate)) {
-      console.log(
-        `Last active date was ${new Date(doc.lastActiveDate)}. Skipping streak increment.`
-      );
       return doc.streak;
     }
 
@@ -65,10 +56,35 @@ export async function incrementStreak(userId) {
       streak: newStreak,
       lastActiveDate: new Date().toISOString(),
     });
-
-    console.log("Streak updated:", newStreak);
     return newStreak;
   } catch (e) {
     console.error("Streak update failed:", e);
   }
+}
+export async function getStudyHours(userId) {
+  const SESSIONS_COLLECTION_ID = "sessions";
+  const HOURS_COLLECTION_ID = "study_hours";
+  const weekDates = getWeeksDates();
+
+  const result = await databases.listDocuments(DATABASE_ID, HOURS_COLLECTION_ID, [
+    Query.equal("userId", userId),
+    Query.equal("startDate", weekDates[0]),
+  ]);
+
+  if (result.total <= 0) {
+    const sessions = await databases.listDocuments(DATABASE_ID, SESSIONS_COLLECTION_ID, [
+      Query.equal("userId", userId),
+      Query.createdAfter("2025-01-01T00:00:00Z"),
+    ]);
+    const totalMilliseconds = sessions.documents.reduce((acc, session) => {
+      const start = new Date(session.startTime).getTime();
+      const end = new Date(session.endTime).getTime();
+      return acc + (end - start);
+    }, 0);
+
+    const totalHours = totalMilliseconds / (1000 * 60 * 60);
+  }
+
+  // console.log(sessions.documents);
+  // return sessions.documents;
 }

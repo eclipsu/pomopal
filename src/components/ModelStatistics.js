@@ -7,6 +7,7 @@ import Box from "@mui/material/Box";
 import { BarChart } from "@mui/x-charts/BarChart";
 import { Clock, Calendar, Flame } from "lucide-react";
 import { getStreak } from "@/app/services/analytics";
+import { getStudyHours } from "@/app/services/analytics";
 
 const StatCard = ({ icon: Icon, value, label }) => (
   <div className="bg-gray-50 rounded-xl p-4 flex flex-col items-center justify-center aspect-square w-28 border border-gray-200">
@@ -35,6 +36,10 @@ function ModelSettings({ setOpenSettings, openSettings }) {
     }
     getUserData();
   }, []);
+
+  (async () => {
+    await getStudyHours(user.$id);
+  })();
 
   return (
     <div
