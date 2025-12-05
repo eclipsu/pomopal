@@ -3,99 +3,123 @@ import { isOlderThan24Hours, getWeeksDates } from "@/app/services/dates";
 import { jsonToString, stringToJson, createObject } from "@/app/services/jsonString";
 
 const DATABASE_ID = "pomodoro_sessions_db";
-const COLLECTION_ID = "analytics";
+const ANALYTICS_COLLECTION = "analytics";
+const SESSIONS_COLLECTION = "sessions";
+const STUDY_HOURS_COLLECTION = "study_hours";
+
 export async function getStreak(userId) {
   if (!userId) return 0;
-  const result = await databases.listDocuments(DATABASE_ID, COLLECTION_ID, [
-    Query.equal("userId", userId),
-  ]);
-
-  if (result.total === 0) {
-    await databases.createDocument(DATABASE_ID, COLLECTION_ID, ID.unique(), {
-      userId,
-      streak: 0,
-      hours_focused: 0,
-      lastActiveDate: null,
-    });
-    return 0;
-  }
-
-  return result.documents[0].streak;
-}
-export async function incrementStreak(userId) {
   try {
-    const result = await databases.listDocuments(DATABASE_ID, COLLECTION_ID, [
+    const result = await databases.listDocuments(DATABASE_ID, ANALYTICS_COLLECTION, [
       Query.equal("userId", userId),
     ]);
 
     if (result.total === 0) {
-      console.log("No analytics found - creating fresh record");
+      await databases.createDocument(DATABASE_ID, ANALYTICS_COLLECTION, ID.unique(), {
+        userId,
+        streak: 0,
+        hours_focused: 0,
+        lastActiveDate: null,
+      });
+      return 0;
+    }
 
-      await databases.createDocument(DATABASE_ID, COLLECTION_ID, userId, {
+    return result.documents[0].streak;
+  } catch (err) {
+    console.error("getStreak failed:", err);
+    return 0;
+  }
+}
+
+export async function incrementStreak(userId) {
+  if (!userId) return 0;
+  try {
+    const result = await databases.listDocuments(DATABASE_ID, ANALYTICS_COLLECTION, [
+      Query.equal("userId", userId),
+    ]);
+
+    let doc;
+    if (result.total === 0) {
+      doc = await databases.createDocument(DATABASE_ID, ANALYTICS_COLLECTION, ID.unique(), {
         userId,
         streak: 1,
         hours_focused: 0,
         lastActiveDate: new Date().toISOString(),
       });
-
       return 1;
     }
 
-    const doc = result.documents[0];
-
-    if (!isOlderThan24Hours(doc.lastActiveDate)) {
-      return doc.streak;
-    }
+    doc = result.documents[0];
+    if (!isOlderThan24Hours(doc.lastActiveDate)) return doc.streak;
 
     const newStreak = (doc.streak || 0) + 1;
-
-    await databases.updateDocument(DATABASE_ID, COLLECTION_ID, doc.$id, {
+    await databases.updateDocument(DATABASE_ID, ANALYTICS_COLLECTION, doc.$id, {
       streak: newStreak,
       lastActiveDate: new Date().toISOString(),
     });
     return newStreak;
-  } catch (e) {
-    console.error("Streak update failed:", e);
+  } catch (err) {
+    console.error("incrementStreak failed:", err);
+    return 0;
   }
 }
+
 export async function getStudyHours(userId) {
   if (!userId) return new Array(7).fill(0);
-  const SESSIONS_COLLECTION_ID = "sessions";
-  const HOURS_COLLECTION_ID = "study_hours";
-  const weekDates = getWeeksDates();
 
-  const result = await databases.listDocuments(DATABASE_ID, HOURS_COLLECTION_ID, [
-    Query.equal("userId", userId),
-    Query.equal("startDate", weekDates[0]),
-  ]);
+  const weekDates = getWeeksDates(); // array of YYYY-MM-DD for the week
+  const startDate = weekDates[0];
+  const endDate = weekDates[6] + "T23:59:59Z";
 
-  // if not in database, calculate from sessions
-  // we are going to get the values back
-  if (result.total <= 0) {
-    const sessions = await databases.listDocuments(DATABASE_ID, SESSIONS_COLLECTION_ID, [
+  try {
+    // fetch existing weekly hours doc
+    const result = await databases.listDocuments(DATABASE_ID, STUDY_HOURS_COLLECTION, [
       Query.equal("userId", userId),
-      Query.createdAfter("2025-01-01T00:00:00Z"),
+      Query.equal("startDate", startDate),
     ]);
 
-    const minutes = createObject(getWeeksDates());
+    let minutes;
+    if (result.total > 0) {
+      minutes = stringToJson(result.documents[0].minutes);
+    } else {
+      // initialize empty week object
+      minutes = createObject(weekDates);
+    }
+
+    // fetch new sessions that are not yet counted
+    const sessions = await databases.listDocuments(DATABASE_ID, SESSIONS_COLLECTION, [
+      Query.equal("userId", userId),
+      Query.createdAfter(startDate),
+      Query.createdBefore(endDate),
+    ]);
+
+    let updated = false;
     for (const session of sessions.documents) {
       const date = new Date(session.startTime).toISOString().split("T")[0];
       if (!minutes.hasOwnProperty(date)) continue;
-      minutes[date] += session.actualDuration;
+      const oldMinutes = minutes[date] || 0;
+      const newMinutes = oldMinutes + session.actualDuration;
+      if (newMinutes !== oldMinutes) updated = true;
+      minutes[date] = newMinutes;
     }
 
-    await databases.createDocument(DATABASE_ID, HOURS_COLLECTION_ID, ID.unique(), {
-      userId,
-      startDate: weekDates[0],
-      minutes: jsonToString(minutes),
-    });
+    if (result.total === 0) {
+      // create document if missing
+      await databases.createDocument(DATABASE_ID, STUDY_HOURS_COLLECTION, ID.unique(), {
+        userId,
+        startDate,
+        minutes: jsonToString(minutes),
+      });
+    } else if (updated) {
+      // update existing doc if new sessions added
+      await databases.updateDocument(DATABASE_ID, STUDY_HOURS_COLLECTION, result.documents[0].$id, {
+        minutes: jsonToString(minutes),
+      });
+    }
 
     return Object.values(minutes);
+  } catch (err) {
+    console.error("getStudyHours failed:", err);
+    return new Array(7).fill(0);
   }
-
-  return Object.values(stringToJson(result.documents[0].minutes));
-
-  // return existing hours database
-  // hours is stored as a JSON string with week as keys and hours as values
-  // return Object.values(stringToJson(result.documents[0].hours));
 }
