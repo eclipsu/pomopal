@@ -9,6 +9,7 @@ import ModelStatistics from "@/components/ModelStatistics";
 
 import { useEffect, useRef, useState } from "react";
 import { clearInterval, setInterval } from "worker-timers";
+import { usePost } from "@/hooks/usePost";
 
 import { incrementStreak } from "@/app/services/analytics";
 
@@ -49,42 +50,39 @@ export default function Home() {
   const alarmRef = useRef();
 
   const [user, setUser] = useState({});
-  const [elapsedTime, setElapsedTime] = useState(0); // seconds
+  const [elapsedTime, setElapsedTime] = useState(0);
   const [currentSessionId, setCurrentSessionId] = useState(null);
 
-  // Recovery dialog state
   const [showRecoverDialog, setShowRecoverDialog] = useState(false);
   const [recoveredSession, setRecoveredSession] = useState(null);
 
-  // Get user data
+  const [showSwitchDialog, setShowSwitchDialog] = useState(false);
+  const [pendingSelected, setPendingSelected] = useState(null);
+
+  const { submit } = usePost("/api/sessions");
+
   useEffect(() => {
     async function getUserData() {
       try {
         const userData = await account.get();
         setUser(userData);
-      } catch (error) {
-        console.error("User not logged in:", error);
-      }
+      } catch (error) {}
     }
     getUserData();
   }, []);
 
-  // Get user preferences
   async function getUserPrefs() {
     try {
       const prefs = user.prefs || {};
       setPomodoro(prefs.pomodoro || 25);
       setShortBreaks(prefs.shortBreak || 5);
       setLongBreaks(prefs.longBreak || 10);
-    } catch (error) {
-      console.error("Error fetching user preferences:", error);
-    }
+    } catch (error) {}
   }
   useEffect(() => {
     getUserPrefs();
   }, [user]);
 
-  // Session recovery
   useEffect(() => {
     if (!user.$id) return;
 
@@ -116,19 +114,15 @@ export default function Home() {
     setSelected(session.selected);
     setElapsedTime(Math.floor(session.elapsed));
 
-    if (remaining > 0) {
-      const remainingMinutes = Math.floor(remaining / 60);
-      const remainingSeconds = remaining % 60;
-      if (session.selected === 0) setPomodoro(remainingMinutes);
-      else if (session.selected === 1) setShortBreaks(remainingMinutes);
-      else setLongBreaks(remainingMinutes);
+    const remainingMinutes = Math.floor(remaining / 60);
+    const remainingSeconds = remaining % 60;
 
-      setSeconds(remainingSeconds);
-      setTicking(true);
-    } else {
-      markSessionAbandoned(session.sessionId, Math.floor(session.elapsed));
-      localStorage.removeItem("activeSession");
-    }
+    if (session.selected === 0) setPomodoro(remainingMinutes);
+    else if (session.selected === 1) setShortBreaks(remainingMinutes);
+    else setLongBreaks(remainingMinutes);
+
+    setSeconds(remainingSeconds);
+    setTicking(true);
 
     setShowRecoverDialog(false);
     setRecoveredSession(null);
@@ -151,9 +145,7 @@ export default function Home() {
         actualDuration: Math.floor(actualDurationSeconds / 60),
         completed: false,
       });
-    } catch (error) {
-      console.error("Error marking session as abandoned:", error);
-    }
+    } catch (error) {}
   };
 
   const getTime = () => {
@@ -174,45 +166,6 @@ export default function Home() {
     localStorage.removeItem("activeSession");
   };
 
-  const createSession = async () => {
-    if (!user.$id) return null;
-    const sessionTypeMap = { 0: "pomodoro", 1: "short_break", 2: "long_break" };
-
-    try {
-      const session = await databases.createDocument(
-        DATABASE_ID,
-        SESSIONS_COLLECTION_ID,
-        "unique()",
-        {
-          userId: user.$id,
-          sessionType: sessionTypeMap[selected],
-          duration: getTime(),
-          startTime: new Date().toISOString(),
-          completed: false,
-        }
-      );
-
-      setCurrentSessionId(session.$id);
-      localStorage.setItem(
-        "activeSession",
-        JSON.stringify({
-          sessionId: session.$id,
-          startTime: new Date().toISOString(),
-          duration: getTime(),
-          selected,
-          sessionType: sessionTypeMap[selected],
-          remainingSeconds: getTime() * 60,
-        })
-      );
-
-      setElapsedTime(0);
-      return session.$id;
-    } catch (error) {
-      console.error("Error creating session:", error);
-      return null;
-    }
-  };
-
   const updateSession = async (completed = false) => {
     if (!currentSessionId || !user.$id) return;
     try {
@@ -221,9 +174,7 @@ export default function Home() {
         actualDuration: Math.floor(elapsedTime / 60),
         completed,
       });
-    } catch (error) {
-      console.error("Error updating session:", error);
-    }
+    } catch (error) {}
   };
 
   const clockTicking = () => {
@@ -240,7 +191,6 @@ export default function Home() {
   };
 
   const startTimer = async () => {
-    setIsTimesUp(false);
     alarmRef.current.pause();
     alarmRef.current.currentTime = 0;
 
@@ -250,7 +200,27 @@ export default function Home() {
     await incrementStreak(user.$id);
 
     if (newTicking && !currentSessionId) {
-      await createSession();
+      const result = await submit({
+        userId: user.$id,
+        selected,
+        duration: getTime(),
+      });
+
+      if (result?.sessionId) {
+        setCurrentSessionId(result.sessionId);
+        setElapsedTime(0);
+
+        localStorage.setItem(
+          "activeSession",
+          JSON.stringify({
+            sessionId: result.sessionId,
+            startTime: result.startTime,
+            duration: result.duration,
+            selected,
+            sessionType: result.sessionType,
+          })
+        );
+      }
     }
 
     if (!newTicking && currentSessionId) {
@@ -261,6 +231,33 @@ export default function Home() {
     }
   };
 
+  const handleSwitchRequest = (idx) => {
+    if (ticking) {
+      setPendingSelected(idx);
+      setShowSwitchDialog(true);
+    } else {
+      setSelected(idx);
+    }
+  };
+
+  const confirmSwitch = () => {
+    setSelected(pendingSelected);
+
+    // TODO: mark current session as abandoned
+
+    setSeconds(0);
+    setTicking(true);
+    startTimer();
+
+    setPendingSelected(null);
+    setShowSwitchDialog(false);
+  };
+
+  const cancelSwitch = () => {
+    setPendingSelected(null);
+    setShowSwitchDialog(false);
+  };
+
   const timesUp = async () => {
     await updateSession(true);
 
@@ -269,21 +266,11 @@ export default function Home() {
     localStorage.removeItem("activeSession");
     setElapsedTime(0);
 
-    if (selected === 0) {
-      getUserPrefs();
-      setSelected(1);
-      setShortBreaks((prev) => prev || shortBreaks);
-      setSeconds(0);
-    } else {
-      getUserPrefs();
+    if (selected === 0) setSelected(1);
+    else if (selected === 1) setSelected(2);
+    else setSelected(0);
 
-      setSelected(0);
-      setPomodoro((prev) => prev || pomodoro);
-      setSeconds(0);
-    }
-
-    setIsTimesUp(false);
-
+    setSeconds(0);
     setTicking(true);
     startTimer();
   };
@@ -306,7 +293,7 @@ export default function Home() {
         <Navigation setOpenSettings={setOpenSettings} setShowStats={setShowStats} />
         <Timer
           selected={selected}
-          switchSelected={(idx) => setSelected(idx)}
+          switchSelected={(idx) => handleSwitchRequest(idx)}
           getTime={getTime}
           seconds={seconds}
           ticking={ticking}
@@ -331,7 +318,6 @@ export default function Home() {
         />
         <ModelStatistics openSettings={showStats} setOpenSettings={setShowStats} />
 
-        {/* Recovery Dialog */}
         <Dialog open={showRecoverDialog} onOpenChange={setShowRecoverDialog}>
           <DialogContent>
             <DialogHeader>
@@ -346,6 +332,23 @@ export default function Home() {
                 Discard
               </Button>
               <Button onClick={handleRecoverSession}>Continue</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        <Dialog open={showSwitchDialog} onOpenChange={setShowSwitchDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Switch Session?</DialogTitle>
+              <DialogDescription>
+                You have an active timer. Switching modes will reset the current session. Are you
+                sure you want to switch?
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="flex justify-end gap-2">
+              <Button variant="outline" onClick={cancelSwitch}>
+                Cancel
+              </Button>
+              <Button onClick={confirmSwitch}>Switch</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

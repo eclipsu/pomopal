@@ -57,7 +57,7 @@ export default function PomodoroTimer({
           onClick={startTimer}
           className="px-16 py-2 text-2xl rounded-md bg-white text-blue-500 uppercase font-bold w-56"
         >
-          {ticking ? "Stop" : "Start"}
+          {ticking ? "Pause" : "Start"}
         </button>
         {isTimesUp && (
           <FiBellOff className="text-3xl text-white cursor-pointer" onClick={muteAlarm} />
