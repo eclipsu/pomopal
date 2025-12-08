@@ -85,12 +85,13 @@ export default function Home() {
     getUserPrefs();
   }, [user]);
 
-  useEffect(async () => {
-    if (!user.$id) return;
+  useEffect(() => {
+    async function checkRecovery() {
+      if (!user.$id) return;
 
-    const savedSession = localStorage.getItem("activeSession");
+      const savedSession = localStorage.getItem("activeSession");
+      if (!savedSession) return;
 
-    if (savedSession) {
       const session = JSON.parse(savedSession);
       const now = new Date();
       const startTime = new Date(session.startTime);
@@ -110,6 +111,8 @@ export default function Home() {
         localStorage.removeItem("activeSession");
       }
     }
+
+    checkRecovery();
   }, [user.$id]);
 
   const handleRecoverSession = () => {
