@@ -43,3 +43,33 @@ export async function createSession(userId, selected, duration) {
     return null;
   }
 }
+
+export async function updateSession(sessionId, actualDurationSeconds, completed) {
+  if (!sessionId) {
+    console.warn("No sessionId provided. Aborting.");
+    return null;
+  }
+
+  try {
+    const result = await databases.updateDocument(DATABASE_ID, SESSIONS_COLLECTION_ID, sessionId, {
+      endTime: new Date().toISOString(),
+      actualDurationSeconds,
+      completed,
+    });
+
+    return result;
+  } catch (error) {
+    console.error("Error updating session:", error);
+    return null;
+  }
+}
+
+export async function markSessionAbandoned(sessionId, elapsedSeconds) {
+  return updateSession(sessionId, elapsedSeconds, false);
+}
+
+export const SessionService = {
+  createSession,
+  updateSession,
+  markSessionAbandoned,
+};

@@ -10,6 +10,7 @@ import ModelStatistics from "@/components/ModelStatistics";
 import { useEffect, useRef, useState } from "react";
 import { clearInterval, setInterval } from "worker-timers";
 import { usePost } from "@/hooks/usePost";
+import { usePut } from "@/hooks/usePut";
 
 import { incrementStreak } from "@/app/services/analytics";
 
@@ -60,6 +61,7 @@ export default function Home() {
   const [pendingSelected, setPendingSelected] = useState(null);
 
   const { submit } = usePost("/api/sessions");
+  const { submit: updateSession } = usePut("/api/sessions");
 
   useEffect(() => {
     async function getUserData() {
@@ -83,7 +85,7 @@ export default function Home() {
     getUserPrefs();
   }, [user]);
 
-  useEffect(() => {
+  useEffect(async () => {
     if (!user.$id) return;
 
     const savedSession = localStorage.getItem("activeSession");
@@ -98,7 +100,13 @@ export default function Home() {
         setRecoveredSession({ ...session, elapsed });
         setShowRecoverDialog(true);
       } else {
-        if (session.sessionId) markSessionAbandoned(session.sessionId, 0);
+        if (session.sessionId) {
+          await updateSession({
+            sessionId: session.sessionId,
+            actualDurationSeconds: 0,
+            completed: false,
+          });
+        }
         localStorage.removeItem("activeSession");
       }
     }
@@ -128,9 +136,13 @@ export default function Home() {
     setRecoveredSession(null);
   };
 
-  const handleDiscardSession = () => {
+  const handleDiscardSession = async () => {
     if (!recoveredSession) return;
-    markSessionAbandoned(recoveredSession.sessionId, Math.floor(recoveredSession.elapsed));
+    await updateSession({
+      sessionId: recoveredSession.sessionId,
+      actualDurationSeconds: Math.floor(recoveredSession.elapsed),
+      completed: false,
+    });
     localStorage.removeItem("activeSession");
     setShowRecoverDialog(false);
     setRecoveredSession(null);
@@ -164,17 +176,6 @@ export default function Home() {
     setCurrentSessionId(null);
     setElapsedTime(0);
     localStorage.removeItem("activeSession");
-  };
-
-  const updateSession = async (completed = false) => {
-    if (!currentSessionId || !user.$id) return;
-    try {
-      await databases.updateDocument(DATABASE_ID, SESSIONS_COLLECTION_ID, currentSessionId, {
-        endTime: new Date().toISOString(),
-        actualDuration: Math.floor(elapsedTime / 60),
-        completed,
-      });
-    } catch (error) {}
   };
 
   const clockTicking = () => {
@@ -224,7 +225,12 @@ export default function Home() {
     }
 
     if (!newTicking && currentSessionId) {
-      await updateSession(false);
+      await updateSession({
+        sessionId: currentSessionId,
+        actualDurationSeconds: elapsedTime,
+        completed: false,
+      });
+
       localStorage.removeItem("activeSession");
       setCurrentSessionId(null);
       setElapsedTime(0);
@@ -240,10 +246,20 @@ export default function Home() {
     }
   };
 
-  const confirmSwitch = () => {
-    setSelected(pendingSelected);
+  const confirmSwitch = async () => {
+    if (currentSessionId) {
+      await updateSession({
+        sessionId: currentSessionId,
+        actualDurationSeconds: elapsedTime,
+        completed: false,
+      });
+    }
 
-    // TODO: mark current session as abandoned
+    localStorage.removeItem("activeSession");
+    setCurrentSessionId(null);
+    setElapsedTime(0);
+
+    setSelected(pendingSelected);
 
     setSeconds(0);
     setTicking(true);
@@ -252,14 +268,17 @@ export default function Home() {
     setPendingSelected(null);
     setShowSwitchDialog(false);
   };
-
   const cancelSwitch = () => {
     setPendingSelected(null);
     setShowSwitchDialog(false);
   };
 
   const timesUp = async () => {
-    await updateSession(true);
+    await updateSession({
+      sessionId: currentSessionId,
+      actualDurationSeconds: elapsedTime,
+      completed: true,
+    });
 
     alarmRef.current.play();
 
