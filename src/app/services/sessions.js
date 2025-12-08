@@ -44,7 +44,7 @@ export async function createSession(userId, selected, duration) {
   }
 }
 
-export async function updateSession(sessionId, actualDurationSeconds, completed) {
+export async function updateSession(sessionId, actualDuration, completed) {
   if (!sessionId) {
     console.warn("No sessionId provided. Aborting.");
     return null;
@@ -53,7 +53,7 @@ export async function updateSession(sessionId, actualDurationSeconds, completed)
   try {
     const result = await databases.updateDocument(DATABASE_ID, SESSIONS_COLLECTION_ID, sessionId, {
       endTime: new Date().toISOString(),
-      actualDurationSeconds,
+      actualDuration,
       completed,
     });
 

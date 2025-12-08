@@ -124,7 +124,7 @@ function ModelSettings({ setOpenSettings, openSettings }) {
             <StatCard icon={Flame} value={streak} label="day streak" />
           </div>
           <div className="my-6">
-            <h2 className="text-gray-600 text-lg font-semibold mb-2">Your Hours</h2>
+            <h2 className="text-gray-600 text-lg font-semibold mb-2">Your Study Minutes</h2>
             <div className="h-px w-full bg-gray-300"></div>
           </div>
           <div className="flex flex-col items-center">

@@ -16,7 +16,7 @@ import { incrementStreak } from "@/app/services/analytics";
 
 import "react-toastify/dist/ReactToastify.css";
 
-import { account, databases } from "./lib/appwrite";
+import { account, databases } from "@/app/lib/appwrite";
 
 import {
   Dialog,
@@ -51,7 +51,7 @@ export default function Home() {
   const alarmRef = useRef();
 
   const [user, setUser] = useState({});
-  const [elapsedTime, setElapsedTime] = useState(0);
+  const [elapsedTime, setElapsedTime] = useState(0); // in SECONDS
   const [currentSessionId, setCurrentSessionId] = useState(null);
 
   const [showRecoverDialog, setShowRecoverDialog] = useState(false);
@@ -104,7 +104,7 @@ export default function Home() {
         if (session.sessionId) {
           await updateSession({
             sessionId: session.sessionId,
-            actualDurationSeconds: 0,
+            actualDuration: 0,
             completed: false,
           });
         }
@@ -143,7 +143,7 @@ export default function Home() {
     if (!recoveredSession) return;
     await updateSession({
       sessionId: recoveredSession.sessionId,
-      actualDurationSeconds: Math.floor(recoveredSession.elapsed),
+      actualDuration: Math.floor(recoveredSession.elapsed / 60),
       completed: false,
     });
     localStorage.removeItem("activeSession");
@@ -151,17 +151,17 @@ export default function Home() {
     setRecoveredSession(null);
   };
 
-  const markSessionAbandoned = async (sessionId, actualDurationSeconds) => {
-    if (!sessionId || !user.$id) return;
+  // const markSessionAbandoned = async (sessionId, actualDuration) => {
+  //   if (!sessionId || !user.$id) return;
 
-    try {
-      await databases.updateDocument(DATABASE_ID, SESSIONS_COLLECTION_ID, sessionId, {
-        endTime: new Date().toISOString(),
-        actualDuration: Math.floor(actualDurationSeconds / 60),
-        completed: false,
-      });
-    } catch (error) {}
-  };
+  //   try {
+  //     await databases.updateDocument(DATABASE_ID, SESSIONS_COLLECTION_ID, sessionId, {
+  //       endTime: new Date().toISOString(),
+  //       actualDuration: Math.floor(actualDuration / 60),
+  //       completed: false,
+  //     });
+  //   } catch (error) {}
+  // };
 
   const getTime = () => {
     const map = { 0: pomodoro, 1: shortBreaks, 2: longBreaks };
@@ -191,17 +191,22 @@ export default function Home() {
       setSeconds(59);
     } else setSeconds((seconds) => seconds - 1);
 
-    setElapsedTime((prev) => prev + 1);
+    setElapsedTime((prev) => prev + 1); // seconds
   };
 
   const startTimer = async () => {
+    if (!alarmRef.current) return;
+
     alarmRef.current.pause();
     alarmRef.current.currentTime = 0;
 
     const newTicking = !ticking;
-    setTicking(newTicking);
 
-    await incrementStreak(user.$id);
+    if (newTicking) {
+      await incrementStreak(user.$id);
+    }
+
+    setTicking(newTicking);
 
     if (newTicking && !currentSessionId) {
       const result = await submit({
@@ -228,15 +233,24 @@ export default function Home() {
     }
 
     if (!newTicking && currentSessionId) {
+      const minutes = Math.floor(elapsedTime / 60);
       await updateSession({
         sessionId: currentSessionId,
-        actualDurationSeconds: elapsedTime,
+        actualDuration: minutes,
         completed: false,
       });
 
-      localStorage.removeItem("activeSession");
-      setCurrentSessionId(null);
-      setElapsedTime(0);
+      const saved = localStorage.getItem("activeSession");
+      if (saved) {
+        const session = JSON.parse(saved);
+        localStorage.setItem(
+          "activeSession",
+          JSON.stringify({
+            ...session,
+            elapsed: elapsedTime,
+          })
+        );
+      }
     }
   };
 
@@ -251,9 +265,10 @@ export default function Home() {
 
   const confirmSwitch = async () => {
     if (currentSessionId) {
+      const minutes = Math.floor(elapsedTime / 60);
       await updateSession({
         sessionId: currentSessionId,
-        actualDurationSeconds: elapsedTime,
+        actualDuration: minutes,
         completed: false,
       });
     }
@@ -271,19 +286,25 @@ export default function Home() {
     setPendingSelected(null);
     setShowSwitchDialog(false);
   };
+
   const cancelSwitch = () => {
     setPendingSelected(null);
     setShowSwitchDialog(false);
   };
 
   const timesUp = async () => {
-    await updateSession({
-      sessionId: currentSessionId,
-      actualDurationSeconds: elapsedTime,
-      completed: true,
-    });
+    if (currentSessionId) {
+      const minutes = Math.floor(elapsedTime / 60);
+      await updateSession({
+        sessionId: currentSessionId,
+        actualDuration: minutes,
+        completed: true,
+      });
+    }
 
-    alarmRef.current.play();
+    if (alarmRef.current) {
+      alarmRef.current.play();
+    }
 
     localStorage.removeItem("activeSession");
     setElapsedTime(0);
@@ -307,7 +328,7 @@ export default function Home() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [seconds, ticking]);
+  }, [seconds, ticking]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="bg-gray-900 min-h-screen">
@@ -320,7 +341,7 @@ export default function Home() {
           seconds={seconds}
           ticking={ticking}
           startTimer={startTimer}
-          muteAlarm={() => alarmRef.current.pause()}
+          muteAlarm={() => alarmRef.current?.pause()}
           isTimesUp={isTimesUp}
           reset={reset}
         />
@@ -357,6 +378,7 @@ export default function Home() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
         <Dialog open={showSwitchDialog} onOpenChange={setShowSwitchDialog}>
           <DialogContent>
             <DialogHeader>

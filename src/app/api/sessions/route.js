@@ -30,12 +30,12 @@ export async function POST(req) {
 }
 
 export async function PUT(req) {
-  const { sessionId, actualDurationSeconds, completed } = await req.json();
+  const { sessionId, actualDuration, completed } = await req.json();
 
   if (!sessionId)
     return new Response(JSON.stringify({ error: "Missing sessionId" }), { status: 400 });
 
-  const updated = await updateSession(sessionId, actualDurationSeconds, completed);
+  const updated = await updateSession(sessionId, actualDuration, completed);
 
   if (!updated)
     return new Response(JSON.stringify({ error: "Failed to update session" }), { status: 500 });
