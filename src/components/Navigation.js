@@ -15,7 +15,6 @@ function Navigation({ setOpenSettings, setShowStats }) {
     async function getUserData() {
       try {
         const userData = await account.get();
-        // console.log("User:", userData);
         setUser(userData);
       } catch (error) {
         console.log("No active session:", error.message);

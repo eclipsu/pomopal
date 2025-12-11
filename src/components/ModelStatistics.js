@@ -34,6 +34,7 @@ async function fetchAnalytics(userId) {
     }
 
     const data = await res.json();
+    console.log(data);
     return data;
   } catch (err) {
     console.error("Fetch error:", err);
@@ -54,7 +55,7 @@ function ModelSettings({ setOpenSettings, openSettings }) {
       const analyticsData = await fetchAnalytics(user.$id);
       if (analyticsData) {
         setStreak(analyticsData.streak || 0);
-        setWorkData(analyticsData.studyHours || new Array(7).fill(0));
+        setWorkData(analyticsData.studyHours.weekly || new Array(7).fill(0));
       }
     }
 
@@ -130,7 +131,9 @@ function ModelSettings({ setOpenSettings, openSettings }) {
           <div className="flex flex-col items-center">
             <Box sx={{ width: "100%", height: 300 }}>
               <BarChart
-                series={[{ data: workData, label: "Work", id: "workId", stack: "total" }]}
+                series={[
+                  { data: workData, label: "Work (in minutes)", id: "workId", stack: "total" },
+                ]}
                 xAxis={[{ data: xLabels }]}
                 yAxis={[{ width: 50 }]}
               />

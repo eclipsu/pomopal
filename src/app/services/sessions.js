@@ -1,4 +1,5 @@
 import { databases } from "@/app/lib/appwrite";
+import { applySessionToStudyHours } from "@/app/services/studyHours";
 
 const DATABASE_ID = "pomodoro_sessions_db";
 const SESSIONS_COLLECTION_ID = "sessions";
@@ -51,11 +52,18 @@ export async function updateSession(sessionId, actualDuration, completed) {
   }
 
   try {
+    const session = await databases.getDocument(DATABASE_ID, SESSIONS_COLLECTION_ID, sessionId);
+
+    const endTime = new Date().toISOString();
+
     const result = await databases.updateDocument(DATABASE_ID, SESSIONS_COLLECTION_ID, sessionId, {
-      endTime: new Date().toISOString(),
+      endTime,
       actualDuration,
       completed,
     });
+    28;
+
+    await applySessionToStudyHours(session.userId, actualDuration, session.startTime);
 
     return result;
   } catch (error) {

@@ -65,34 +65,50 @@ export async function incrementStreak(userId) {
 }
 
 export async function getStudyHours(userId) {
-  if (!userId) return new Array(7).fill(0);
+  if (!userId) return { total: 0, weekly: new Array(7).fill(0) };
 
-  const weekDates = getWeeksDates(); // array of YYYY-MM-DD for the week
+  const weekDates = getWeeksDates(); // ["YYYY-MM-DD", ...]
   const startDate = weekDates[0];
-  const endDate = weekDates[6] + "T23:59:59Z";
 
   try {
-    const minutes = createObject(weekDates);
-
-    const sessions = await databases.listDocuments(DATABASE_ID, SESSIONS_COLLECTION, [
+    // Check if weekly doc already exists
+    const result = await databases.listDocuments(DATABASE_ID, STUDY_HOURS_COLLECTION, [
       Query.equal("userId", userId),
-      Query.createdAfter(startDate),
-      Query.createdBefore(endDate),
+      Query.equal("startDate", startDate),
     ]);
 
-    let updated = false;
-    for (const session of sessions.documents) {
-      const date = new Date(session.startTime).toISOString().split("T")[0];
-      if (!minutes.hasOwnProperty(date)) continue;
-      const oldMinutes = minutes[date] || 0;
-      const newMinutes = oldMinutes + session.actualDuration;
-      if (newMinutes !== oldMinutes) updated = true;
-      minutes[date] = newMinutes;
+    // if document does NOT exist we create & return zeros
+    if (result.total === 0) {
+      const emptyObj = createObject(weekDates); // {"2025-12-09":0 ...}
+
+      await databases.createDocument(DATABASE_ID, STUDY_HOURS_COLLECTION, ID.unique(), {
+        userId,
+        startDate,
+        minutes: jsonToString(emptyObj),
+        totalMinutes: 0,
+      });
+
+      return {
+        total: 0,
+        weekly: new Array(7).fill(0),
+      };
     }
 
-    return Object.values(minutes);
+    // if Document EXISTS we parse JSON return total + weekly array
+    const doc = result.documents[0];
+
+    const minutesObj = stringToJson(doc.minutes);
+    const weeklyArray = Object.values(minutesObj);
+
+    return {
+      total: doc.totalMinutes || 0,
+      weekly: weeklyArray,
+    };
   } catch (err) {
     console.error("getStudyHours failed:", err);
-    return new Array(7).fill(0);
+    return {
+      total: 0,
+      weekly: new Array(7).fill(0),
+    };
   }
 }
