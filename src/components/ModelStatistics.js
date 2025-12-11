@@ -34,7 +34,6 @@ async function fetchAnalytics(userId) {
     }
 
     const data = await res.json();
-    console.log(data);
     return data;
   } catch (err) {
     console.error("Fetch error:", err);
@@ -47,6 +46,7 @@ function ModelSettings({ setOpenSettings, openSettings }) {
   const [streak, setStreak] = useState(0);
   const xLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const [workData, setWorkData] = useState(new Array(7).fill(0));
+  const [totalMinutes, setTotalMinutes] = useState(0);
 
   useEffect(() => {
     if (!user.$id) return;
@@ -55,6 +55,7 @@ function ModelSettings({ setOpenSettings, openSettings }) {
       const analyticsData = await fetchAnalytics(user.$id);
       if (analyticsData) {
         setStreak(analyticsData.streak || 0);
+        setTotalMinutes(analyticsData.studyHours.total || 0);
         setWorkData(analyticsData.studyHours.weekly || new Array(7).fill(0));
       }
     }
@@ -123,6 +124,7 @@ function ModelSettings({ setOpenSettings, openSettings }) {
             {/* <StatCard icon={Clock} value="361" label="hours focused" /> */}
             {/* <StatCard icon={Calendar} value="118" label="days accessed" /> */}
             <StatCard icon={Flame} value={streak} label="day streak" />
+            <StatCard icon={Clock} value={totalMinutes} label="total minutes" />
           </div>
           <div className="my-6">
             <h2 className="text-gray-600 text-lg font-semibold mb-2">Your Study Minutes</h2>
