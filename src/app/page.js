@@ -60,6 +60,10 @@ export default function Home() {
   const [showSwitchDialog, setShowSwitchDialog] = useState(false);
   const [pendingSelected, setPendingSelected] = useState(null);
 
+  const [defaultPomodoro, setDefaultPomodoro] = useState(25);
+  const [defaultShortBreak, setDefaultShortBreak] = useState(5);
+  const [defaultLongBreak, setDefaultLongBreak] = useState(10);
+
   const { submit } = usePost("/api/sessions");
   const { submit: updateSession } = usePut("/api/sessions");
 
@@ -76,11 +80,17 @@ export default function Home() {
   async function getUserPrefs() {
     try {
       const prefs = user.prefs || {};
+
+      setDefaultPomodoro(prefs.pomodoro || 25);
+      setDefaultShortBreak(prefs.shortBreak || 5);
+      setDefaultLongBreak(prefs.longBreak || 10);
+
       setPomodoro(prefs.pomodoro || 25);
       setShortBreaks(prefs.shortBreak || 5);
       setLongBreaks(prefs.longBreak || 10);
     } catch (error) {}
   }
+
   useEffect(() => {
     getUserPrefs();
   }, [user]);
@@ -254,13 +264,34 @@ export default function Home() {
     }
   };
 
-  const handleSwitchRequest = (idx) => {
+  const handleSwitchRequest = async (idx) => {
     if (ticking) {
       setPendingSelected(idx);
       setShowSwitchDialog(true);
-    } else {
-      setSelected(idx);
+      return;
     }
+
+    if (currentSessionId) {
+      const minutes = Math.floor(elapsedTime / 60);
+
+      try {
+        await updateSession({
+          sessionId: currentSessionId,
+          actualDuration: minutes,
+          completed: true, //  marking Session Abandoned
+        });
+      } catch (err) {
+        console.error("Failed to update session:", err);
+        return;
+      }
+    }
+
+    localStorage.removeItem("activeSession");
+    setCurrentSessionId(null);
+    setElapsedTime(0);
+    setSeconds(0);
+
+    setSelected(idx);
   };
 
   const confirmSwitch = async () => {
@@ -277,9 +308,14 @@ export default function Home() {
     setCurrentSessionId(null);
     setElapsedTime(0);
 
-    setSelected(pendingSelected);
+    if (pendingSelected === 0) setPomodoro(defaultPomodoro);
+    else if (pendingSelected === 1) setShortBreaks(defaultShortBreak);
+    else if (pendingSelected === 2) setLongBreaks(defaultLongBreak);
 
     setSeconds(0);
+    setSelected(pendingSelected);
+
+    // Start timer fresh
     setTicking(true);
     startTimer();
 
@@ -290,6 +326,45 @@ export default function Home() {
   const cancelSwitch = () => {
     setPendingSelected(null);
     setShowSwitchDialog(false);
+  };
+
+  const updateTimeDefaultValue = async () => {
+    const pomodoroVal = Number(pomodoroRef.current.value);
+    const shortVal = Number(shortBreakRef.current.value);
+    const longVal = Number(longBreakRef.current.value);
+
+    if (pomodoroVal < 0 || shortVal < 0 || longVal < 0) {
+      console.error("Invalid values");
+      return;
+    }
+
+    try {
+      if (user?.$id) {
+        await account.updatePrefs({
+          pomodoro: pomodoroVal,
+          shortBreak: shortVal,
+          longBreak: longVal,
+        });
+      } else {
+        localStorage.setItem(
+          "pomodoroSettings",
+          JSON.stringify({
+            pomodoro: pomodoroVal,
+            shortBreak: shortVal,
+            longBreak: longVal,
+          })
+        );
+      }
+
+      setPomodoro(pomodoroVal);
+      setShortBreaks(shortVal);
+      setLongBreaks(longVal);
+      setOpenSettings(false);
+      setSeconds(0);
+      setConsumedSeconds(0);
+    } catch (error) {
+      console.error("Error updating preferences:", error.message);
+    }
   };
 
   const timesUp = async () => {
@@ -309,11 +384,15 @@ export default function Home() {
     localStorage.removeItem("activeSession");
     setElapsedTime(0);
 
+    setPomodoro(defaultPomodoro);
+    setShortBreaks(defaultShortBreak);
+    setLongBreaks(defaultLongBreak);
+    setSeconds(0);
+
     if (selected === 0) setSelected(1);
     else if (selected === 1) setSelected(2);
     else setSelected(0);
 
-    setSeconds(0);
     setTicking(true);
     startTimer();
   };
@@ -357,7 +436,7 @@ export default function Home() {
           alarmRef={alarmRef}
           openSettings={openSettings}
           setOpenSettings={setOpenSettings}
-          updateTimeDefaultValue={() => {}}
+          updateTimeDefaultValue={updateTimeDefaultValue}
         />
         <ModelStatistics openSettings={showStats} setOpenSettings={setShowStats} />
 
