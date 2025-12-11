@@ -72,21 +72,8 @@ export async function getStudyHours(userId) {
   const endDate = weekDates[6] + "T23:59:59Z";
 
   try {
-    // fetch existing weekly hours doc
-    const result = await databases.listDocuments(DATABASE_ID, STUDY_HOURS_COLLECTION, [
-      Query.equal("userId", userId),
-      Query.equal("startDate", startDate),
-    ]);
+    const minutes = createObject(weekDates);
 
-    let minutes;
-    if (result.total > 0) {
-      minutes = stringToJson(result.documents[0].minutes);
-    } else {
-      // initialize empty week object
-      minutes = createObject(weekDates);
-    }
-
-    // fetch new sessions that are not yet counted
     const sessions = await databases.listDocuments(DATABASE_ID, SESSIONS_COLLECTION, [
       Query.equal("userId", userId),
       Query.createdAfter(startDate),
@@ -101,20 +88,6 @@ export async function getStudyHours(userId) {
       const newMinutes = oldMinutes + session.actualDuration;
       if (newMinutes !== oldMinutes) updated = true;
       minutes[date] = newMinutes;
-    }
-
-    if (result.total === 0) {
-      // create document if missing
-      await databases.createDocument(DATABASE_ID, STUDY_HOURS_COLLECTION, ID.unique(), {
-        userId,
-        startDate,
-        minutes: jsonToString(minutes),
-      });
-    } else if (updated) {
-      // update existing doc if new sessions added
-      await databases.updateDocument(DATABASE_ID, STUDY_HOURS_COLLECTION, result.documents[0].$id, {
-        minutes: jsonToString(minutes),
-      });
     }
 
     return Object.values(minutes);
