@@ -6,8 +6,9 @@ export async function GET(req) {
   const userId = req.headers.get("x-user-id");
   if (!userId) return new Response(JSON.stringify({ error: "Missing userId" }), { status: 400 });
 
+  const date = req.headers.get("x-date");
   const streak = await getStreak(userId);
-  const studyHours = await getStudyHours(userId);
+  const studyHours = await getStudyHours(userId, date);
 
   return new Response(JSON.stringify({ streak, studyHours }), {
     status: 200,

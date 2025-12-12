@@ -1,17 +1,21 @@
-export function getWeeksDates() {
-  const date = new Date();
+export function getWeeksDates(input) {
+  const date = input ? new Date(input) : new Date();
+
+  if (isNaN(date)) {
+    throw new Error("Invalid date passed to getWeeksDates");
+  }
 
   const sunday = new Date(date);
   sunday.setDate(date.getDate() - date.getDay());
 
-  const lastWeek = [];
+  const week = [];
   for (let i = 0; i < 7; i++) {
     const day = new Date(sunday);
     day.setDate(sunday.getDate() + i);
-    lastWeek.push(day.toISOString().split("T")[0]);
+    week.push(day.toISOString().split("T")[0]);
   }
 
-  return lastWeek;
+  return week;
 }
 
 export function isOlderThan24Hours(inputDate) {

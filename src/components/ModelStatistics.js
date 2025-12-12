@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { FiX } from "react-icons/fi";
+import { GrFormPreviousLink } from "react-icons/gr";
+import { GrFormNextLink } from "react-icons/gr";
+
 import { account } from "@/app/lib/appwrite";
 import Image from "next/image";
 
@@ -17,13 +20,14 @@ const StatCard = ({ icon: Icon, value, label }) => (
   </div>
 );
 
-async function fetchAnalytics(userId) {
+async function fetchAnalytics(userId, isoDate) {
   try {
     const res = await fetch(`/api/analytics`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
         "x-user-id": userId,
+        "x-date": isoDate || new Date().toISOString(),
       },
     });
 
@@ -41,18 +45,26 @@ async function fetchAnalytics(userId) {
   }
 }
 
+function getDateForWeekOffset(offset) {
+  const date = new Date();
+  date.setDate(date.getDate() + offset * 7);
+  return date;
+}
+
 function ModelSettings({ setOpenSettings, openSettings }) {
   const [user, setUser] = useState({});
   const [streak, setStreak] = useState(0);
   const xLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const [workData, setWorkData] = useState(new Array(7).fill(0));
   const [totalMinutes, setTotalMinutes] = useState(0);
+  const [weekOffset, setWeekOffset] = useState(0); // 0 = current week, -1 = last week, -1n = n weeks ago
 
   useEffect(() => {
     // if (!openSettings) return; // don't run if modal is closed
     if (!user.$id) return;
     async function runOnOpen() {
-      const analyticsData = await fetchAnalytics(user.$id);
+      const isoDate = getDateForWeekOffset(weekOffset);
+      const analyticsData = await fetchAnalytics(user.$id, isoDate);
       if (analyticsData) {
         setStreak(analyticsData.streak || 0);
         setTotalMinutes(analyticsData.studyHours.total || 0);
@@ -61,7 +73,7 @@ function ModelSettings({ setOpenSettings, openSettings }) {
     }
 
     runOnOpen();
-  }, [openSettings, user.$id]);
+  }, [openSettings, user.$id, weekOffset]);
 
   useEffect(() => {
     async function getUserData() {
@@ -129,6 +141,26 @@ function ModelSettings({ setOpenSettings, openSettings }) {
           <div className="my-6">
             <h2 className="text-gray-600 text-lg font-semibold mb-2">Your Study Minutes</h2>
             <div className="h-px w-full bg-gray-300"></div>
+          </div>
+          <div className="flex items-center justify-between mb-2">
+            <button
+              onClick={() => setWeekOffset((w) => w - 1)}
+              className="px-3 py-1 border rounded hover:bg-gray-100"
+            >
+              <GrFormPreviousLink />
+            </button>
+
+            <span className="text-sm text-gray-600">
+              {weekOffset === 0 ? "This Week" : `${Math.abs(weekOffset)} week(s) ago`}
+            </span>
+
+            <button
+              disabled={weekOffset === 0}
+              onClick={() => setWeekOffset((w) => w + 1)}
+              className="px-3 py-1 border rounded hover:bg-gray-100 disabled:opacity-40"
+            >
+              <GrFormNextLink />
+            </button>
           </div>
           <div className="flex flex-col items-center">
             <Box sx={{ width: "100%", height: 300 }}>

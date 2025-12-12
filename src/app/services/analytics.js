@@ -64,7 +64,7 @@ export async function incrementStreak(userId) {
   }
 }
 
-export async function getStudyHours(userId) {
+export async function getStudyHours(userId, date) {
   if (!userId) return { total: 0, weekly: new Array(7).fill(0) };
 
   const weekDates = getWeeksDates(); // ["YYYY-MM-DD", ...]
