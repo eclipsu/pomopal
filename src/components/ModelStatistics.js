@@ -49,9 +49,9 @@ function ModelSettings({ setOpenSettings, openSettings }) {
   const [totalMinutes, setTotalMinutes] = useState(0);
 
   useEffect(() => {
+    // if (!openSettings) return; // don't run if modal is closed
     if (!user.$id) return;
-
-    async function fetchAnalyticsData() {
+    async function runOnOpen() {
       const analyticsData = await fetchAnalytics(user.$id);
       if (analyticsData) {
         setStreak(analyticsData.streak || 0);
@@ -60,8 +60,8 @@ function ModelSettings({ setOpenSettings, openSettings }) {
       }
     }
 
-    fetchAnalyticsData();
-  }, [user.$id]);
+    runOnOpen();
+  }, [openSettings, user.$id]);
 
   useEffect(() => {
     async function getUserData() {
