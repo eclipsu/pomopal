@@ -8,14 +8,14 @@ export async function createSession(userId, sessionType) {
     userId,
     sessionType,
     duration: 25,
-    startTime: new Date().toISOString(),
+    startTime: new Date().toLocaleString(),
     completed: false,
   });
 }
 
 export async function completeSession(sessionId, actualDuration) {
   return await databases.updateDocument(DATABASE_ID, SESSIONS_COLLECTION, sessionId, {
-    endTime: new Date().toISOString(),
+    endTime: new Date().toLocaleString(),
     actualDuration,
     completed: true,
   });

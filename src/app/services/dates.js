@@ -1,18 +1,35 @@
 export function getWeeksDates(input) {
-  const date = input ? new Date(input) : new Date();
+  let base;
 
-  if (isNaN(date)) {
-    throw new Error("Invalid date passed to getWeeksDates");
+  if (!input) {
+    base = new Date();
+  } else if (typeof input === "string") {
+    // Parse YYYY-MM-DD as LOCAL date (not UTC)
+    const y = Number(input.slice(0, 4));
+    const m = Number(input.slice(5, 7)) - 1;
+    const d = Number(input.slice(8, 10));
+    base = new Date(y, m, d);
+  } else {
+    base = new Date(input);
   }
 
-  const sunday = new Date(date);
-  sunday.setDate(date.getDate() - date.getDay());
+  if (isNaN(base.getTime())) {
+    throw new Error("Invalid date passed to getWeekDays");
+  }
+
+  // Force local midnight
+  base.setHours(0, 0, 0, 0);
+
+  // Find Sunday
+  const sunday = new Date(base);
+  sunday.setDate(base.getDate() - base.getDay());
 
   const week = [];
+
   for (let i = 0; i < 7; i++) {
-    const day = new Date(sunday);
+    const day = new Date(sunday); // clone
     day.setDate(sunday.getDate() + i);
-    week.push(day.toISOString().split("T")[0]);
+    week.push(day); // ✅ Date object
   }
 
   return week;

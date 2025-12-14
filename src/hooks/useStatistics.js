@@ -58,7 +58,7 @@ export function useStatistics(timeRange) {
 
       const logs = await databases.listDocuments(DATABASE_ID, DAILY_LOGS_COLLECTION_ID, [
         Query.equal("userId", user.$id),
-        Query.greaterThanEqual("date", startDate.toISOString().split("T")[0]),
+        Query.greaterThanEqual("date", startDate.toLocaleString().split("T")[0]),
         Query.orderAsc("date"),
         Query.limit(100),
       ]);
@@ -88,13 +88,13 @@ export function useStatistics(timeRange) {
     });
 
     const data = [];
-    const todayStr = now.toISOString().split("T")[0];
+    const todayStr = now.toLocaleString().split("T")[0];
 
     if (timeRange === "week") {
       for (let i = 0; i < 7; i++) {
         const date = new Date(startDate);
         date.setDate(startDate.getDate() + i);
-        const dateStr = date.toISOString().split("T")[0];
+        const dateStr = date.toLocaleString().split("T")[0];
         const logData = dataMap.get(dateStr) || { pomodoros: 0, minutes: 0 };
 
         data.push({
@@ -109,7 +109,7 @@ export function useStatistics(timeRange) {
       const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
       for (let i = 1; i <= daysInMonth; i++) {
         const date = new Date(now.getFullYear(), now.getMonth(), i);
-        const dateStr = date.toISOString().split("T")[0];
+        const dateStr = date.toLocaleString().split("T")[0];
         const logData = dataMap.get(dateStr) || { pomodoros: 0, minutes: 0 };
 
         data.push({
@@ -123,8 +123,8 @@ export function useStatistics(timeRange) {
     } else {
       for (let i = 0; i < 12; i++) {
         const date = new Date(now.getFullYear(), i, 1);
-        const monthStart = date.toISOString().split("T")[0];
-        const monthEnd = new Date(now.getFullYear(), i + 1, 0).toISOString().split("T")[0];
+        const monthStart = date.toLocaleString().split("T")[0];
+        const monthEnd = new Date(now.getFullYear(), i + 1, 0).toLocaleString().split("T")[0];
 
         const monthLogs = logs.filter((log) => log.date >= monthStart && log.date <= monthEnd);
         const totalMinutes = monthLogs.reduce((sum, log) => sum + (log.totalFocusTime || 0), 0);

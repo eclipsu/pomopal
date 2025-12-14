@@ -44,7 +44,7 @@ export async function incrementStreak(userId) {
         userId,
         streak: 1,
         hours_focused: 0,
-        lastActiveDate: new Date().toISOString(),
+        lastActiveDate: new Date().toLocaleString(),
       });
       return 1;
     }
@@ -55,7 +55,7 @@ export async function incrementStreak(userId) {
     const newStreak = (doc.streak || 0) + 1;
     await databases.updateDocument(DATABASE_ID, ANALYTICS_COLLECTION, doc.$id, {
       streak: newStreak,
-      lastActiveDate: new Date().toISOString(),
+      lastActiveDate: new Date().toLocaleString(),
     });
     return newStreak;
   } catch (err) {
@@ -64,11 +64,11 @@ export async function incrementStreak(userId) {
   }
 }
 
-export async function getStudyHours(userId, date) {
+export async function getTotalMinutes(userId, date) {
   if (!userId) return { total: 0, weekly: new Array(7).fill(0) };
-
-  const weekDates = getWeeksDates(); // ["YYYY-MM-DD", ...]
-  const startDate = weekDates[0];
+  const weekDates = getWeeksDates(new Date(date));
+  console.log(weekDates);
+  const startDate = weekDates[0].toISOString();
 
   try {
     // Check if weekly doc already exists
@@ -79,7 +79,7 @@ export async function getStudyHours(userId, date) {
 
     // if document does NOT exist we create & return zeros
     if (result.total === 0) {
-      const emptyObj = createObject(weekDates); // {"2025-12-09":0 ...}
+      const emptyObj = createObject(weekDates);
 
       await databases.createDocument(DATABASE_ID, STUDY_HOURS_COLLECTION, ID.unique(), {
         userId,
@@ -110,5 +110,21 @@ export async function getStudyHours(userId, date) {
       total: 0,
       weekly: new Array(7).fill(0),
     };
+  }
+}
+
+export async function getTotalHours(userId) {
+  if (!userId) return 0;
+  try {
+    const result = await databases.listDocuments(DATABASE_ID, ANALYTICS_COLLECTION, [
+      Query.equal("userId", userId),
+    ]);
+    if (result.total === 0) {
+      return 0;
+    }
+    return result.documents[0].hours_focused || 0;
+  } catch (err) {
+    console.error("getTotalHours failed:", err);
+    return 0;
   }
 }

@@ -27,7 +27,7 @@ async function fetchAnalytics(userId, isoDate) {
       headers: {
         "Content-Type": "application/json",
         "x-user-id": userId,
-        "x-date": isoDate || new Date().toISOString(),
+        "x-date": isoDate || new Date().toLocaleString(),
       },
     });
 
@@ -60,20 +60,20 @@ function ModelSettings({ setOpenSettings, openSettings }) {
   const [weekOffset, setWeekOffset] = useState(0); // 0 = current week, -1 = last week, -1n = n weeks ago
 
   useEffect(() => {
-    // if (!openSettings) return; // don't run if modal is closed
-    if (!user.$id) return;
+    if (!openSettings || !user.$id) return;
     async function runOnOpen() {
-      const isoDate = getDateForWeekOffset(weekOffset);
-      const analyticsData = await fetchAnalytics(user.$id, isoDate);
+      const date = getDateForWeekOffset(weekOffset);
+      const analyticsData = await fetchAnalytics(user.$id, date);
+
       if (analyticsData) {
-        setStreak(analyticsData.streak || 0);
-        setTotalMinutes(analyticsData.studyHours.total || 0);
-        setWorkData(analyticsData.studyHours.weekly || new Array(7).fill(0));
+        setStreak(analyticsData.streak ?? 0);
+        setTotalMinutes(analyticsData.studyHours?.total ?? 0);
+        setWorkData(analyticsData.studyHours?.weekly ?? new Array(7).fill(0));
       }
     }
 
     runOnOpen();
-  }, [openSettings, user.$id, weekOffset]);
+  }, [openSettings, weekOffset, user.$id]);
 
   useEffect(() => {
     async function getUserData() {
@@ -88,10 +88,6 @@ function ModelSettings({ setOpenSettings, openSettings }) {
     }
     getUserData();
   }, []);
-
-  (async () => {
-    await getStudyHours(user.$id);
-  })();
 
   return (
     <div

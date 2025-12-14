@@ -27,14 +27,14 @@ export async function createSession(userId, selected, duration) {
         userId,
         sessionType,
         duration,
-        startTime: new Date().toISOString(),
+        startTime: new Date().toLocaleString(),
         completed: false,
       }
     );
 
     return {
       sessionId: session.$id,
-      startTime: new Date().toISOString(),
+      startTime: new Date().toLocaleString(),
       duration,
       selected,
       sessionType,
@@ -54,7 +54,7 @@ export async function updateSession(sessionId, actualDuration, completed) {
   try {
     const session = await databases.getDocument(DATABASE_ID, SESSIONS_COLLECTION_ID, sessionId);
 
-    const endTime = new Date().toISOString();
+    const endTime = new Date().toLocaleString();
 
     const result = await databases.updateDocument(DATABASE_ID, SESSIONS_COLLECTION_ID, sessionId, {
       endTime,

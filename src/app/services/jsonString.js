@@ -17,5 +17,12 @@ export function stringToJson(str) {
 }
 
 export function createObject(keys) {
-  return Object.fromEntries(keys.map((key) => [key, 0]));
+  return Object.fromEntries(
+    keys.map((date) => [
+      `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
+        date.getDate()
+      ).padStart(2, "0")}`,
+      0,
+    ])
+  );
 }

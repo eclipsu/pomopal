@@ -521,11 +521,13 @@ export default function Home() {
     }
 
     try {
+      // console.log(user?.prefs)
       if (user?.$id) {
         await account.updatePrefs({
           pomodoro: pomodoroVal,
           shortBreak: shortVal,
           longBreak: longVal,
+          avatar: user?.prefs.avatar || "",
         });
       } else {
         localStorage.setItem(
@@ -534,6 +536,7 @@ export default function Home() {
             pomodoro: pomodoroVal,
             shortBreak: shortVal,
             longBreak: longVal,
+            avatar: user?.avatar || "",
           })
         );
       }

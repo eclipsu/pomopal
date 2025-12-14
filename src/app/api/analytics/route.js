@@ -8,6 +8,8 @@ export async function GET(req) {
 
   const date = req.headers.get("x-date");
   const streak = await getStreak(userId);
+  console.log("Received date in route header:");
+  console.log("Route file's date typeof :", date, typeof date);
   const studyHours = await getStudyHours(userId, date);
 
   return new Response(JSON.stringify({ streak, studyHours }), {
