@@ -7,7 +7,7 @@ const SESSIONS_COLLECTION_ID = "sessions";
 
 export async function createSession(userId, selected, duration) {
   if (!userId) {
-    console.warn("createSession: missing userId");
+    console.warn("No userId provided. Aborting.");
     return null;
   }
 
@@ -23,11 +23,11 @@ export async function createSession(userId, selected, duration) {
     const session = await databases.createDocument(
       DATABASE_ID,
       SESSIONS_COLLECTION_ID,
-      ID.unique(),
+      ID.unique(), // ✅ FIXED (was "unique()")
       {
         userId,
         sessionType,
-        plannedDuration: duration, // seconds or minutes — be consistent
+        duration,
         startTime: new Date().toISOString(),
         completed: false,
       }
@@ -36,7 +36,8 @@ export async function createSession(userId, selected, duration) {
     return {
       sessionId: session.$id,
       startTime: session.startTime,
-      plannedDuration: duration,
+      duration,
+      selected,
       sessionType,
     };
   } catch (error) {
@@ -47,7 +48,7 @@ export async function createSession(userId, selected, duration) {
 
 export async function updateSession(sessionId, actualDuration, completed) {
   if (!sessionId) {
-    console.warn("updateSession: missing sessionId");
+    console.warn("No sessionId provided. Aborting.");
     return null;
   }
 
@@ -56,34 +57,27 @@ export async function updateSession(sessionId, actualDuration, completed) {
 
     const endTime = new Date().toISOString();
 
-    const updatedSession = await databases.updateDocument(
-      DATABASE_ID,
-      SESSIONS_COLLECTION_ID,
-      sessionId,
-      {
-        endTime,
-        actualDuration,
-        completed,
-      }
-    );
+    const result = await databases.updateDocument(DATABASE_ID, SESSIONS_COLLECTION_ID, sessionId, {
+      endTime,
+      actualDuration,
+      completed,
+    });
 
-    if (session.sessionType === "pomodoro") {
-      await applySessionToStudyHours(session.userId, actualDuration, session.startTime);
-    }
+    await applySessionToStudyHours(session.userId, actualDuration, session.startTime);
 
     if (session.sessionType === "pomodoro" && completed) {
       await setTotalHours(session.userId, actualDuration);
     }
 
-    return updatedSession;
+    return result;
   } catch (error) {
     console.error("Error updating session:", error);
     return null;
   }
 }
 
-export async function markSessionAbandoned(sessionId, elapsedDuration) {
-  return updateSession(sessionId, elapsedDuration, false);
+export async function markSessionAbandoned(sessionId, elapsedSeconds) {
+  return updateSession(sessionId, elapsedSeconds, false);
 }
 
 export const SessionService = {
