@@ -64,7 +64,7 @@ export async function incrementStreak(userId) {
   }
 }
 
-export async function getTotalMinutes(userId, date) {
+export async function getStudyHours(userId, date) {
   if (!userId) return { total: 0, weekly: new Array(7).fill(0) };
   const weekDates = getWeeksDates(new Date(date));
   console.log(weekDates);
@@ -76,6 +76,12 @@ export async function getTotalMinutes(userId, date) {
       Query.equal("userId", userId),
       Query.equal("startDate", startDate),
     ]);
+
+    const analytics_result = await databases.listDocuments(DATABASE_ID, ANALYTICS_COLLECTION, [
+      Query.equal("userId", userId),
+    ]);
+
+    console.log(analytics_result);
 
     // if document does NOT exist we create & return zeros
     if (result.total === 0) {
@@ -119,6 +125,7 @@ export async function getTotalHours(userId) {
     const result = await databases.listDocuments(DATABASE_ID, ANALYTICS_COLLECTION, [
       Query.equal("userId", userId),
     ]);
+
     if (result.total === 0) {
       return 0;
     }
@@ -126,5 +133,46 @@ export async function getTotalHours(userId) {
   } catch (err) {
     console.error("getTotalHours failed:", err);
     return 0;
+  }
+}
+
+export async function setTotalHours(userId, duration) {
+  if (!userId || !duration == null) return;
+  console.log("setTotalHours called:", { userId, duration });
+
+  try {
+    const result = await databases.listDocuments(DATABASE_ID, ANALYTICS_COLLECTION, [
+      Query.equal("userId", userId),
+    ]);
+    console.log("Analytics docs found:", result.total, result.documents);
+
+    // No analytics doc → CREATE
+    if (result.total === 0) {
+      const doc = await databases.createDocument(DATABASE_ID, ANALYTICS_COLLECTION, ID.unique(), {
+        userId,
+        hours_focused: duration,
+      });
+
+      return doc.hours_focused;
+    }
+
+    //  Exists → UPDATE
+    const analyticsDoc = result.documents[0];
+    console.log("Updating doc:", analyticsDoc.$id, analyticsDoc.hours_focused);
+
+    const updated = await databases.updateDocument(
+      DATABASE_ID,
+      ANALYTICS_COLLECTION,
+      analyticsDoc.$id,
+      {
+        hours_focused: analyticsDoc.hours_focused + duration,
+      }
+    );
+
+    console.log("Updated value:", updated.hours_focused);
+
+    return updated.hours_focused;
+  } catch (err) {
+    console.error("setTotalHours failed:", err);
   }
 }

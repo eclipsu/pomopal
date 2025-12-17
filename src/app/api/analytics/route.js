@@ -1,4 +1,11 @@
-import { getStreak, getStudyHours, incrementStreak } from "@/app/services/analytics";
+import {
+  getStreak,
+  getStudyHours,
+  incrementStreak,
+  getTotalHours,
+  setTotalHours,
+} from "@/app/services/analytics";
+
 import { databases, Query, ID } from "@/app/lib/appwrite"; // server client
 import { isOlderThan24Hours } from "@/app/services/dates";
 
@@ -8,11 +15,10 @@ export async function GET(req) {
 
   const date = req.headers.get("x-date");
   const streak = await getStreak(userId);
-  console.log("Received date in route header:");
-  console.log("Route file's date typeof :", date, typeof date);
   const studyHours = await getStudyHours(userId, date);
+  const focusedHours = await getTotalHours(userId);
 
-  return new Response(JSON.stringify({ streak, studyHours }), {
+  return new Response(JSON.stringify({ streak, studyHours, focusedHours }), {
     status: 200,
     headers: { "Content-Type": "application/json" },
   });
@@ -27,6 +33,19 @@ export async function POST(req) {
 
   return new Response(JSON.stringify({ streak: newStreak }), {
     status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+// Update Total Focused horus
+export async function PUT(req) {
+  const { userId, duration } = await req.json();
+  if (!userId) return new Response(JSON.stringify({ error: "Missing userId" }), { status: 400 });
+
+  await setTotalHours(userId, duration);
+
+  return new Response(JSON.stringify({}), {
+    status: 201,
     headers: { "Content-Type": "application/json" },
   });
 }

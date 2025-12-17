@@ -1,16 +1,14 @@
-import React, { useEffect, useState } from "react";
-import { FiX } from "react-icons/fi";
-import { GrFormPreviousLink } from "react-icons/gr";
-import { GrFormNextLink } from "react-icons/gr";
+"use client";
 
+import React, { useEffect, useState, useMemo } from "react";
+import { FiX } from "react-icons/fi";
+import { GrFormPreviousLink, GrFormNextLink } from "react-icons/gr";
 import { account } from "@/app/lib/appwrite";
 import Image from "next/image";
-
 import Box from "@mui/material/Box";
 import { BarChart } from "@mui/x-charts/BarChart";
-import { Clock, Calendar, Flame } from "lucide-react";
-import { getStreak } from "@/app/services/analytics";
-import { getStudyHours } from "@/app/services/analytics";
+import { Clock, Flame } from "lucide-react";
+import { useFetch } from "@/hooks/useFetch";
 
 const StatCard = ({ icon: Icon, value, label }) => (
   <div className="bg-gray-50 rounded-xl p-4 flex flex-col items-center justify-center aspect-square w-28 border border-gray-200">
@@ -20,156 +18,122 @@ const StatCard = ({ icon: Icon, value, label }) => (
   </div>
 );
 
-async function fetchAnalytics(userId, isoDate) {
-  try {
-    const res = await fetch(`/api/analytics`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        "x-user-id": userId,
-        "x-date": isoDate || new Date().toLocaleString(),
-      },
-    });
-
-    if (!res.ok) {
-      const error = await res.json();
-      console.error("API Error:", error);
-      return null;
-    }
-
-    const data = await res.json();
-    return data;
-  } catch (err) {
-    console.error("Fetch error:", err);
-    return null;
-  }
-}
-
 function getDateForWeekOffset(offset) {
   const date = new Date();
   date.setDate(date.getDate() + offset * 7);
-  return date;
+  return date.toISOString();
 }
 
 function ModelSettings({ setOpenSettings, openSettings }) {
-  const [user, setUser] = useState({});
-  const [streak, setStreak] = useState(0);
+  const [user, setUser] = useState(null);
+  const [weekOffset, setWeekOffset] = useState(0);
+
   const xLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  const [workData, setWorkData] = useState(new Array(7).fill(0));
-  const [totalMinutes, setTotalMinutes] = useState(0);
-  const [weekOffset, setWeekOffset] = useState(0); // 0 = current week, -1 = last week, -1n = n weeks ago
 
   useEffect(() => {
-    if (!openSettings || !user.$id) return;
-    async function runOnOpen() {
-      const date = getDateForWeekOffset(weekOffset);
-      const analyticsData = await fetchAnalytics(user.$id, date);
-
-      if (analyticsData) {
-        setStreak(analyticsData.streak ?? 0);
-        setTotalMinutes(analyticsData.studyHours?.total ?? 0);
-        setWorkData(analyticsData.studyHours?.weekly ?? new Array(7).fill(0));
-      }
+    async function loadUser() {
+      const u = await account.get();
+      setUser(u);
     }
-
-    runOnOpen();
-  }, [openSettings, weekOffset, user.$id]);
-
-  useEffect(() => {
-    async function getUserData() {
-      try {
-        const userData = await account.get();
-        setUser(userData);
-        const s = await getStreak(userData.$id);
-        setStreak(s ?? 0);
-      } catch (err) {
-        console.error("Error fetching user data:", err);
-      }
-    }
-    getUserData();
+    loadUser();
   }, []);
 
+  const dateIso = useMemo(() => getDateForWeekOffset(weekOffset), [weekOffset]);
+
+  const { data, loading, error } = useFetch(
+    "/api/analytics",
+    {},
+    {
+      enabled: !!user?.$id && openSettings,
+      headers: {
+        "x-user-id": user?.$id,
+        "x-date": dateIso,
+      },
+    }
+  );
+
+  const streak = data?.streak ?? 0;
+  const focusedHours = data?.focusedHours != null ? Math.floor(data.focusedHours / 60) : 0;
+  const weeklyMinutes = data?.studyHours?.weekly ?? new Array(7).fill(0);
+  const weeklyHours = weeklyMinutes.map((m) => +(m / 60).toFixed(2));
+
+  if (!openSettings) return null;
+
   return (
-    <div
-      className={`absolute h-full w-full left-0 top-0 bg-black bg-opacity-30 ${
-        openSettings ? "" : "hidden"
-      }`}
-    >
-      <div>
-        <div
-          className={`p-5 rounded-md max-w-xl bg-white absolute sm:w-86 w-11/12 left-1/2 top-1/2 ${
-            openSettings ? "" : "hidden"
-          }`}
-          style={{ transform: "translate(-50%, -50%)" }}
-        >
-          <div className="text-gray-400 flex justify-between items-center">
-            {user.prefs?.avatar ? (
-              <Image
-                width={500}
-                height={500}
-                className="w-10 h-10 rounded-full object-cover"
-                src={user.prefs.avatar}
-                alt={user.name || "User"}
-              />
-            ) : null}
-            <h1 className="uppercase font-bold tracking-wider text-gray-800">
-              {user.name || "User"}'s Statistics
-            </h1>
-            <FiX
-              className="text-2xl cursor-pointer text-gray-600"
-              onClick={() => setOpenSettings(false)}
+    <div className="absolute inset-0 bg-black bg-opacity-30">
+      <div
+        className="p-5 rounded-md max-w-xl bg-white absolute sm:w-86 w-11/12 left-1/2 top-1/2"
+        style={{ transform: "translate(-50%, -50%)" }}
+      >
+        <div className="text-gray-400 flex justify-between items-center">
+          {user?.prefs?.avatar && (
+            <Image
+              width={40}
+              height={40}
+              className="w-10 h-10 rounded-full object-cover"
+              src={user.prefs.avatar}
+              alt={user.name}
             />
-          </div>
-
-          <div className="h-1 w-full bg-gray-200 my-5"></div>
-
-          <div className="my-6">
-            <h2 className="text-gray-600 text-lg font-semibold mb-2">Summary at Glance</h2>
-            <div className="h-px w-full bg-gray-300"></div>
-          </div>
-
-          <div className="flex gap-4">
-            {/* <StatCard icon={Clock} value="361" label="hours focused" /> */}
-            {/* <StatCard icon={Calendar} value="118" label="days accessed" /> */}
-            <StatCard icon={Flame} value={streak} label="day streak" />
-            <StatCard icon={Clock} value={totalMinutes} label="total minutes" />
-          </div>
-          <div className="my-6">
-            <h2 className="text-gray-600 text-lg font-semibold mb-2">Your Study Minutes</h2>
-            <div className="h-px w-full bg-gray-300"></div>
-          </div>
-          <div className="flex items-center justify-between mb-2">
-            <button
-              onClick={() => setWeekOffset((w) => w - 1)}
-              className="px-3 py-1 border rounded hover:bg-gray-100"
-            >
-              <GrFormPreviousLink />
-            </button>
-
-            <span className="text-sm text-gray-600">
-              {weekOffset === 0 ? "This Week" : `${Math.abs(weekOffset)} week(s) ago`}
-            </span>
-
-            <button
-              disabled={weekOffset === 0}
-              onClick={() => setWeekOffset((w) => w + 1)}
-              className="px-3 py-1 border rounded hover:bg-gray-100 disabled:opacity-40"
-            >
-              <GrFormNextLink />
-            </button>
-          </div>
-          <div className="flex flex-col items-center">
-            <Box sx={{ width: "100%", height: 300 }}>
-              <BarChart
-                series={[
-                  { data: workData, label: "Work (in minutes)", id: "workId", stack: "total" },
-                ]}
-                xAxis={[{ data: xLabels }]}
-                yAxis={[{ width: 50 }]}
-              />
-            </Box>
-          </div>
+          )}
+          <h1 className="uppercase font-bold tracking-wider text-gray-800">
+            {user?.name || "User"}'s Statistics
+          </h1>
+          <FiX
+            className="text-2xl cursor-pointer text-gray-600"
+            onClick={() => setOpenSettings(false)}
+          />
         </div>
+
+        <div className="h-px w-full bg-gray-200 my-5" />
+
+        <div className="flex gap-4">
+          <StatCard icon={Flame} value={streak} label="day streak" />
+          <StatCard icon={Clock} value={focusedHours} label="hours focused" />
+        </div>
+
+        <div className="my-6">
+          <h2 className="text-gray-600 text-lg font-semibold mb-2">Study Hours (Weekly)</h2>
+          <div className="h-px w-full bg-gray-300"></div>
+        </div>
+
+        <div className="flex items-center justify-between mb-2">
+          <button
+            onClick={() => setWeekOffset((w) => w - 1)}
+            className="px-3 py-1 border rounded hover:bg-gray-100"
+          >
+            <GrFormPreviousLink />
+          </button>
+
+          <span className="text-sm text-gray-600">
+            {weekOffset === 0 ? "This Week" : `${Math.abs(weekOffset)} week(s) ago`}
+          </span>
+
+          <button
+            disabled={weekOffset === 0}
+            onClick={() => setWeekOffset((w) => w + 1)}
+            className="px-3 py-1 border rounded hover:bg-gray-100 disabled:opacity-40"
+          >
+            <GrFormNextLink />
+          </button>
+        </div>
+
+        <Box sx={{ width: "100%", height: 300 }}>
+          <BarChart
+            series={[
+              {
+                data: weeklyHours,
+                label: "Hours Studied",
+                id: "study",
+              },
+            ]}
+            xAxis={[{ data: xLabels }]}
+            yAxis={[{ width: 50 }]}
+          />
+        </Box>
+
+        {loading && <p className="text-sm text-gray-400 mt-2">Loading analytics…</p>}
+
+        {error && <p className="text-sm text-red-500 mt-2">Failed to load analytics</p>}
       </div>
     </div>
   );

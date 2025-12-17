@@ -1,12 +1,13 @@
-import { databases } from "@/app/lib/appwrite";
+import { databases, ID } from "@/app/lib/appwrite";
 import { applySessionToStudyHours } from "@/app/services/studyHours";
+import { setTotalHours } from "@/app/services/analytics";
 
 const DATABASE_ID = "pomodoro_sessions_db";
 const SESSIONS_COLLECTION_ID = "sessions";
 
 export async function createSession(userId, selected, duration) {
   if (!userId) {
-    console.warn("No userId provided. Aborting.");
+    console.warn("createSession: missing userId");
     return null;
   }
 
@@ -22,21 +23,20 @@ export async function createSession(userId, selected, duration) {
     const session = await databases.createDocument(
       DATABASE_ID,
       SESSIONS_COLLECTION_ID,
-      "unique()",
+      ID.unique(),
       {
         userId,
         sessionType,
-        duration,
-        startTime: new Date().toLocaleString(),
+        plannedDuration: duration, // seconds or minutes — be consistent
+        startTime: new Date().toISOString(),
         completed: false,
       }
     );
 
     return {
       sessionId: session.$id,
-      startTime: new Date().toLocaleString(),
-      duration,
-      selected,
+      startTime: session.startTime,
+      plannedDuration: duration,
       sessionType,
     };
   } catch (error) {
@@ -47,33 +47,43 @@ export async function createSession(userId, selected, duration) {
 
 export async function updateSession(sessionId, actualDuration, completed) {
   if (!sessionId) {
-    console.warn("No sessionId provided. Aborting.");
+    console.warn("updateSession: missing sessionId");
     return null;
   }
 
   try {
     const session = await databases.getDocument(DATABASE_ID, SESSIONS_COLLECTION_ID, sessionId);
 
-    const endTime = new Date().toLocaleString();
+    const endTime = new Date().toISOString();
 
-    const result = await databases.updateDocument(DATABASE_ID, SESSIONS_COLLECTION_ID, sessionId, {
-      endTime,
-      actualDuration,
-      completed,
-    });
-    28;
+    const updatedSession = await databases.updateDocument(
+      DATABASE_ID,
+      SESSIONS_COLLECTION_ID,
+      sessionId,
+      {
+        endTime,
+        actualDuration,
+        completed,
+      }
+    );
 
-    await applySessionToStudyHours(session.userId, actualDuration, session.startTime);
+    if (session.sessionType === "pomodoro") {
+      await applySessionToStudyHours(session.userId, actualDuration, session.startTime);
+    }
 
-    return result;
+    if (session.sessionType === "pomodoro" && completed) {
+      await setTotalHours(session.userId, actualDuration);
+    }
+
+    return updatedSession;
   } catch (error) {
     console.error("Error updating session:", error);
     return null;
   }
 }
 
-export async function markSessionAbandoned(sessionId, elapsedSeconds) {
-  return updateSession(sessionId, elapsedSeconds, false);
+export async function markSessionAbandoned(sessionId, elapsedDuration) {
+  return updateSession(sessionId, elapsedDuration, false);
 }
 
 export const SessionService = {
