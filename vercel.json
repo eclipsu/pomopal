@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://electric-lissie-pomopal-3eefd8f4.koyeb.app/:path*"
+    }
+  ]
+}
