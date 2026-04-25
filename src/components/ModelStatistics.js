@@ -6,12 +6,12 @@ import { GrFormPreviousLink, GrFormNextLink } from "react-icons/gr";
 import Image from "next/image";
 import Box from "@mui/material/Box";
 import { BarChart } from "@mui/x-charts/BarChart";
-import { Clock, Flame } from "lucide-react";
+import { Clock, Flame, Trophy } from "lucide-react";
 import { useFetch } from "@/hooks/useFetch";
 import { useUser } from "@/hooks/useUser";
 
 const StatCard = ({ icon: Icon, value, label }) => (
-  <div className="bg-gray-50 rounded-xl p-4 flex flex-col items-center justify-center aspect-square w-28 border border-gray-200">
+  <div className="bg-gray-50 rounded-xl p-4 flex flex-col items-center justify-center aspect-square w-30 border border-gray-200">
     <Icon className="text-gray-400 mb-1" size={24} strokeWidth={1.5} />
     <div className="text-gray-800 text-3xl font-bold mb-0.5">{value}</div>
     <div className="text-gray-500 text-xs">{label}</div>
@@ -46,16 +46,27 @@ function ModelStatistics({ setOpenSettings, openSettings }) {
     error,
   } = useFetch("/analytics/calendar", { from, to }, { enabled: openSettings });
 
-  const streak = streakData?.streak ?? 0;
+  const streak = streakData?.current_streak ?? 0;
+  const longestStreak = streakData?.longest_streak ?? 0;
 
-  // calendarData is an array of { date, total_focus_minutes, session_count }
   const weeklyMinutes = useMemo(() => {
     if (!calendarData || !Array.isArray(calendarData)) return new Array(7).fill(0);
-    return calendarData.map((d) => d.total_focus_minutes || 0);
-  }, [calendarData]);
 
-  const weeklyHours = weeklyMinutes.map((m) => +(m / 60).toFixed(2));
-  const focusedHours = Math.floor(weeklyMinutes.reduce((s, m) => s + m, 0) / 60);
+    const { from } = getWeekRange(weekOffset);
+    const map = new Map(calendarData.map((d) => [d.date, d.total_focus_minutes || 0]));
+
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(from);
+      d.setDate(d.getDate() + i);
+      return map.get(d.toISOString().split("T")[0]) ?? 0;
+    });
+  }, [calendarData, weekOffset]);
+
+  const weeklyData = weeklyMinutes;
+
+  const focusedMinutes = weeklyMinutes.reduce((s, m) => s + m, 0);
+  const focusedDisplay =
+    focusedMinutes >= 60 ? `${Math.floor(focusedMinutes / 60)}h` : `${focusedMinutes}m`;
 
   if (!openSettings) return null;
 
@@ -88,7 +99,8 @@ function ModelStatistics({ setOpenSettings, openSettings }) {
 
         <div className="flex gap-4">
           <StatCard icon={Flame} value={streak} label="day streak" />
-          <StatCard icon={Clock} value={focusedHours} label="hours focused" />
+          <StatCard icon={Trophy} value={longestStreak} label="longest streak" />
+          <StatCard icon={Clock} value={focusedDisplay} label="time focused" />
         </div>
 
         <div className="my-6">
@@ -117,9 +129,15 @@ function ModelStatistics({ setOpenSettings, openSettings }) {
 
         <Box sx={{ width: "100%", height: 300 }}>
           <BarChart
-            series={[{ data: weeklyHours, label: "Hours Studied", id: "study" }]}
+            series={[{ data: weeklyData, label: "Minutes Studied", id: "study" }]}
             xAxis={[{ data: xLabels }]}
-            yAxis={[{ width: 50 }]}
+            yAxis={[
+              {
+                width: 50,
+                tickMinStep: 1,
+                valueFormatter: (v) => `${v}m`,
+              },
+            ]}
           />
         </Box>
 

@@ -1,15 +1,17 @@
-import { usePut } from "@/hooks/usePut";
-import { usePost } from "@/hooks/usePost";
 import { useState, useCallback } from "react";
+import axiosClient from "@/utils/axios";
 
 export function useSession() {
-  const { submit: create } = usePost("/api/sessions");
-  const { submit: update } = usePut("/api/sessions");
-
   const [sessionId, setSessionId] = useState(null);
   const [startTime, setStartTime] = useState(null);
   const [duration, setDuration] = useState(null);
   const [selectedMode, setSelectedMode] = useState(null);
+
+  const getModeType = (mode) => {
+    if (mode === 0) return "pomodoro";
+    if (mode === 1) return "short_break";
+    return "long_break";
+  };
 
   const createSession = useCallback(async (mode, minutes, userId = null) => {
     const now = Date.now();
@@ -23,42 +25,51 @@ export function useSession() {
       setSelectedMode(mode);
       localStorage.setItem(
         "activeSession",
-        JSON.stringify({ sessionId: guestId, startTime: now, duration: totalSeconds, mode }),
+        JSON.stringify({
+          sessionId: guestId,
+          startTime: now,
+          duration: totalSeconds,
+          mode,
+        }),
       );
       return guestId;
     }
 
-    const result = await create({ userId, selected: mode, duration: minutes });
+    const res = await axiosClient.post("/sessions", {
+      type: getModeType(mode),
+      planned_minutes: minutes,
+    });
 
-    if (result?.sessionId) {
-      setSessionId(result.sessionId);
+    if (res.data?.id) {
+      setSessionId(res.data.id);
       setStartTime(now);
       setDuration(totalSeconds);
       setSelectedMode(mode);
       localStorage.setItem(
         "activeSession",
         JSON.stringify({
-          sessionId: result.sessionId,
+          sessionId: res.data.id,
           startTime: now,
           duration: totalSeconds,
           mode,
         }),
       );
+      return res.data.id;
     }
 
-    return result?.sessionId ?? null;
+    return null;
   }, []);
 
   const updateSession = useCallback(
     async (completed = false, userId = null) => {
       if (!sessionId || !startTime) return;
-
-      const elapsedSec = Math.floor((Date.now() - startTime) / 1000);
-      const elapsedMin = Math.floor(elapsedSec / 60);
-
       if (!userId || sessionId.startsWith("guest_")) return;
 
-      await update({ sessionId, actualDuration: elapsedMin, completed });
+      if (completed) {
+        await axiosClient.patch(`/sessions/${sessionId}/complete`);
+      }
+      // if not completed (paused/abandoned) — no backend call needed
+      // NestJS doesn't have a pause endpoint
     },
     [sessionId, startTime],
   );

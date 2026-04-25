@@ -233,12 +233,23 @@ export default function Home() {
   useEffect(() => {
     if (!finished) return;
     (async () => {
-      if (sessionId) await updateSession(true, user?.id);
-      if (alarmRef.current) alarmRef.current.play();
+      const currentSessionId = sessionId;
       clearSession();
       reset();
+
+      if (currentSessionId && !currentSessionId.startsWith("guest_") && user?.id) {
+        try {
+          await axiosClient.patch(`/sessions/${currentSessionId}/complete`);
+        } catch (e) {
+          console.error("Complete session failed:", e?.response?.data);
+        }
+      }
+
+      if (alarmRef.current) alarmRef.current.play();
+
       const next = selected === 0 ? 1 : selected === 1 ? 2 : 0;
       setSelected(next);
+
       if (!autoStartBreaks) return;
       const minutes = getModeDefaultMinutes(next);
       const newId = await createSession(next, minutes, user?.id);
