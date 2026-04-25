@@ -48,7 +48,9 @@ export default function Login() {
   };
 
   const handleGoogleLogin = () => {
-    window.location.href = "http://localhost:8000/auth/google/login";
+    window.location.href = `${
+      process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000"
+    }/auth/google/login`;
   };
 
   return (
