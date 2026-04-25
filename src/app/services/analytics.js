@@ -1,178 +1,18 @@
-import { databases, Query, ID } from "@/app/lib/appwrite";
-import { isOlderThan24Hours, getWeeksDates } from "@/app/services/dates";
-import { jsonToString, stringToJson, createObject } from "@/app/services/jsonString";
+import axiosClient from "@/utils/axios";
 
-const DATABASE_ID = "pomodoro_sessions_db";
-const ANALYTICS_COLLECTION = "analytics";
-const SESSIONS_COLLECTION = "sessions";
-const STUDY_HOURS_COLLECTION = "study_hours";
-
-export async function getStreak(userId) {
-  if (!userId) return 0;
-  try {
-    const result = await databases.listDocuments(DATABASE_ID, ANALYTICS_COLLECTION, [
-      Query.equal("userId", userId),
-    ]);
-
-    if (result.total === 0) {
-      await databases.createDocument(DATABASE_ID, ANALYTICS_COLLECTION, ID.unique(), {
-        userId,
-        streak: 0,
-        hours_focused: 0,
-        lastActiveDate: null,
-      });
-      return 0;
-    }
-
-    return result.documents[0].streak;
-  } catch (err) {
-    console.error("getStreak failed:", err);
-    return 0;
-  }
+export async function getStreak() {
+  const res = await axiosClient.get("/streaks");
+  return res.data?.streak ?? 0;
 }
 
-export async function incrementStreak(userId) {
-  if (!userId) return 0;
-  try {
-    const result = await databases.listDocuments(DATABASE_ID, ANALYTICS_COLLECTION, [
-      Query.equal("userId", userId),
-    ]);
+export async function incrementStreak() {}
 
-    let doc;
-    if (result.total === 0) {
-      doc = await databases.createDocument(DATABASE_ID, ANALYTICS_COLLECTION, ID.unique(), {
-        userId,
-        streak: 1,
-        hours_focused: 0,
-        lastActiveDate: new Date().toLocaleString(),
-      });
-      return 1;
-    }
-
-    doc = result.documents[0];
-    if (!isOlderThan24Hours(doc.lastActiveDate)) return doc.streak;
-
-    const newStreak = (doc.streak || 0) + 1;
-    await databases.updateDocument(DATABASE_ID, ANALYTICS_COLLECTION, doc.$id, {
-      streak: newStreak,
-      lastActiveDate: new Date().toLocaleString(),
-    });
-    return newStreak;
-  } catch (err) {
-    console.error("incrementStreak failed:", err);
-    return 0;
-  }
+export async function getStudyHours(date) {
+  const res = await axiosClient.get("/analytics/calendar", { params: { date } });
+  return res.data;
 }
 
-export async function getStudyHours(userId, date) {
-  if (!userId) return { total: 0, weekly: new Array(7).fill(0) };
-  const weekDates = getWeeksDates(new Date(date));
-  console.log(weekDates);
-  const startDate = weekDates[0].toISOString();
-
-  try {
-    // Check if weekly doc already exists
-    const result = await databases.listDocuments(DATABASE_ID, STUDY_HOURS_COLLECTION, [
-      Query.equal("userId", userId),
-      Query.equal("startDate", startDate),
-    ]);
-
-    const analytics_result = await databases.listDocuments(DATABASE_ID, ANALYTICS_COLLECTION, [
-      Query.equal("userId", userId),
-    ]);
-
-    console.log(analytics_result);
-
-    // if document does NOT exist we create & return zeros
-    if (result.total === 0) {
-      const emptyObj = createObject(weekDates);
-
-      await databases.createDocument(DATABASE_ID, STUDY_HOURS_COLLECTION, ID.unique(), {
-        userId,
-        startDate,
-        minutes: jsonToString(emptyObj),
-        totalMinutes: 0,
-      });
-
-      return {
-        total: 0,
-        weekly: new Array(7).fill(0),
-      };
-    }
-
-    // if Document EXISTS we parse JSON return total + weekly array
-    const doc = result.documents[0];
-
-    const minutesObj = stringToJson(doc.minutes);
-    const weeklyArray = Object.values(minutesObj);
-
-    return {
-      total: doc.totalMinutes || 0,
-      weekly: weeklyArray,
-    };
-  } catch (err) {
-    console.error("getStudyHours failed:", err);
-    return {
-      total: 0,
-      weekly: new Array(7).fill(0),
-    };
-  }
-}
-
-export async function getTotalHours(userId) {
-  if (!userId) return 0;
-  try {
-    const result = await databases.listDocuments(DATABASE_ID, ANALYTICS_COLLECTION, [
-      Query.equal("userId", userId),
-    ]);
-
-    if (result.total === 0) {
-      return 0;
-    }
-    return result.documents[0].hours_focused || 0;
-  } catch (err) {
-    console.error("getTotalHours failed:", err);
-    return 0;
-  }
-}
-
-export async function setTotalHours(userId, duration) {
-  if (!userId || !duration == null) return;
-  console.log("setTotalHours called:", { userId, duration });
-
-  try {
-    const result = await databases.listDocuments(DATABASE_ID, ANALYTICS_COLLECTION, [
-      Query.equal("userId", userId),
-    ]);
-    console.log("Analytics docs found:", result.total, result.documents);
-
-    // No analytics doc → CREATE
-    if (result.total === 0) {
-      const doc = await databases.createDocument(DATABASE_ID, ANALYTICS_COLLECTION, ID.unique(), {
-        userId,
-        hours_focused: duration,
-      });
-
-      return doc.hours_focused;
-    }
-
-    //  Exists → UPDATE
-    const analyticsDoc = result.documents[0];
-    console.log("Updating doc:", analyticsDoc.$id, analyticsDoc.hours_focused);
-
-    const updated = await databases.updateDocument(
-      DATABASE_ID,
-      ANALYTICS_COLLECTION,
-      analyticsDoc.$id,
-      {
-        hours_focused: analyticsDoc.hours_focused + duration,
-      }
-    );
-
-    console.log("Updated value:", updated.hours_focused);
-
-    return updated.hours_focused;
-  } catch (err) {
-    console.error("setTotalHours failed:", err);
-  }
+export async function getDailyAnalytics() {
+  const res = await axiosClient.get("/analytics/daily");
+  return res.data;
 }

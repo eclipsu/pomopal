@@ -5,7 +5,6 @@ import axiosClient from "@/utils/axios";
 
 export function useFetch(url, params = {}, options = {}) {
   const enabled = options.enabled ?? true;
-  const headers = options.headers ?? {};
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(Boolean(url) && enabled);
@@ -16,7 +15,7 @@ export function useFetch(url, params = {}, options = {}) {
 
     try {
       setLoading(true);
-      const res = await axiosClient.get(url, { params, headers });
+      const res = await axiosClient.get(url, { params });
       setData(res.data);
       setError(null);
     } catch (err) {
@@ -24,7 +23,7 @@ export function useFetch(url, params = {}, options = {}) {
     } finally {
       setLoading(false);
     }
-  }, [url, enabled, JSON.stringify(params), JSON.stringify(headers)]);
+  }, [url, enabled, JSON.stringify(params)]);
 
   useEffect(() => {
     if (!url || !enabled) {
@@ -32,7 +31,7 @@ export function useFetch(url, params = {}, options = {}) {
       return;
     }
     fetchData();
-  }, [fetchData, url, enabled]);
+  }, [fetchData]);
 
   return { data, loading, error, refetch: fetchData };
 }

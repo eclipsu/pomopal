@@ -1,8 +1,6 @@
 "use client";
 import { createContext, useEffect, useState } from "react";
-import { ID } from "appwrite";
-import { account } from "@/app/lib/appwrite";
-import { updateAvatar } from "@/app/services/users";
+import axiosClient from "@/utils/axios";
 
 export const UserContext = createContext({
   user: null,
@@ -10,95 +8,58 @@ export const UserContext = createContext({
   login: async () => {},
   register: async () => {},
   logout: async () => {},
+  refetch: async () => {},
 });
 
 export function UserProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const fetchProfile = async () => {
+    try {
+      const res = await axiosClient.get("/user/profile");
+      setUser({ ...res.data, avatar: res.data.avatar_url });
+    } catch {
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const loadUser = async () => {
-      try {
-        const current = await account.get();
-        setUser(current);
-      } catch (error) {
-        if (error?.code === 401 || error?.message?.includes('missing scopes (["account"])')) {
-          setUser(null);
-        } else {
-          console.error("Appwrite error:", error);
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadUser();
+    fetchProfile();
   }, []);
 
   async function login(email, password) {
     try {
-      await account.createEmailPasswordSession(email, password);
-      const userData = await account.get();
-      let preferences = null;
-      try {
-        preferences = await account.getPrefs();
-      } catch (error) {}
-      setUser({ userData, preferences });
-      return { success: true, user: userData };
+      await axiosClient.post("/auth/login", { email, password });
+      const profile = await axiosClient.get("/user/profile");
+      const user = { ...profile.data, avatar: profile.data.avatar_url };
+      setUser(user);
+      return { success: true, user };
     } catch (error) {
-      console.error("Login error:", error.message);
-      return { success: false, message: error.message };
+      return { success: false, message: error.response?.data?.message || error.message };
     }
   }
 
-  async function register(email, password, name, avatarFile) {
+  async function register(email, password, name) {
     try {
-      const userId = ID.unique();
-
-      // 1️⃣ Create user account
-      const newUser = await account.create(userId, email, password, name);
-
-      // 2️⃣ Log in user first (so you have a session before prefs update)
-      const loginResult = await login(email, password);
-      if (!loginResult.success) throw new Error("Login failed right after registration");
-
-      // 3️⃣ Upload avatar (if provided)
-      let profileUrl = null;
-      if (avatarFile) {
-        profileUrl = await updateAvatar(newUser.$id, avatarFile);
-      }
-      // 4️⃣ Update preferences (safe now, because you're logged in)
-      await account.updatePrefs({
-        pomodoro_duration: 25,
-        break_duration: 5,
-        long_break_duration: 15,
-        alarm_enabled: true,
-        total_pomodoros: 0,
-        total_minutes: 0,
-        current_streak: 0,
-        avatar: profileUrl,
-      });
-
-      return loginResult;
+      await axiosClient.post("/user", { email, password, name });
+      return await login(email, password);
     } catch (error) {
-      console.error("❌ Register error:", error.message);
-      return { success: false, message: error.message };
+      return { success: false, message: error.response?.data?.message || error.message };
     }
   }
 
   async function logout() {
     try {
-      await account.deleteSession("current");
-      setUser(null);
-    } catch (error) {
-      console.error("Logout error:", error.message);
-    }
+      await axiosClient.post("/auth/logout");
+    } catch {}
+    setUser(null);
   }
 
   return (
-    <UserContext.Provider value={{ user, loading, login, register, logout }}>
+    <UserContext.Provider value={{ user, loading, login, register, logout, refetch: fetchProfile }}>
       {children}
     </UserContext.Provider>
   );

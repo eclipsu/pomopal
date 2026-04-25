@@ -1,37 +1,26 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
+import axiosClient from "@/utils/axios";
 
 export function usePut(url) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  async function submit(data) {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const res = await fetch(url, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
-      });
-
-      const result = await res.json();
-
-      if (!res.ok) {
-        setError(result.error || "Something went wrong");
+  const submit = useCallback(
+    async (data) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await axiosClient.put(url, data);
+        return res.data;
+      } catch (err) {
+        setError(err.response?.data || err.message);
         return null;
+      } finally {
+        setLoading(false);
       }
-
-      return result;
-    } catch (err) {
-      setError(err.message);
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  }
+    },
+    [url],
+  );
 
   return { submit, loading, error };
 }

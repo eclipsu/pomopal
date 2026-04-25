@@ -1,14 +1,14 @@
 "use client";
 
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { FiX } from "react-icons/fi";
 import { GrFormPreviousLink, GrFormNextLink } from "react-icons/gr";
-import { account } from "@/app/lib/appwrite";
 import Image from "next/image";
 import Box from "@mui/material/Box";
 import { BarChart } from "@mui/x-charts/BarChart";
 import { Clock, Flame } from "lucide-react";
 import { useFetch } from "@/hooks/useFetch";
+import { useUser } from "@/hooks/useUser";
 
 const StatCard = ({ icon: Icon, value, label }) => (
   <div className="bg-gray-50 rounded-xl p-4 flex flex-col items-center justify-center aspect-square w-28 border border-gray-200">
@@ -18,44 +18,44 @@ const StatCard = ({ icon: Icon, value, label }) => (
   </div>
 );
 
-function getDateForWeekOffset(offset) {
-  const date = new Date();
-  date.setDate(date.getDate() + offset * 7);
-  return date.toISOString();
+function getWeekRange(offset) {
+  const now = new Date();
+  const sunday = new Date(now);
+  sunday.setDate(now.getDate() - now.getDay() + offset * 7);
+  sunday.setHours(0, 0, 0, 0);
+  const saturday = new Date(sunday);
+  saturday.setDate(sunday.getDate() + 6);
+  return {
+    from: sunday.toISOString().split("T")[0],
+    to: saturday.toISOString().split("T")[0],
+  };
 }
 
-function ModelSettings({ setOpenSettings, openSettings }) {
-  const [user, setUser] = useState(null);
+function ModelStatistics({ setOpenSettings, openSettings }) {
+  const { user } = useUser();
   const [weekOffset, setWeekOffset] = useState(0);
-
   const xLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-  useEffect(() => {
-    async function loadUser() {
-      const u = await account.get();
-      setUser(u);
-    }
-    loadUser();
-  }, []);
+  const { from, to } = useMemo(() => getWeekRange(weekOffset), [weekOffset]);
 
-  const dateIso = useMemo(() => getDateForWeekOffset(weekOffset), [weekOffset]);
+  const { data: streakData } = useFetch("/streaks", {}, { enabled: openSettings });
 
-  const { data, loading, error } = useFetch(
-    "/api/analytics",
-    {},
-    {
-      enabled: !!user?.$id && openSettings,
-      headers: {
-        "x-user-id": user?.$id,
-        "x-date": dateIso,
-      },
-    }
-  );
+  const {
+    data: calendarData,
+    loading,
+    error,
+  } = useFetch("/analytics/calendar", { from, to }, { enabled: openSettings });
 
-  const streak = data?.streak ?? 0;
-  const focusedHours = data?.focusedHours != null ? Math.floor(data.focusedHours / 60) : 0;
-  const weeklyMinutes = data?.studyHours?.weekly ?? new Array(7).fill(0);
+  const streak = streakData?.streak ?? 0;
+
+  // calendarData is an array of { date, total_focus_minutes, session_count }
+  const weeklyMinutes = useMemo(() => {
+    if (!calendarData || !Array.isArray(calendarData)) return new Array(7).fill(0);
+    return calendarData.map((d) => d.total_focus_minutes || 0);
+  }, [calendarData]);
+
   const weeklyHours = weeklyMinutes.map((m) => +(m / 60).toFixed(2));
+  const focusedHours = Math.floor(weeklyMinutes.reduce((s, m) => s + m, 0) / 60);
 
   if (!openSettings) return null;
 
@@ -66,12 +66,12 @@ function ModelSettings({ setOpenSettings, openSettings }) {
         style={{ transform: "translate(-50%, -50%)" }}
       >
         <div className="text-gray-400 flex justify-between items-center">
-          {user?.prefs?.avatar && (
+          {user?.avatar && (
             <Image
               width={40}
               height={40}
               className="w-10 h-10 rounded-full object-cover"
-              src={user.prefs.avatar}
+              src={user.avatar}
               alt={user.name}
             />
           )}
@@ -103,11 +103,9 @@ function ModelSettings({ setOpenSettings, openSettings }) {
           >
             <GrFormPreviousLink />
           </button>
-
           <span className="text-sm text-gray-600">
             {weekOffset === 0 ? "This Week" : `${Math.abs(weekOffset)} week(s) ago`}
           </span>
-
           <button
             disabled={weekOffset === 0}
             onClick={() => setWeekOffset((w) => w + 1)}
@@ -119,24 +117,17 @@ function ModelSettings({ setOpenSettings, openSettings }) {
 
         <Box sx={{ width: "100%", height: 300 }}>
           <BarChart
-            series={[
-              {
-                data: weeklyHours,
-                label: "Hours Studied",
-                id: "study",
-              },
-            ]}
+            series={[{ data: weeklyHours, label: "Hours Studied", id: "study" }]}
             xAxis={[{ data: xLabels }]}
             yAxis={[{ width: 50 }]}
           />
         </Box>
 
         {loading && <p className="text-sm text-gray-400 mt-2">Loading analytics…</p>}
-
         {error && <p className="text-sm text-red-500 mt-2">Failed to load analytics</p>}
       </div>
     </div>
   );
 }
 
-export default React.memo(ModelSettings);
+export default React.memo(ModelStatistics);

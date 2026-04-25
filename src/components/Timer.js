@@ -1,7 +1,5 @@
-import { useEffect, useState } from "react";
-import { account } from "@/app/lib/appwrite";
+import { useUser } from "@/hooks/useUser";
 import { FiBellOff } from "react-icons/fi";
-import { FaLock } from "react-icons/fa";
 
 export default function PomodoroTimer({
   selected,
@@ -14,21 +12,8 @@ export default function PomodoroTimer({
   muteAlarm,
   reset,
 }) {
+  const { user } = useUser();
   const options = ["Pomodoro", "Short Break", "Long Break"];
-
-  const [user, setUser] = useState(null);
-
-  useEffect(() => {
-    async function getUserData() {
-      try {
-        const userData = await account.get();
-        setUser(userData);
-      } catch (error) {
-        console.log("No active user:", error.message);
-      }
-    }
-    getUserData();
-  }, []);
 
   return (
     <div className="text-white w-10/12 mx-auto pt-5 flex flex-col justify-center items-center mt-10 overflow-y-hidden">
@@ -36,9 +21,7 @@ export default function PomodoroTimer({
         {options.map((option, index) => (
           <h1
             key={index}
-            className={`${
-              index === selected ? "bg-gray-500 bg-opacity-30" : ""
-            } p-1 cursor-pointer transition-all rounded`}
+            className={`${index === selected ? "bg-gray-500 bg-opacity-30" : ""} p-1 cursor-pointer transition-all rounded`}
             onClick={() => switchSelected(index)}
           >
             {option}
@@ -63,13 +46,6 @@ export default function PomodoroTimer({
           <FiBellOff className="text-3xl text-white cursor-pointer" onClick={muteAlarm} />
         )}
       </div>
-
-      {/* Uncomment to enable reset button */}
-      {/* {ticking && (
-        <button className="uppercase text-white underline mt-5" onClick={reset}>
-          Reset
-        </button>
-      )} */}
     </div>
   );
 }

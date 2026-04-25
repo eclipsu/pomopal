@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { FiX } from "react-icons/fi";
-import { account } from "@/app/lib/appwrite";
 import Image from "next/image";
 import Button from "./Button";
+import { useUser } from "@/hooks/useUser";
 
 function ModelSettings({
   pomodoro,
@@ -15,10 +15,9 @@ function ModelSettings({
   openSettings,
   updateTimeDefaultValue,
 }) {
-  const [user, setUser] = useState({});
+  const { user } = useUser();
   const [isLoading, setIsLoading] = useState(false);
 
-  // Sync latest prop values into refs whenever settings reopen or change
   useEffect(() => {
     if (pomodoroRef.current) pomodoroRef.current.value = pomodoro;
     if (shortBreakRef.current) shortBreakRef.current.value = shortBreaks;
@@ -34,18 +33,6 @@ function ModelSettings({
     }
   };
 
-  useEffect(() => {
-    async function getUserData() {
-      try {
-        const userData = await account.get();
-        setUser(userData);
-      } catch (err) {
-        console.error("Error fetching user data:", err);
-      }
-    }
-    getUserData();
-  }, []);
-
   const inputs = [
     { label: "Pomodoro", ref: pomodoroRef },
     { label: "Short Break", ref: shortBreakRef },
@@ -54,28 +41,26 @@ function ModelSettings({
 
   return (
     <div
-      className={`absolute h-full w-full left-0 top-0 bg-black bg-opacity-30 ${
-        openSettings ? "" : "hidden"
-      }`}
+      className={`absolute h-full w-full left-0 top-0 bg-black bg-opacity-30 ${openSettings ? "" : "hidden"}`}
     >
       <div>
         <div
-          className={`p-5 rounded-md max-w-xl bg-white absolute sm:w-86 w-11/12 left-1/2 top-1/2 ${
-            openSettings ? "" : "hidden"
-          }`}
+          className={`p-5 rounded-md max-w-xl bg-white absolute sm:w-86 w-11/12 left-1/2 top-1/2 ${openSettings ? "" : "hidden"}`}
           style={{ transform: "translate(-50%, -50%)" }}
         >
           <div className="text-gray-400 flex justify-between items-center">
-            {user.prefs?.avatar ? (
+            {user?.avatar && (
               <Image
                 width={500}
                 height={500}
                 className="w-10 h-10 rounded-full object-cover"
-                src={user.prefs.avatar}
+                src={user.avatar}
                 alt={user.name || "User"}
               />
-            ) : null}
-            <h1 className="uppercase font-bold tracking-wider">{user.name || "User"}'s SETTINGS</h1>
+            )}
+            <h1 className="uppercase font-bold tracking-wider">
+              {user?.name || "User"}'s SETTINGS
+            </h1>
             <FiX className="text-2xl cursor-pointer" onClick={() => setOpenSettings(false)} />
           </div>
 

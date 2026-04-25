@@ -9,11 +9,8 @@ import ModelStatistics from "@/components/ModelStatistics";
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { clearInterval, setInterval } from "worker-timers";
-import { usePost } from "@/hooks/usePost";
-import { usePut } from "@/hooks/usePut";
-
-import { incrementStreak } from "@/app/services/analytics";
-import { account } from "@/app/lib/appwrite";
+import { useSession } from "@/hooks/useSession";
+import { useUser } from "@/hooks/useUser";
 
 import {
   Dialog,
@@ -27,9 +24,9 @@ import Button from "@/components/Button";
 
 function useTimer() {
   const [ticking, setTicking] = useState(false);
-  const [startTime, setStartTime] = useState(null); // ms
-  const [duration, setDuration] = useState(null); // seconds total
-  const [remaining, setRemaining] = useState(null); // seconds remaining
+  const [startTime, setStartTime] = useState(null);
+  const [duration, setDuration] = useState(null);
+  const [remaining, setRemaining] = useState(null);
   const [finished, setFinished] = useState(false);
 
   const begin = useCallback((startTimestamp, durationSeconds) => {
@@ -40,9 +37,7 @@ function useTimer() {
     setTicking(true);
   }, []);
 
-  const pause = useCallback(() => {
-    setTicking(false);
-  }, []);
+  const pause = useCallback(() => setTicking(false), []);
 
   const reset = useCallback(() => {
     setTicking(false);
@@ -61,11 +56,9 @@ function useTimer() {
 
   useEffect(() => {
     if (!ticking || !startTime || !duration) return;
-
     const id = setInterval(() => {
       const elapsed = Math.floor((Date.now() - startTime) / 1000);
       const left = duration - elapsed;
-
       if (left <= 0) {
         setRemaining(0);
         setTicking(false);
@@ -74,236 +67,31 @@ function useTimer() {
         setRemaining(left);
       }
     }, 1000);
-
     return () => clearInterval(id);
   }, [ticking, startTime, duration]);
 
-  return {
-    ticking,
-    remaining,
-    duration,
-    begin,
-    pause,
-    reset,
-    finished,
-    getElapsedSeconds,
-  };
-}
-
-function useSession(userId) {
-  const { submit: create } = usePost("/api/sessions");
-  const { submit: update } = usePut("/api/sessions");
-  const [sessionId, setSessionId] = useState(null);
-
-  const createSession = useCallback(
-    async ({ selected, durationMinutes, startTime, durationSeconds }) => {
-      if (!userId) return null;
-
-      const result = await create({
-        userId,
-        selected,
-        duration: durationMinutes,
-      });
-
-      if (result?.sessionId) {
-        setSessionId(result.sessionId);
-
-        localStorage.setItem(
-          "activeSession",
-          JSON.stringify({
-            sessionId: result.sessionId,
-            startTime,
-            duration: durationSeconds,
-            selected,
-          })
-        );
-
-        return result.sessionId;
-      }
-
-      return null;
-    },
-    [userId]
-  );
-
-  const updateSession = useCallback(
-    async ({ actualMinutes, completed }) => {
-      if (!sessionId) return;
-
-      await update({
-        sessionId,
-        actualDuration: actualMinutes,
-        completed,
-      });
-
-      const saved = localStorage.getItem("activeSession");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        localStorage.setItem(
-          "activeSession",
-          JSON.stringify({
-            ...parsed,
-          })
-        );
-      }
-    },
-    [sessionId]
-  );
-
-  const clearSession = useCallback(() => {
-    setSessionId(null);
-    localStorage.removeItem("activeSession");
-  }, []);
-
-  const recoverSession = useCallback(() => {
-    const savedStr = typeof window !== "undefined" ? localStorage.getItem("activeSession") : null;
-    if (!savedStr) return null;
-
-    try {
-      const saved = JSON.parse(savedStr);
-      if (!saved.sessionId || !saved.startTime || !saved.duration) {
-        localStorage.removeItem("activeSession");
-        return null;
-      }
-
-      const now = Date.now();
-      const elapsed = Math.floor((now - saved.startTime) / 1000);
-
-      if (elapsed >= saved.duration) {
-        localStorage.removeItem("activeSession");
-        return null;
-      }
-
-      setSessionId(saved.sessionId);
-
-      return {
-        sessionId: saved.sessionId,
-        selected: saved.selected,
-        startTime: saved.startTime,
-        durationSeconds: saved.duration,
-        elapsedSeconds: elapsed,
-        remainingSeconds: saved.duration - elapsed,
-      };
-    } catch {
-      localStorage.removeItem("activeSession");
-      return null;
-    }
-  }, []);
-
-  return {
-    sessionId,
-    createSession,
-    updateSession,
-    clearSession,
-    recoverSession,
-  };
+  return { ticking, remaining, duration, begin, pause, reset, finished, getElapsedSeconds };
 }
 
 export default function Home() {
-  const [user, setUser] = useState({});
-  const [selected, setSelected] = useState(0); // 0=pomodoro, 1=short, 2=long
-
-  const [defaults, setDefaults] = useState({
-    pomodoro: 25,
-    shortBreak: 5,
-    longBreak: 10,
-  });
-
+  const { user } = useUser();
+  const [selected, setSelected] = useState(0);
+  const [defaults, setDefaults] = useState({ pomodoro: 25, shortBreak: 5, longBreak: 10 });
   const [openSettings, setOpenSettings] = useState(false);
   const [showStats, setShowStats] = useState(false);
-
   const [showRecoverDialog, setShowRecoverDialog] = useState(false);
   const [recoveredSession, setRecoveredSession] = useState(null);
-
   const [showSwitchDialog, setShowSwitchDialog] = useState(false);
   const [pendingSelected, setPendingSelected] = useState(null);
+  const [autoStartBreaks, setAutoStartBreaks] = useState(false);
 
   const pomodoroRef = useRef();
   const shortBreakRef = useRef();
   const longBreakRef = useRef();
   const alarmRef = useRef();
 
-  const [autoStartBreaks, setAutoStartBreaks] = useState(false);
-
-  const {
-    ticking,
-    remaining,
-    duration: timerDuration,
-    begin,
-    pause,
-    reset,
-    finished,
-    getElapsedSeconds,
-  } = useTimer();
-
-  const { sessionId, createSession, updateSession, clearSession, recoverSession } = useSession(
-    user?.$id
-  );
-
-  useEffect(() => {
-    async function loadUser() {
-      try {
-        const u = await account.get();
-        setUser(u);
-
-        if (u?.prefs) {
-          setDefaults({
-            pomodoro: u.prefs.pomodoro || 25,
-            shortBreak: u.prefs.shortBreak || 5,
-            longBreak: u.prefs.longBreak || 10,
-          });
-        }
-      } catch {
-        // no user, try localStorage settings
-        const stored =
-          typeof window !== "undefined" ? localStorage.getItem("pomodoroSettings") : null;
-
-        if (stored) {
-          try {
-            const parsed = JSON.parse(stored);
-            setDefaults({
-              pomodoro: parsed.pomodoro || 25,
-              shortBreak: parsed.shortBreak || 5,
-              longBreak: parsed.longBreak || 10,
-            });
-          } catch {}
-        }
-      }
-    }
-    loadUser();
-  }, []);
-
-  useEffect(() => {
-    if (!user?.$id) return;
-    const recovered = recoverSession();
-    if (!recovered) return;
-    setSelected(recovered.selected);
-    setRecoveredSession(recovered);
-    setShowRecoverDialog(true);
-  }, [user?.$id]);
-
-  const handleRecoverSession = () => {
-    if (!recoveredSession) return;
-
-    begin(recoveredSession.startTime, recoveredSession.durationSeconds);
-
-    setShowRecoverDialog(false);
-    setRecoveredSession(null);
-  };
-
-  const handleDiscardSession = async () => {
-    if (!recoveredSession) return;
-
-    const minutes = Math.floor(recoveredSession.elapsedSeconds / 60);
-    if (sessionId) {
-      await updateSession({ actualMinutes: minutes, completed: false });
-    }
-
-    clearSession();
-    reset();
-    setShowRecoverDialog(false);
-    setRecoveredSession(null);
-  };
+  const { ticking, remaining, duration: timerDuration, begin, pause, reset, finished } = useTimer();
+  const { sessionId, createSession, updateSession, clearSession, recoverSession } = useSession();
 
   const getModeDefaultMinutes = (idx = selected) => {
     if (idx === 0) return defaults.pomodoro;
@@ -311,13 +99,55 @@ export default function Home() {
     return defaults.longBreak;
   };
 
-  const getTime = () => {
-    if (remaining != null) {
-      return Math.floor(remaining / 60);
+  // Load settings from user prefs or localStorage
+  useEffect(() => {
+    if (user) {
+      setDefaults({
+        pomodoro: user.pomodoro_minutes || 25,
+        shortBreak: user.short_break_minutes || 5,
+        longBreak: user.long_break_minutes || 15,
+      });
+    } else {
+      const stored = localStorage.getItem("pomodoroSettings");
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          setDefaults({
+            pomodoro: parsed.pomodoro || 25,
+            shortBreak: parsed.shortBreak || 5,
+            longBreak: parsed.longBreak || 15,
+          });
+        } catch {}
+      }
     }
-    return getModeDefaultMinutes();
+  }, [user]);
+
+  // Recover session on mount
+  useEffect(() => {
+    const recovered = recoverSession();
+    if (!recovered) return;
+    setSelected(recovered.mode);
+    setRecoveredSession(recovered);
+    setShowRecoverDialog(true);
+  }, []);
+
+  const handleRecoverSession = () => {
+    if (!recoveredSession) return;
+    begin(recoveredSession.startTime, recoveredSession.duration);
+    setShowRecoverDialog(false);
+    setRecoveredSession(null);
   };
 
+  const handleDiscardSession = async () => {
+    if (!recoveredSession) return;
+    if (sessionId) await updateSession(false, user?.id);
+    clearSession();
+    reset();
+    setShowRecoverDialog(false);
+    setRecoveredSession(null);
+  };
+
+  const getTime = () => (remaining != null ? Math.floor(remaining / 60) : getModeDefaultMinutes());
   const secondsDisplay = remaining != null ? remaining % 60 : 0;
 
   useEffect(() => {
@@ -331,7 +161,6 @@ export default function Home() {
   }, [ticking, remaining]);
 
   const handleStartOrPause = async () => {
-    // Stop alarm if ringing
     if (alarmRef.current) {
       alarmRef.current.pause();
       alarmRef.current.currentTime = 0;
@@ -339,51 +168,26 @@ export default function Home() {
 
     if (ticking) {
       pause();
-      if (sessionId) {
-        const elapsedSec = getElapsedSeconds();
-        const actualMinutes = Math.floor(elapsedSec / 60);
-        await updateSession({ actualMinutes, completed: false });
-      }
+      if (sessionId) await updateSession(false, user?.id);
       return;
     }
 
-    if (!ticking && sessionId && remaining != null && timerDuration != null) {
+    if (sessionId && remaining != null && timerDuration != null) {
       const newStart = Date.now() - (timerDuration - remaining) * 1000;
       begin(newStart, timerDuration);
-
       const savedStr = localStorage.getItem("activeSession");
       if (savedStr) {
         try {
           const parsed = JSON.parse(savedStr);
-          localStorage.setItem(
-            "activeSession",
-            JSON.stringify({
-              ...parsed,
-              startTime: newStart,
-            })
-          );
+          localStorage.setItem("activeSession", JSON.stringify({ ...parsed, startTime: newStart }));
         } catch {}
       }
       return;
     }
 
     const minutes = getModeDefaultMinutes();
-    const now = Date.now();
-    const durationSeconds = minutes * 60;
-
-    const newId = await createSession({
-      selected,
-      durationMinutes: minutes,
-      startTime: now,
-      durationSeconds,
-    });
-
-    if (newId) {
-      begin(now, durationSeconds);
-      if (selected === 0 && user?.$id) {
-        await incrementStreak(user.$id);
-      }
-    }
+    const newId = await createSession(selected, minutes, user?.id);
+    if (newId) begin(Date.now(), minutes * 60);
   };
 
   const handleReset = () => {
@@ -401,55 +205,23 @@ export default function Home() {
       setShowSwitchDialog(true);
       return;
     }
-
-    if (sessionId) {
-      const elapsedSec = getElapsedSeconds();
-      const minutes = Math.floor(elapsedSec / 60);
-      if (minutes > 0) {
-        await updateSession({ actualMinutes: minutes, completed: false });
-      }
-    }
-
+    if (sessionId) await updateSession(false, user?.id);
     clearSession();
     reset();
     setSelected(idx);
   };
 
   const confirmSwitch = async () => {
-    if (sessionId) {
-      const elapsedSec = getElapsedSeconds();
-      const minutes = Math.floor(elapsedSec / 60);
-      if (minutes > 0) {
-        await updateSession({ actualMinutes: minutes, completed: false });
-      }
-    }
-
+    if (sessionId) await updateSession(false, user?.id);
     clearSession();
     reset();
-
     const idx = pendingSelected ?? 0;
     setSelected(idx);
     setPendingSelected(null);
     setShowSwitchDialog(false);
-
-    // Auto-start new mode after switching
     const minutes = getModeDefaultMinutes(idx);
-    const now = Date.now();
-    const durationSeconds = minutes * 60;
-
-    const newId = await createSession({
-      selected: idx,
-      durationMinutes: minutes,
-      startTime: now,
-      durationSeconds,
-    });
-
-    if (newId) {
-      begin(now, durationSeconds);
-      if (idx === 0 && user?.$id) {
-        await incrementStreak(user.$id);
-      }
-    }
+    const newId = await createSession(idx, minutes, user?.id);
+    if (newId) begin(Date.now(), minutes * 60);
   };
 
   const cancelSwitch = () => {
@@ -457,56 +229,19 @@ export default function Home() {
     setShowSwitchDialog(false);
   };
 
-  // Times Up: finalize session, reset, and cycle
   useEffect(() => {
     if (!finished) return;
-
     (async () => {
-      const elapsedSec = getElapsedSeconds();
-      const actualMinutes = Math.floor(elapsedSec / 60);
-
-      if (sessionId) {
-        await updateSession({ actualMinutes, completed: true });
-      }
-
-      if (alarmRef.current) {
-        alarmRef.current.play();
-      }
-
+      if (sessionId) await updateSession(true, user?.id);
+      if (alarmRef.current) alarmRef.current.play();
       clearSession();
       reset();
-
-      // cycle pomodoro -> short -> long -> pomodoro
-      const current = selected;
-      const next = current === 0 ? 1 : current === 1 ? 2 : 0;
-
+      const next = selected === 0 ? 1 : selected === 1 ? 2 : 0;
       setSelected(next);
-
-      // 🔥 THIS IS THE AUTO-START TOGGLE
-      if (!autoStartBreaks) {
-        // user must press start manually
-        return;
-      }
-
-      // 🔥 AUTO-START BREAK OR NEXT SESSION
+      if (!autoStartBreaks) return;
       const minutes = getModeDefaultMinutes(next);
-      const now = Date.now();
-      const durationSeconds = minutes * 60;
-
-      const newId = await createSession({
-        selected: next,
-        durationMinutes: minutes,
-        startTime: now,
-        durationSeconds,
-      });
-
-      if (newId) {
-        begin(now, durationSeconds);
-
-        if (next === 0 && user?.$id) {
-          await incrementStreak(user.$id);
-        }
-      }
+      const newId = await createSession(next, minutes, user?.id);
+      if (newId) begin(Date.now(), minutes * 60);
     })();
   }, [finished, autoStartBreaks]);
 
@@ -514,20 +249,14 @@ export default function Home() {
     const pomodoroVal = Number(pomodoroRef.current.value);
     const shortVal = Number(shortBreakRef.current.value);
     const longVal = Number(longBreakRef.current.value);
-
-    if (pomodoroVal < 0 || shortVal < 0 || longVal < 0) {
-      console.error("Invalid values");
-      return;
-    }
+    if (pomodoroVal < 0 || shortVal < 0 || longVal < 0) return;
 
     try {
-      // console.log(user?.prefs)
-      if (user?.$id) {
-        await account.updatePrefs({
+      if (user?.id) {
+        await axiosClient.patch("/user/preferences", {
           pomodoro: pomodoroVal,
           shortBreak: shortVal,
           longBreak: longVal,
-          avatar: user?.prefs.avatar || "",
         });
       } else {
         localStorage.setItem(
@@ -536,19 +265,10 @@ export default function Home() {
             pomodoro: pomodoroVal,
             shortBreak: shortVal,
             longBreak: longVal,
-            avatar: user?.avatar || "",
-          })
+          }),
         );
       }
-
-      // Update defaults
-      setDefaults({
-        pomodoro: pomodoroVal,
-        shortBreak: shortVal,
-        longBreak: longVal,
-      });
-
-      // reset everything when settings change
+      setDefaults({ pomodoro: pomodoroVal, shortBreak: shortVal, longBreak: longVal });
       handleReset();
       setSelected(0);
       setOpenSettings(false);
@@ -557,25 +277,21 @@ export default function Home() {
     }
   };
 
-  const isTimesUp = false; // no longer needed
-
   return (
     <div className="bg-gray-900 min-h-screen">
       <div className="max-w-2xl min-h-screen mx-auto overflow-y-hidden">
         <Navigation setOpenSettings={setOpenSettings} setShowStats={setShowStats} />
-
         <Timer
           selected={selected}
-          switchSelected={(idx) => handleSwitchRequest(idx)}
+          switchSelected={handleSwitchRequest}
           getTime={getTime}
           seconds={secondsDisplay}
           ticking={ticking}
           startTimer={handleStartOrPause}
           muteAlarm={() => alarmRef.current?.pause()}
-          isTimesUp={isTimesUp}
+          isTimesUp={false}
           reset={handleReset}
         />
-
         <About />
         <Alarm ref={alarmRef} />
         <ModelSettings
@@ -590,18 +306,18 @@ export default function Home() {
           setOpenSettings={setOpenSettings}
           updateTimeDefaultValue={updateTimeDefaultValue}
         />
-
         <ModelStatistics openSettings={showStats} setOpenSettings={setShowStats} />
 
-        {/* Recover Dialog */}
         <Dialog open={showRecoverDialog} onOpenChange={setShowRecoverDialog}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Resume Previous Pomodoro?</DialogTitle>
               <DialogDescription>
                 You have an unfinished session from{" "}
-                {recoveredSession ? Math.floor(recoveredSession.elapsedSeconds / 60) : 0} minute(s)
-                ago. Continue or discard it?
+                {recoveredSession
+                  ? Math.floor((Date.now() - recoveredSession.startTime) / 60000)
+                  : 0}{" "}
+                minute(s) ago. Continue or discard it?
               </DialogDescription>
             </DialogHeader>
             <DialogFooter className="flex justify-end gap-2">
@@ -613,7 +329,6 @@ export default function Home() {
           </DialogContent>
         </Dialog>
 
-        {/* Switch Dialog */}
         <Dialog open={showSwitchDialog} onOpenChange={setShowSwitchDialog}>
           <DialogContent>
             <DialogHeader>

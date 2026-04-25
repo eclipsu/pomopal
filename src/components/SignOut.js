@@ -1,44 +1,25 @@
-"use client"; // ensure this is a client component
+"use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { FiX } from "react-icons/fi";
 import { useRouter } from "next/navigation";
 import { useUser } from "@/hooks/useUser";
-import { account } from "@/app/lib/appwrite";
-import Button from "./Button";
 import Image from "next/image";
+import Button from "./Button";
 
-function SettingsPopup({ setOpenSettings, openSettings }) {
-  const [user, setUser] = useState(null);
+function SignOut({ setOpenSettings, openSettings }) {
+  const { user, logout } = useUser();
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
-  const { logout } = useUser();
-
-  // Fetch the user only if a session exists
-  useEffect(() => {
-    async function getUserData() {
-      try {
-        const userData = await account.get();
-        setUser(userData);
-        // console.log(userData);
-      } catch (error) {
-        console.log("No active session:", error.message);
-        setUser(null); // explicitly set null if not logged in
-      }
-    }
-
-    getUserData();
-  }, []);
 
   const handleSignout = async () => {
     try {
       setIsLoading(true);
       await logout();
-      setIsLoading(false);
-      setUser(null);
       router.push("/login");
     } catch (error) {
       console.error("Error signing out:", error.message);
+    } finally {
       setIsLoading(false);
     }
   };
@@ -49,19 +30,16 @@ function SettingsPopup({ setOpenSettings, openSettings }) {
     <div className="absolute h-full w-full left-0 top-0 bg-black bg-opacity-30 flex items-center justify-center">
       <div className="p-5 rounded-md max-w-xl bg-white sm:w-86 w-11/12">
         <div className="text-gray-400 flex justify-between items-center">
-          {user?.prefs?.avatar ? (
+          {user?.avatar && (
             <Image
-              onClick={() => setOpenSignOut((value) => !value)}
-              width={500}
-              height={500}
+              width={40}
+              height={40}
               className="w-10 h-10 rounded-full object-cover"
-              src={user?.prefs?.avatar}
-              alt={user?.name || "User"}
+              src={user.avatar}
+              alt={user.name || "User"}
             />
-          ) : (
-            <></>
           )}
-          <h1 className="uppercase font-bold tracking-wider">{user?.name || "User"}’s SETTINGS</h1>
+          <h1 className="uppercase font-bold tracking-wider">{user?.name || "User"}'s SETTINGS</h1>
           <FiX className="text-2xl cursor-pointer" onClick={() => setOpenSettings(false)} />
         </div>
 
@@ -87,4 +65,4 @@ function SettingsPopup({ setOpenSettings, openSettings }) {
   );
 }
 
-export default React.memo(SettingsPopup);
+export default React.memo(SignOut);

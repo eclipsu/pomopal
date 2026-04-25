@@ -1,38 +1,21 @@
 "use client";
-import { createClient } from "@supabase/supabase-js";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useUser } from "@/hooks/useUser";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
-
-function page() {
-  const [user, setUser] = useState({});
+export default function SuccessPage() {
+  const { refetch } = useUser();
   const router = useRouter();
 
   useEffect(() => {
-    async function getUserData() {
-      await supabase.auth.getUser().then((value) => {
-        if (value.data?.user) {
-          console.log(value.data.user);
-          setUser(value.data.user);
-        }
-      });
-    }
-    getUserData();
+    refetch()
+      .then(() => router.push("/"))
+      .catch(() => router.push("/login"));
   }, []);
 
   return (
-    <div>
-      {Object.keys(user).length !== 0 ? (
-        <>{user.user_metadata.full_name}</>
-      ) : (
-        <>Nothing to see here</>
-      )}
+    <div className="min-h-screen flex items-center justify-center bg-gray-900">
+      <div className="text-white text-xl">Signing you in...</div>
     </div>
   );
 }
-
-export default page;

@@ -4,7 +4,6 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { UserPlus, Mail, Lock, User } from "lucide-react";
-import { ID, storage } from "@/app/lib/appwrite";
 
 import Button from "@/components/Button";
 import Input from "@/components/Input";
@@ -27,14 +26,12 @@ export default function Register() {
   const [isLoading, setIsLoading] = useState(false);
   const [generalError, setGeneralError] = useState("");
 
-  // 📌 Handle field change
   const handleChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     setErrors((prev) => ({ ...prev, [field]: "" }));
     setGeneralError("");
   };
 
-  // 📌 Validation
   const validateForm = () => {
     const newErrors = {};
 
@@ -56,7 +53,6 @@ export default function Register() {
     return Object.keys(newErrors).length === 0;
   };
 
-  // 📤 Handle submit
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
@@ -64,12 +60,13 @@ export default function Register() {
     setGeneralError("");
 
     try {
-      await register(formData.email, formData.password, formData.name, formData.profilePic);
-
-      // console.log("✅ Registration successful!");
+      const result = await register(formData.email, formData.password, formData.name);
+      if (!result.success) {
+        setGeneralError(result.message || "Something went wrong.");
+        return;
+      }
       router.push("/");
     } catch (error) {
-      console.error("❌ Registration failed:", error);
       setGeneralError("Something went wrong. Try a different email.");
     } finally {
       setIsLoading(false);
