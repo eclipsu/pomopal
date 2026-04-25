@@ -42,9 +42,9 @@ export function UserProvider({ children }) {
     }
   }
 
-  async function register(email, password, name) {
+  async function register(email, password, name, timezone) {
     try {
-      await axiosClient.post("/user", { email, password, name });
+      await axiosClient.post("/user", { email, password, name, timezone });
       return await login(email, password);
     } catch (error) {
       return { success: false, message: error.response?.data?.message || error.message };

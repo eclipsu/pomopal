@@ -11,6 +11,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { clearInterval, setInterval } from "worker-timers";
 import { useSession } from "@/hooks/useSession";
 import { useUser } from "@/hooks/useUser";
+import axiosClient from "../utils/axios";
 
 import {
   Dialog,
@@ -249,32 +250,43 @@ export default function Home() {
     const pomodoroVal = Number(pomodoroRef.current.value);
     const shortVal = Number(shortBreakRef.current.value);
     const longVal = Number(longBreakRef.current.value);
-    if (pomodoroVal < 0 || shortVal < 0 || longVal < 0) return;
 
-    try {
-      if (user?.id) {
-        await axiosClient.patch("/user/preferences", {
+    if (
+      !Number.isInteger(pomodoroVal) ||
+      !Number.isInteger(shortVal) ||
+      !Number.isInteger(longVal)
+    ) {
+      throw new Error("Values must be whole numbers.");
+    }
+
+    if (pomodoroVal < 1 || shortVal < 1 || longVal < 1) {
+      throw new Error("Values must be at least 1.");
+    }
+
+    if (pomodoroVal > 120 || shortVal > 120 || longVal > 120) {
+      throw new Error("Values must not exceed 120.");
+    }
+
+    if (user?.id) {
+      await axiosClient.patch("/user/settings", {
+        pomodoro_minutes: pomodoroVal,
+        short_break_minutes: shortVal,
+        long_break_minutes: longVal,
+      });
+    } else {
+      localStorage.setItem(
+        "pomodoroSettings",
+        JSON.stringify({
           pomodoro: pomodoroVal,
           shortBreak: shortVal,
           longBreak: longVal,
-        });
-      } else {
-        localStorage.setItem(
-          "pomodoroSettings",
-          JSON.stringify({
-            pomodoro: pomodoroVal,
-            shortBreak: shortVal,
-            longBreak: longVal,
-          }),
-        );
-      }
-      setDefaults({ pomodoro: pomodoroVal, shortBreak: shortVal, longBreak: longVal });
-      handleReset();
-      setSelected(0);
-      setOpenSettings(false);
-    } catch (error) {
-      console.error("Error updating preferences:", error?.message || error);
+        }),
+      );
     }
+
+    setDefaults({ pomodoro: pomodoroVal, shortBreak: shortVal, longBreak: longVal });
+    handleReset();
+    setSelected(0);
   };
 
   return (

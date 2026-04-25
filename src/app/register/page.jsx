@@ -13,6 +13,7 @@ import { useUser } from "@/hooks/useUser";
 export default function Register() {
   const { register } = useUser();
   const router = useRouter();
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   const [formData, setFormData] = useState({
     name: "",
@@ -60,7 +61,7 @@ export default function Register() {
     setGeneralError("");
 
     try {
-      const result = await register(formData.email, formData.password, formData.name);
+      const result = await register(formData.email, formData.password, formData.name, timezone);
       if (!result.success) {
         setGeneralError(result.message || "Something went wrong.");
         return;

@@ -3,6 +3,7 @@ import { FiX } from "react-icons/fi";
 import Image from "next/image";
 import Button from "./Button";
 import { useUser } from "@/hooks/useUser";
+import { AlertCircle, CheckCircle } from "lucide-react";
 
 function ModelSettings({
   pomodoro,
@@ -17,6 +18,8 @@ function ModelSettings({
 }) {
   const { user } = useUser();
   const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState([]);
+  const [success, setSuccess] = useState(false);
 
   useEffect(() => {
     if (pomodoroRef.current) pomodoroRef.current.value = pomodoro;
@@ -24,10 +27,34 @@ function ModelSettings({
     if (longBreakRef.current) longBreakRef.current.value = longBreaks;
   }, [pomodoro, shortBreaks, longBreaks, openSettings]);
 
+  // Reset state when modal opens
+  useEffect(() => {
+    if (openSettings) {
+      setErrors([]);
+      setSuccess(false);
+    }
+  }, [openSettings]);
+
+  const formatError = (msg) => {
+    return msg.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  };
   const handleUpdate = async () => {
+    setErrors([]);
+    setSuccess(false);
     try {
       setIsLoading(true);
       await updateTimeDefaultValue();
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 2000);
+    } catch (err) {
+      const msgs = err?.response?.data?.message;
+      if (Array.isArray(msgs)) {
+        setErrors(msgs.map(formatError));
+      } else if (typeof msgs === "string") {
+        setErrors([formatError(msgs)]);
+      } else {
+        setErrors([err?.message || "Unknown error"]);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -78,6 +105,32 @@ function ModelSettings({
               </div>
             ))}
           </div>
+
+          {/* Error messages */}
+          {errors.length > 0 && (
+            <div className="mt-4 p-3 rounded-lg bg-red-50 border border-red-200">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
+                <ul className="space-y-1">
+                  {errors.map((err, i) => (
+                    <li key={i} className="text-red-600 text-sm">
+                      {err}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
+
+          {/* Success message */}
+          {success && (
+            <div className="mt-4 p-3 rounded-lg bg-green-50 border border-green-200">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
+                <p className="text-green-600 text-sm">Settings updated successfully.</p>
+              </div>
+            </div>
+          )}
 
           <Button
             type="button"
