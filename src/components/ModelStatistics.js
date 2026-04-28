@@ -69,8 +69,6 @@ function ModelStatistics({ setOpenSettings, openSettings }) {
   const focusedDisplay =
     focusedMinutes >= 60 ? `${Math.floor(focusedMinutes / 60)}h` : `${focusedMinutes}m`;
 
-  if (!openSettings) return null;
-
   const isAtCreationWeek = useMemo(() => {
     if (!user?.created_at) return false;
 
@@ -84,6 +82,8 @@ function ModelStatistics({ setOpenSettings, openSettings }) {
 
     return weekStart <= createdSunday;
   }, [user?.created_at, weekOffset]);
+
+  if (!openSettings) return null;
 
   return (
     <div className="absolute inset-0 bg-black bg-opacity-30">
