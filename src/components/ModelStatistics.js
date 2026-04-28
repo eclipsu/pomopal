@@ -33,6 +33,7 @@ function getWeekRange(offset) {
 
 function ModelStatistics({ setOpenSettings, openSettings }) {
   const { user } = useUser();
+  console.log(user);
   const [weekOffset, setWeekOffset] = useState(0);
   const xLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -69,6 +70,20 @@ function ModelStatistics({ setOpenSettings, openSettings }) {
     focusedMinutes >= 60 ? `${Math.floor(focusedMinutes / 60)}h` : `${focusedMinutes}m`;
 
   if (!openSettings) return null;
+
+  const isAtCreationWeek = useMemo(() => {
+    if (!user?.created_at) return false;
+
+    const { from } = getWeekRange(weekOffset);
+    const weekStart = new Date(from);
+
+    const createdAt = new Date(user.created_at);
+    const createdSunday = new Date(createdAt);
+    createdSunday.setDate(createdAt.getDate() - createdAt.getDay());
+    createdSunday.setHours(0, 0, 0, 0);
+
+    return weekStart <= createdSunday;
+  }, [user?.created_at, weekOffset]);
 
   return (
     <div className="absolute inset-0 bg-black bg-opacity-30">
@@ -112,6 +127,7 @@ function ModelStatistics({ setOpenSettings, openSettings }) {
           <button
             onClick={() => setWeekOffset((w) => w - 1)}
             className="px-3 py-1 border rounded hover:bg-gray-100"
+            disabled={isAtCreationWeek}
           >
             <GrFormPreviousLink />
           </button>
