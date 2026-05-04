@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useUser } from "@/hooks/useUser";
 import Image from "next/image";
 import Button from "./Button";
+import axiosClient from "../utils/axios";
 
 function SignOut({ setOpenSettings, openSettings }) {
   const { user, logout } = useUser();
@@ -15,6 +16,7 @@ function SignOut({ setOpenSettings, openSettings }) {
   const handleSignout = async () => {
     try {
       setIsLoading(true);
+      axiosClient.post(`/auth/logout`);
       await logout();
       router.push("/login");
     } catch (error) {
