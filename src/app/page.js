@@ -85,6 +85,8 @@ export default function Home() {
   const [showSwitchDialog, setShowSwitchDialog] = useState(false);
   const [pendingSelected, setPendingSelected] = useState(null);
   const [autoStartBreaks, setAutoStartBreaks] = useState(false);
+  const volumeRef = useRef(100);
+  const fadeRef = useRef(null);
 
   const pomodoroRef = useRef();
   const shortBreakRef = useRef();
@@ -162,6 +164,7 @@ export default function Home() {
   }, [ticking, remaining]);
 
   const handleStartOrPause = async () => {
+    if (fadeRef.current) clearInterval(fadeRef.current);
     if (alarmRef.current) {
       alarmRef.current.pause();
       alarmRef.current.currentTime = 0;
@@ -192,6 +195,7 @@ export default function Home() {
   };
 
   const handleReset = () => {
+    if (fadeRef.current) clearInterval(fadeRef.current);
     reset();
     clearSession();
     if (alarmRef.current) {
@@ -245,7 +249,18 @@ export default function Home() {
         }
       }
 
-      if (alarmRef.current) alarmRef.current.play();
+      if (alarmRef.current) {
+        alarmRef.current.volume = 0;
+        alarmRef.current.play();
+        const target = volumeRef.current / 100;
+        const step = target / 20;
+
+        fadeRef.current = setInterval(() => {
+          const next = Math.min(alarmRef.current.volume + step, target);
+          alarmRef.current.volume = next;
+          if (next >= target) clearInterval(fadeRef.current);
+        }, 150);
+      }
 
       const next = selected === 0 ? 1 : selected === 1 ? 2 : 0;
       setSelected(next);
@@ -303,21 +318,27 @@ export default function Home() {
   return (
     <div className="bg-gray-900 min-h-screen">
       <div className="max-w-2xl min-h-screen mx-auto overflow-y-hidden">
-        <Navigation setOpenSettings={setOpenSettings} setShowStats={setShowStats} />
-        <Timer
-          selected={selected}
-          switchSelected={handleSwitchRequest}
-          getTime={getTime}
-          seconds={secondsDisplay}
-          ticking={ticking}
-          startTimer={handleStartOrPause}
-          muteAlarm={() => alarmRef.current?.pause()}
-          isTimesUp={false}
-          reset={handleReset}
-        />
+        <div className="min-h-screen flex flex-col">
+          <Navigation setOpenSettings={setOpenSettings} setShowStats={setShowStats} />
+          <div className="flex-1 flex items-center justify-center -mt-40">
+            <Timer
+              selected={selected}
+              switchSelected={handleSwitchRequest}
+              getTime={getTime}
+              seconds={secondsDisplay}
+              ticking={ticking}
+              startTimer={handleStartOrPause}
+              muteAlarm={() => alarmRef.current?.pause()}
+              isTimesUp={false}
+              reset={handleReset}
+            />
+          </div>
+        </div>
+
         <About />
         <Alarm ref={alarmRef} />
         <ModelSettings
+          onVolumeChange={(val) => (volumeRef.current = val)}
           pomodoro={defaults.pomodoro}
           shortBreaks={defaults.shortBreak}
           longBreaks={defaults.longBreak}

@@ -3,7 +3,7 @@ import { FiX } from "react-icons/fi";
 import Image from "next/image";
 import Button from "./Button";
 import { useUser } from "@/hooks/useUser";
-import { AlertCircle, CheckCircle } from "lucide-react";
+import { AlertCircle, CheckCircle, Volume2, VolumeX } from "lucide-react";
 
 function ModelSettings({
   pomodoro,
@@ -15,11 +15,13 @@ function ModelSettings({
   setOpenSettings,
   openSettings,
   updateTimeDefaultValue,
+  onVolumeChange,
 }) {
   const { user } = useUser();
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState([]);
   const [success, setSuccess] = useState(false);
+  const [volume, setVolume] = useState(80);
 
   useEffect(() => {
     if (pomodoroRef.current) pomodoroRef.current.value = pomodoro;
@@ -121,6 +123,45 @@ function ModelSettings({
               </div>
             </div>
           )}
+
+          {/* Volume Slider */}
+          <div className="mt-5">
+            <style>{`
+    .vol-slider { -webkit-appearance: none; appearance: none; height: 8px; border-radius: 9999px; outline: none; cursor: pointer; background: linear-gradient(to right, #3b82f6 ${volume}%, #e5e7eb ${volume}%); }
+    .vol-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 9999px; background: white; border: 2px solid #3b82f6; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+    .vol-slider::-moz-range-thumb { width: 16px; height: 16px; border-radius: 9999px; background: white; border: 2px solid #3b82f6; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+  `}</style>
+            <div className="flex items-center justify-between mb-2">
+              <h1 className="text-gray-400 text-sm">Volume</h1>
+              <span className="text-gray-400 text-sm">{volume}%</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setVolume(0)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <VolumeX size={16} />
+              </button>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                value={volume}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  setVolume(val);
+                  onVolumeChange(val);
+                }}
+                className="vol-slider flex-1"
+              />
+              <button
+                onClick={() => setVolume(100)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <Volume2 size={16} />
+              </button>
+            </div>
+          </div>
 
           {/* Success message */}
           {success && (
