@@ -163,8 +163,11 @@ export default function Home() {
 
   const handleStartOrPause = async () => {
     if (alarmRef.current) {
-      alarmRef.current.pause();
-      alarmRef.current.currentTime = 0;
+      try {
+        await alarmRef.current.play();
+        alarmRef.current.pause();
+        alarmRef.current.currentTime = 0;
+      } catch (e) {}
     }
 
     if (ticking) {
