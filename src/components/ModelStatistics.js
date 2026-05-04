@@ -126,7 +126,7 @@ function ModelStatistics({ setOpenSettings, openSettings }) {
         <div className="flex items-center justify-between mb-2">
           <button
             onClick={() => setWeekOffset((w) => w - 1)}
-            className="px-3 py-1 border rounded hover:bg-gray-100"
+            className="px-3 py-1 border rounded hover:bg-gray-100 disabled:opacity-40"
             disabled={isAtCreationWeek}
           >
             <GrFormPreviousLink />
