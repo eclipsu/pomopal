@@ -10,6 +10,9 @@ import { Clock, Flame, Trophy } from "lucide-react";
 import { useFetch } from "@/hooks/useFetch";
 import { useUser } from "@/hooks/useUser";
 
+const ACCENT = "#6366f1";
+const BASE = "#cbd5e1";
+
 const StatCard = ({ icon: Icon, value, label }) => (
   <div className="bg-gray-50 rounded-xl p-4 flex flex-col items-center justify-center aspect-square w-30 border border-gray-200">
     <Icon className="text-gray-400 mb-1" size={24} strokeWidth={1.5} />
@@ -17,6 +20,15 @@ const StatCard = ({ icon: Icon, value, label }) => (
     <div className="text-gray-500 text-xs">{label}</div>
   </div>
 );
+
+function formatMinutes(minutes) {
+  if (minutes >= 60) {
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    return m > 0 ? `${h}h ${m}m` : `${h}h`;
+  }
+  return `${minutes}m`;
+}
 
 function getWeekRange(offset) {
   const now = new Date();
@@ -33,7 +45,6 @@ function getWeekRange(offset) {
 
 function ModelStatistics({ setOpenSettings, openSettings }) {
   const { user } = useUser();
-  console.log(user);
   const [weekOffset, setWeekOffset] = useState(0);
   const xLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -52,10 +63,7 @@ function ModelStatistics({ setOpenSettings, openSettings }) {
 
   const weeklyMinutes = useMemo(() => {
     if (!calendarData || !Array.isArray(calendarData)) return new Array(7).fill(0);
-
-    const { from } = getWeekRange(weekOffset);
     const map = new Map(calendarData.map((d) => [d.date, d.total_focus_minutes || 0]));
-
     return Array.from({ length: 7 }, (_, i) => {
       const d = new Date(from);
       d.setDate(d.getDate() + i);
@@ -63,23 +71,28 @@ function ModelStatistics({ setOpenSettings, openSettings }) {
     });
   }, [calendarData, weekOffset]);
 
-  const weeklyData = weeklyMinutes;
-
+  const maxMinutes = Math.max(...weeklyMinutes);
   const focusedMinutes = weeklyMinutes.reduce((s, m) => s + m, 0);
-  const focusedDisplay =
-    focusedMinutes >= 60 ? `${Math.floor(focusedMinutes / 60)}h` : `${focusedMinutes}m`;
+  const useHours = maxMinutes >= 60;
+  const todayIndex = weekOffset === 0 ? new Date().getDay() : -1;
+
+  const chartData = weeklyMinutes.map((m) => (useHours ? parseFloat((m / 60).toFixed(2)) : m));
+
+  const colorMap = {
+    type: "ordinal",
+    colors: xLabels.map((_, i) => (i === todayIndex ? ACCENT : BASE)),
+  };
+
+  const focusedDisplay = formatMinutes(focusedMinutes);
 
   const isAtCreationWeek = useMemo(() => {
     if (!user?.created_at) return false;
-
     const { from } = getWeekRange(weekOffset);
     const weekStart = new Date(from);
-
     const createdAt = new Date(user.created_at);
     const createdSunday = new Date(createdAt);
     createdSunday.setDate(createdAt.getDate() - createdAt.getDay());
     createdSunday.setHours(0, 0, 0, 0);
-
     return weekStart <= createdSunday;
   }, [user?.created_at, weekOffset]);
 
@@ -145,13 +158,19 @@ function ModelStatistics({ setOpenSettings, openSettings }) {
 
         <Box sx={{ width: "100%", height: 300 }}>
           <BarChart
-            series={[{ data: weeklyData, label: "Minutes Studied", id: "study" }]}
-            xAxis={[{ data: xLabels }]}
+            series={[
+              {
+                data: chartData,
+                label: useHours ? "Hours Studied" : "Minutes Studied",
+                id: "study",
+              },
+            ]}
+            xAxis={[{ data: xLabels, colorMap }]}
             yAxis={[
               {
                 width: 50,
-                tickMinStep: 1,
-                valueFormatter: (v) => `${v}m`,
+                tickMinStep: useHours ? 0.5 : 1,
+                valueFormatter: (v) => (useHours ? `${v}h` : `${v}m`),
               },
             ]}
           />
