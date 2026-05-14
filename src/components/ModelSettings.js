@@ -4,6 +4,7 @@ import Image from "next/image";
 import Button from "./Button";
 import { useUser } from "@/hooks/useUser";
 import { AlertCircle, CheckCircle } from "lucide-react";
+import PrivacySettings from "./PrivacySettings";
 
 function ModelSettings({
   pomodoro,
@@ -147,6 +148,7 @@ function ModelSettings({
               <div className="flex items-center gap-2">Update Settings</div>
             )}
           </Button>
+          <PrivacySettings />
         </div>
       </div>
     </div>

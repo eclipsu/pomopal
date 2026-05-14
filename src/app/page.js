@@ -6,6 +6,7 @@ import About from "@/components/About";
 import Alarm from "@/components/Alarm";
 import ModelSettings from "@/components/ModelSettings";
 import ModelStatistics from "@/components/ModelStatistics";
+import FriendsSidebar from "@/components/FriendsSidebar";
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { clearInterval, setInterval } from "worker-timers";
@@ -80,6 +81,7 @@ export default function Home() {
   const [defaults, setDefaults] = useState({ pomodoro: 25, shortBreak: 5, longBreak: 10 });
   const [openSettings, setOpenSettings] = useState(false);
   const [showStats, setShowStats] = useState(false);
+  const [showFriends, setShowFriends] = useState(false);
   const [showRecoverDialog, setShowRecoverDialog] = useState(false);
   const [recoveredSession, setRecoveredSession] = useState(null);
   const [showSwitchDialog, setShowSwitchDialog] = useState(false);
@@ -100,7 +102,6 @@ export default function Home() {
     return defaults.longBreak;
   };
 
-  // Load settings from user prefs or localStorage
   useEffect(() => {
     if (user) {
       setDefaults({
@@ -123,7 +124,6 @@ export default function Home() {
     }
   }, [user]);
 
-  // Recover session on mount
   useEffect(() => {
     const recovered = recoverSession();
     if (!recovered) return;
@@ -272,11 +272,9 @@ export default function Home() {
     ) {
       throw new Error("Values must be whole numbers.");
     }
-
     if (pomodoroVal < 1 || shortVal < 1 || longVal < 1) {
       throw new Error("Values must be at least 1.");
     }
-
     if (pomodoroVal > 120 || shortVal > 120 || longVal > 120) {
       throw new Error("Values must not exceed 120.");
     }
@@ -304,75 +302,88 @@ export default function Home() {
   };
 
   return (
-    <div className="bg-gray-900 min-h-screen">
-      <div className="max-w-2xl min-h-screen mx-auto overflow-y-hidden">
-        <Navigation setOpenSettings={setOpenSettings} setShowStats={setShowStats} />
-        <Timer
-          selected={selected}
-          switchSelected={handleSwitchRequest}
-          getTime={getTime}
-          seconds={secondsDisplay}
-          ticking={ticking}
-          startTimer={handleStartOrPause}
-          muteAlarm={() => alarmRef.current?.pause()}
-          isTimesUp={false}
-          reset={handleReset}
-        />
-        <About />
-        <Alarm ref={alarmRef} />
-        <ModelSettings
-          pomodoro={defaults.pomodoro}
-          shortBreaks={defaults.shortBreak}
-          longBreaks={defaults.longBreak}
-          pomodoroRef={pomodoroRef}
-          shortBreakRef={shortBreakRef}
-          longBreakRef={longBreakRef}
-          alarmRef={alarmRef}
-          openSettings={openSettings}
-          setOpenSettings={setOpenSettings}
-          updateTimeDefaultValue={updateTimeDefaultValue}
-        />
-        <ModelStatistics openSettings={showStats} setOpenSettings={setShowStats} />
+    <div className="bg-gray-900 min-h-screen flex">
+      <div
+        className={`flex-1 min-h-screen transition-all duration-200 ease-in-out ${
+          showFriends ? "mr-60" : "mr-0"
+        }`}
+      >
+        <div className="max-w-2xl min-h-screen mx-auto overflow-y-hidden">
+          <Navigation
+            setOpenSettings={setOpenSettings}
+            setShowStats={setShowStats}
+            showFriends={showFriends}
+            setShowFriends={setShowFriends}
+          />
+          <Timer
+            selected={selected}
+            switchSelected={handleSwitchRequest}
+            getTime={getTime}
+            seconds={secondsDisplay}
+            ticking={ticking}
+            startTimer={handleStartOrPause}
+            muteAlarm={() => alarmRef.current?.pause()}
+            isTimesUp={false}
+            reset={handleReset}
+          />
+          <About />
+          <Alarm ref={alarmRef} />
+          <ModelSettings
+            pomodoro={defaults.pomodoro}
+            shortBreaks={defaults.shortBreak}
+            longBreaks={defaults.longBreak}
+            pomodoroRef={pomodoroRef}
+            shortBreakRef={shortBreakRef}
+            longBreakRef={longBreakRef}
+            alarmRef={alarmRef}
+            openSettings={openSettings}
+            setOpenSettings={setOpenSettings}
+            updateTimeDefaultValue={updateTimeDefaultValue}
+          />
+          <ModelStatistics openSettings={showStats} setOpenSettings={setShowStats} />
 
-        <Dialog open={showRecoverDialog} onOpenChange={setShowRecoverDialog}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Resume Previous Pomodoro?</DialogTitle>
-              <DialogDescription>
-                You have an unfinished session from{" "}
-                {recoveredSession
-                  ? Math.floor((Date.now() - recoveredSession.startTime) / 60000)
-                  : 0}{" "}
-                minute(s) ago. Continue or discard it?
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter className="flex justify-end gap-2">
-              <Button variant="outline" onClick={handleDiscardSession}>
-                Discard
-              </Button>
-              <Button onClick={handleRecoverSession}>Continue</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+          <Dialog open={showRecoverDialog} onOpenChange={setShowRecoverDialog}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Resume Previous Pomodoro?</DialogTitle>
+                <DialogDescription>
+                  You have an unfinished session from{" "}
+                  {recoveredSession
+                    ? Math.floor((Date.now() - recoveredSession.startTime) / 60000)
+                    : 0}{" "}
+                  minute(s) ago. Continue or discard it?
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter className="flex justify-end gap-2">
+                <Button variant="outline" onClick={handleDiscardSession}>
+                  Discard
+                </Button>
+                <Button onClick={handleRecoverSession}>Continue</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
-        <Dialog open={showSwitchDialog} onOpenChange={setShowSwitchDialog}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Switch Session?</DialogTitle>
-              <DialogDescription>
-                You have an active timer. Switching modes will pause and save the current session.
-                Continue?
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter className="flex justify-end gap-2">
-              <Button variant="outline" onClick={cancelSwitch}>
-                Cancel
-              </Button>
-              <Button onClick={confirmSwitch}>Switch</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+          <Dialog open={showSwitchDialog} onOpenChange={setShowSwitchDialog}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Switch Session?</DialogTitle>
+                <DialogDescription>
+                  You have an active timer. Switching modes will pause and save the current session.
+                  Continue?
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter className="flex justify-end gap-2">
+                <Button variant="outline" onClick={cancelSwitch}>
+                  Cancel
+                </Button>
+                <Button onClick={confirmSwitch}>Switch</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
+
+      <FriendsSidebar open={showFriends} onClose={() => setShowFriends(false)} />
     </div>
   );
 }
