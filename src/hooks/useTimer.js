@@ -3,8 +3,7 @@ import { clearInterval, setInterval } from "worker-timers";
 
 export function useTimer() {
   const [ticking, setTicking] = useState(false);
-  const [remaining, setRemaining] = useState(null); // seconds
-
+  const [remaining, setRemaining] = useState(null);
   const [startTime, setStartTime] = useState(null);
   const [duration, setDuration] = useState(null);
 
@@ -25,6 +24,12 @@ export function useTimer() {
     setDuration(null);
     setStartTime(null);
   }, []);
+
+  const getElapsedSeconds = useCallback(() => {
+    if (!startTime || !duration) return 0;
+    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+    return Math.min(elapsed, duration);
+  }, [startTime, duration]);
 
   useEffect(() => {
     if (!ticking || !startTime || !duration) return;
@@ -50,5 +55,6 @@ export function useTimer() {
     start,
     pause,
     reset,
+    getElapsedSeconds,
   };
 }
