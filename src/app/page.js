@@ -91,7 +91,16 @@ export default function Home() {
   const longBreakRef = useRef();
   const alarmRef = useRef();
 
-  const { ticking, remaining, duration: timerDuration, begin, pause, reset, finished } = useTimer();
+  const {
+    ticking,
+    remaining,
+    duration: timerDuration,
+    begin,
+    pause,
+    reset,
+    finished,
+    getElapsedSeconds,
+  } = useTimer();
   const { sessionId, createSession, updateSession, clearSession, recoverSession } = useSession();
 
   const getModeDefaultMinutes = (idx = selected) => {
@@ -100,7 +109,20 @@ export default function Home() {
     return defaults.longBreak;
   };
 
-  // Load settings from user prefs or localStorage
+  useEffect(() => {
+    if (!ticking || !sessionId || sessionId.startsWith("guest_")) return;
+    const interval = setInterval(async () => {
+      try {
+        await axiosClient.patch(`/sessions/${sessionId}/heartbeat`, {
+          elapsed_seconds: getElapsedSeconds(),
+        });
+      } catch (err) {
+        console.error("Heartbeat failed:", err?.response?.data);
+      }
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [ticking, sessionId]);
+
   useEffect(() => {
     if (user) {
       setDefaults({
@@ -123,14 +145,13 @@ export default function Home() {
     }
   }, [user]);
 
-  // Recover session on mount
   useEffect(() => {
     const recovered = recoverSession();
     if (!recovered) return;
     setSelected(recovered.mode);
     setRecoveredSession(recovered);
     setShowRecoverDialog(true);
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleRecoverSession = () => {
     if (!recoveredSession) return;
@@ -235,14 +256,19 @@ export default function Home() {
 
   useEffect(() => {
     if (!finished) return;
+    const snapSessionId = sessionId;
+    const snapSelected = selected;
+    const snapDefaults = { ...defaults };
+    const snapUser = user;
+    const snapAutoStart = autoStartBreaks;
+
     (async () => {
-      const currentSessionId = sessionId;
       clearSession();
       reset();
 
-      if (currentSessionId && !currentSessionId.startsWith("guest_") && user?.id) {
+      if (snapSessionId && !snapSessionId.startsWith("guest_") && snapUser?.id) {
         try {
-          await axiosClient.patch(`/sessions/${currentSessionId}/complete`);
+          await axiosClient.patch(`/sessions/${snapSessionId}/complete`);
         } catch (e) {
           console.error("Complete session failed:", e?.response?.data);
         }
@@ -250,15 +276,20 @@ export default function Home() {
 
       if (alarmRef.current) alarmRef.current.play();
 
-      const next = selected === 0 ? 1 : selected === 1 ? 2 : 0;
+      const next = snapSelected === 0 ? 1 : snapSelected === 1 ? 2 : 0;
       setSelected(next);
 
-      if (!autoStartBreaks) return;
-      const minutes = getModeDefaultMinutes(next);
-      const newId = await createSession(next, minutes, user?.id);
+      if (!snapAutoStart) return;
+      const minutes =
+        next === 0
+          ? snapDefaults.pomodoro
+          : next === 1
+            ? snapDefaults.shortBreak
+            : snapDefaults.longBreak;
+      const newId = await createSession(next, minutes, snapUser?.id);
       if (newId) begin(Date.now(), minutes * 60);
     })();
-  }, [finished, autoStartBreaks]);
+  }, [finished]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const updateTimeDefaultValue = async () => {
     const pomodoroVal = Number(pomodoroRef.current.value);
