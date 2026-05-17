@@ -8,7 +8,7 @@ export default function SendInviteModal({ open, onClose }) {
   const [status, setStatus] = useState(null);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
-  const { sendInvite } = useFriends();
+  const { sendInvite, refreshAll } = useFriends();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -17,6 +17,7 @@ export default function SendInviteModal({ open, onClose }) {
     setStatus(null);
     try {
       await sendInvite(email.trim());
+      await refreshAll();
       setStatus("success");
       setMessage(`Invite sent to ${email}`);
       setEmail("");

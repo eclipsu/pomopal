@@ -1,12 +1,14 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Navigation from "@/components/Navigation";
 import Timer from "@/components/Timer";
 import About from "@/components/About";
 import Alarm from "@/components/Alarm";
-import ModelSettings from "@/components/ModelSettings";
-import ModelStatistics from "@/components/ModelStatistics";
-import FriendsSidebar from "@/components/FriendsSidebar";
+
+const ModelSettings = dynamic(() => import("@/components/ModelSettings"), { ssr: false });
+const ModelStatistics = dynamic(() => import("@/components/ModelStatistics"), { ssr: false });
+const FriendsSidebar = dynamic(() => import("@/components/FriendsSidebar"), { ssr: false });
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { clearInterval, setInterval } from "worker-timers";
@@ -383,7 +385,9 @@ export default function Home() {
         </div>
       </div>
 
-      <FriendsSidebar open={showFriends} onClose={() => setShowFriends(false)} />
+      {showFriends && (
+        <FriendsSidebar open={showFriends} onClose={() => setShowFriends(false)} />
+      )}
     </div>
   );
 }

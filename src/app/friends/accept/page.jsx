@@ -1,14 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import axiosClient from "@/utils/axios";
+import { useUser } from "@/hooks/useUser";
 
-export default function AcceptFriendPage() {
+function AcceptFriendContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { user, loading: userLoading } = useUser();
   const [status, setStatus] = useState("loading");
   const [message, setMessage] = useState("");
+  const attemptedRef = useRef(false);
 
   useEffect(() => {
     const token = searchParams.get("token");
@@ -17,6 +21,17 @@ export default function AcceptFriendPage() {
       setMessage("Invalid link.");
       return;
     }
+
+    if (userLoading) return;
+
+    if (!user) {
+      const returnTo = `/friends/accept?token=${encodeURIComponent(token)}`;
+      router.replace(`/login?returnTo=${encodeURIComponent(returnTo)}`);
+      return;
+    }
+
+    if (attemptedRef.current) return;
+    attemptedRef.current = true;
 
     axiosClient
       .post("/friends/accept", { token })
@@ -29,13 +44,15 @@ export default function AcceptFriendPage() {
         setStatus("error");
         setMessage(err?.response?.data?.message || "Failed to accept invite.");
       });
-  }, []);
+  }, [searchParams, router, user, userLoading]);
 
   return (
     <div className="bg-gray-900 min-h-screen flex items-center justify-center">
       <div className="bg-gray-800 rounded-2xl p-8 text-center max-w-sm w-full mx-4">
         <div className="text-4xl mb-4">🍅</div>
-        {status === "loading" && <p className="text-gray-400">Accepting invite...</p>}
+        {(status === "loading" || userLoading) && (
+          <p className="text-gray-400">Accepting invite...</p>
+        )}
         {status === "success" && (
           <>
             <p className="text-green-400 font-medium">{message}</p>
@@ -45,15 +62,29 @@ export default function AcceptFriendPage() {
         {status === "error" && (
           <>
             <p className="text-red-400 font-medium">{message}</p>
-            <button
-              onClick={() => router.push("/")}
-              className="mt-4 text-sm text-gray-400 hover:text-white transition-colors"
+            <Link
+              href="/"
+              className="inline-block mt-4 text-sm text-gray-400 hover:text-white transition-colors"
             >
               Go home
-            </button>
+            </Link>
           </>
         )}
       </div>
     </div>
+  );
+}
+
+export default function AcceptFriendPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="bg-gray-900 min-h-screen flex items-center justify-center">
+          <p className="text-gray-400">Loading...</p>
+        </div>
+      }
+    >
+      <AcceptFriendContent />
+    </Suspense>
   );
 }

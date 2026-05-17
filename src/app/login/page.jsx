@@ -39,7 +39,11 @@ export default function Login() {
         setErrors({ password: result.message });
         return;
       }
-      router.push("/");
+      const returnTo =
+        typeof window !== "undefined"
+          ? new URLSearchParams(window.location.search).get("returnTo") || "/"
+          : "/";
+      router.push(returnTo);
     } catch (error) {
       setErrors({ password: error.message });
     } finally {

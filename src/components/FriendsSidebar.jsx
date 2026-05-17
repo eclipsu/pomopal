@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { X, UserPlus, Users, Trophy } from "lucide-react";
-import { useFriends } from "@/hooks/useFriends";
-import { usePresence } from "@/contexts/PresenceContext";
+import { FriendsProvider, useFriends } from "@/contexts/FriendsContext";
+import { PresenceProvider, usePresence } from "@/contexts/PresenceContext";
 import SendInviteModal from "./SendInviteModal";
+import FriendProfilePanel from "./FriendProfilePanel";
 import axiosClient from "@/utils/axios";
 import { Flame } from "lucide-react";
 
@@ -41,74 +42,6 @@ function Avatar({ name, avatarUrl, status }) {
   );
 }
 
-function FriendProfileModal({ friend, presence, onClose }) {
-  if (!friend) return null;
-  const p = presence ?? {};
-  const streak = friend.streak ?? 0;
-  const longestStreak = friend.longest_streak ?? 0;
-  return (
-    <div className="absolute inset-0 bg-black/60 z-50 flex items-end" onClick={onClose}>
-      <div className="w-full bg-gray-800 rounded-t-2xl p-5" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center gap-3 mb-4">
-          <Avatar name={friend.name} avatarUrl={friend.avatar_url} status={p.status} />
-          <div>
-            <p className="text-white font-semibold">{friend.name}</p>
-            {(p.current_activity || p.custom_status) && (
-              <p className="text-xs text-gray-400 mt-0.5">
-                {p.current_activity || p.custom_status}
-              </p>
-            )}
-          </div>
-          <span
-            className={`ml-auto text-xs px-2 py-0.5 rounded-full ${
-              p.status === "online"
-                ? "bg-green-500/20 text-green-400"
-                : p.status === "idle"
-                  ? "bg-yellow-500/20 text-yellow-400"
-                  : "bg-gray-700 text-gray-500"
-            }`}
-          >
-            {p.status ?? "offline"}
-          </span>
-        </div>
-
-        {/* Streak stats */}
-        <div className="flex gap-2 mb-4">
-          <div className="flex-1 flex items-center gap-2 bg-gray-700/50 rounded-xl px-3 py-2.5">
-            <Flame
-              className={`w-4 h-4 shrink-0 ${streak > 0 ? "text-orange-400" : "text-gray-600"}`}
-            />
-            <div>
-              <p className="text-white text-sm font-semibold leading-none">{streak}</p>
-              <p className="text-gray-500 text-xs mt-0.5">Current streak</p>
-            </div>
-          </div>
-          <div className="flex-1 flex items-center gap-2 bg-gray-700/50 rounded-xl px-3 py-2.5">
-            <Trophy
-              className={`w-4 h-4 shrink-0 ${longestStreak > 0 ? "text-yellow-400" : "text-gray-600"}`}
-            />
-            <div>
-              <p className="text-white text-sm font-semibold leading-none">{longestStreak}</p>
-              <p className="text-gray-500 text-xs mt-0.5">Longest streak</p>
-            </div>
-          </div>
-        </div>
-
-        {p.last_seen_at && p.status === "offline" && (
-          <p className="text-xs text-gray-600">
-            Last seen {new Date(p.last_seen_at).toLocaleString()}
-          </p>
-        )}
-        <button
-          onClick={onClose}
-          className="mt-4 w-full text-sm text-gray-500 hover:text-white transition-colors py-2"
-        >
-          Close
-        </button>
-      </div>
-    </div>
-  );
-}
 
 function FriendRow({ friend, presence, onUnfriend, onClick }) {
   const [confirming, setConfirming] = useState(false);
@@ -122,8 +55,13 @@ function FriendRow({ friend, presence, onUnfriend, onClick }) {
       return;
     }
     setLoading(true);
-    await onUnfriend(friend.id);
-    setLoading(false);
+    try {
+      await onUnfriend(friend.id);
+    } catch {
+      setConfirming(false);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -134,7 +72,8 @@ function FriendRow({ friend, presence, onUnfriend, onClick }) {
       <Avatar name={friend.name} avatarUrl={friend.avatar_url} status={status} />
       <div className="flex-1 min-w-0">
         <p
-          className={`text-sm font-medium truncate ${status === "offline" ? "text-gray-400" : "text-white"}`}
+          onClick={onClick}
+          className={`text-sm font-medium truncate cursor-pointer hover:underline ${status === "offline" ? "text-gray-400" : "text-white"}`}
         >
           {friend.name}
         </p>
@@ -242,22 +181,125 @@ function LeaderboardTab() {
   );
 }
 
-export default function FriendsSidebar({ open, onClose }) {
-  const { friends, loading, fetchFriends, unfriend } = useFriends();
+function PendingRequests({ received, sent, onAccept, onCancel }) {
+  if (!received.length && !sent.length) return null;
+
+  return (
+    <div className="mb-4 space-y-3">
+      {received.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-2 mb-1">
+            Requests — {received.length}
+          </p>
+          {received.map((r) => (
+            <div
+              key={r.id}
+              className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/5"
+            >
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-white truncate">{r.requester?.name ?? "Someone"}</p>
+                <p className="text-xs text-gray-500 truncate">Wants to be friends</p>
+              </div>
+              <button
+                onClick={() => onAccept(r.id)}
+                className="text-xs text-green-400 hover:text-green-300 px-2"
+              >
+                Accept
+              </button>
+              <button
+                onClick={() => onCancel(r.id)}
+                className="text-xs text-gray-500 hover:text-red-400 px-1"
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+      {sent.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-2 mb-1">
+            Sent — {sent.length}
+          </p>
+          {sent.map((r) => (
+            <div
+              key={r.id}
+              className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/5"
+            >
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-gray-400 truncate">
+                  {r.addressee?.email ?? r.addressee?.name ?? "Pending invite"}
+                </p>
+                <p className="text-xs text-gray-600">Awaiting response</p>
+              </div>
+              <button
+                onClick={() => onCancel(r.id)}
+                className="text-xs text-gray-500 hover:text-red-400 px-2"
+              >
+                Cancel
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FriendsSidebarInner({ open, onClose }) {
+  const {
+    friends,
+    pendingReceived,
+    pendingSent,
+    loading,
+    error,
+    refreshAll,
+    unfriend,
+    acceptPending,
+    cancelPending,
+  } = useFriends();
   const presence = usePresence();
   const presenceMap = presence?.presenceMap ?? {};
   const subscribeTo = presence?.subscribeTo;
+  const unsubscribeFrom = presence?.unsubscribeFrom;
+  const subscribedRef = useRef(new Set());
   const [showInvite, setShowInvite] = useState(false);
   const [tab, setTab] = useState("friends");
   const [selectedFriend, setSelectedFriend] = useState(null);
 
   useEffect(() => {
-    if (open) fetchFriends();
-  }, [open]);
+    if (open) refreshAll();
+  }, [open, refreshAll]);
 
   useEffect(() => {
-    friends.forEach((f) => subscribeTo?.(f.id));
-  }, [friends]);
+    if (!open) {
+      subscribedRef.current.forEach((id) => unsubscribeFrom?.(id));
+      subscribedRef.current.clear();
+      return;
+    }
+
+    const currentIds = new Set(friends.map((f) => f.id).filter(Boolean));
+
+    subscribedRef.current.forEach((id) => {
+      if (!currentIds.has(id)) {
+        unsubscribeFrom?.(id);
+        subscribedRef.current.delete(id);
+      }
+    });
+
+    friends.forEach((f) => {
+      if (!f.id || subscribedRef.current.has(f.id)) return;
+      subscribeTo?.(f.id);
+      subscribedRef.current.add(f.id);
+    });
+  }, [open, friends, subscribeTo, unsubscribeFrom]);
+
+  useEffect(() => {
+    return () => {
+      subscribedRef.current.forEach((id) => unsubscribeFrom?.(id));
+      subscribedRef.current.clear();
+    };
+  }, [unsubscribeFrom]);
 
   const byStatus = (s) =>
     friends.filter((f) => (presenceMap[f.id]?.status ?? f.status ?? "offline") === s);
@@ -316,6 +358,15 @@ export default function FriendsSidebar({ open, onClose }) {
           <LeaderboardTab />
         ) : (
           <div className="flex-1 overflow-y-auto px-2 py-3">
+            {error && <p className="text-xs text-red-400 px-2 py-2 mb-2">{error}</p>}
+
+            <PendingRequests
+              received={pendingReceived}
+              sent={pendingSent}
+              onAccept={acceptPending}
+              onCancel={cancelPending}
+            />
+
             {loading &&
               [...Array(3)].map((_, i) => (
                 <div key={i} className="flex items-center gap-2.5 mb-2">
@@ -327,7 +378,10 @@ export default function FriendsSidebar({ open, onClose }) {
                 </div>
               ))}
 
-            {!loading && friends.length === 0 && (
+            {!loading &&
+              friends.length === 0 &&
+              pendingReceived.length === 0 &&
+              pendingSent.length === 0 && (
               <div className="flex flex-col items-center justify-center h-48 text-center px-4">
                 <Users className="w-8 h-8 text-gray-700 mb-3" />
                 <p className="text-gray-500 text-xs">No friends yet.</p>
@@ -367,17 +421,28 @@ export default function FriendsSidebar({ open, onClose }) {
           </div>
         )}
 
-        {selectedFriend && (
-          <FriendProfileModal
-            friend={selectedFriend}
-            presence={presenceMap[selectedFriend.id]}
-            onClose={() => setSelectedFriend(null)}
-          />
-        )}
       </div>
+
+      {selectedFriend && (
+        <FriendProfilePanel
+          friendId={selectedFriend.id}
+          presence={presenceMap[selectedFriend.id]}
+          onClose={() => setSelectedFriend(null)}
+        />
+      )}
 
       {open && <div className="fixed inset-0 z-30 bg-black/40 md:hidden" onClick={onClose} />}
       <SendInviteModal open={showInvite} onClose={() => setShowInvite(false)} />
     </>
+  );
+}
+
+export default function FriendsSidebar(props) {
+  return (
+    <FriendsProvider>
+      <PresenceProvider>
+        <FriendsSidebarInner {...props} />
+      </PresenceProvider>
+    </FriendsProvider>
   );
 }

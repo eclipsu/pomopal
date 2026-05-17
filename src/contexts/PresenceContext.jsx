@@ -1,62 +1,110 @@
 "use client";
 
-import { createContext, useContext, useEffect, useRef, useState, useCallback } from "react";
-import { io } from "socket.io-client";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  useCallback,
+  useMemo,
+} from "react";
 import { useUser } from "@/hooks/useUser";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
 const PresenceContext = createContext(null);
 
+function presenceEquals(a, b) {
+  if (!a || !b) return false;
+  return (
+    a.status === b.status &&
+    a.custom_status === b.custom_status &&
+    a.current_activity === b.current_activity
+  );
+}
+
 export function PresenceProvider({ children }) {
   const { user } = useUser();
+  const userId = user?.id;
   const socketRef = useRef(null);
   const heartbeatRef = useRef(null);
-  const [presenceMap, setPresenceMap] = useState({}); // { [userId]: PresenceData }
+  const [presenceMap, setPresenceMap] = useState({});
 
   const updatePresence = useCallback((data) => {
-    setPresenceMap((prev) => ({ ...prev, [data.userId]: data }));
+    if (!data?.userId) return;
+    setPresenceMap((prev) => {
+      const existing = prev[data.userId];
+      if (presenceEquals(existing, data)) return prev;
+      return { ...prev, [data.userId]: data };
+    });
   }, []);
 
   useEffect(() => {
-    if (!user) return;
+    if (!userId) {
+      setPresenceMap({});
+      return;
+    }
 
-    const socket = io(`${process.env.NEXT_PUBLIC_API_BASE_URL}/presence`, {
-      withCredentials: true,
-      transports: ["websocket"],
-    });
+    let cancelled = false;
 
-    socketRef.current = socket;
-
-    socket.on("presence:changed", (data) => {
-      updatePresence(data);
-    });
-    socket.on("presence:updated", updatePresence);
-    socket.on("presence:snapshot", (snapshot) => {
+    const onChanged = (data) => updatePresence(data);
+    const onUpdated = (data) => updatePresence(data);
+    const onActivity = ({ userId: uid, current_activity }) => {
+      if (!uid) return;
       setPresenceMap((prev) => {
-        const next = { ...prev };
-        Object.entries(snapshot).forEach(([uid, status]) => {
-          next[uid] = { ...next[uid], userId: uid, status };
-        });
-        return next;
+        const existing = prev[uid];
+        if (existing?.current_activity === current_activity) return prev;
+        return {
+          ...prev,
+          [uid]: {
+            ...(existing ?? { userId: uid, status: "offline", custom_status: null }),
+            userId: uid,
+            current_activity,
+          },
+        };
       });
-    });
+    };
 
-    // Heartbeat every 30s
-    heartbeatRef.current = setInterval(() => {
-      socket.emit("presence:heartbeat");
-    }, 30_000);
+    import("socket.io-client").then(({ io }) => {
+      if (cancelled) return;
+
+      const socket = io(`${API_BASE}/presence`, {
+        withCredentials: true,
+        transports: ["websocket"],
+      });
+
+      socketRef.current = socket;
+      socket.on("presence:changed", onChanged);
+      socket.on("presence:updated", onUpdated);
+      socket.on("presence:activity", onActivity);
+
+      heartbeatRef.current = setInterval(() => {
+        socket.emit("presence:heartbeat");
+      }, 30_000);
+    });
 
     return () => {
+      cancelled = true;
       clearInterval(heartbeatRef.current);
-      socket.disconnect();
+      const socket = socketRef.current;
+      if (socket) {
+        socket.off("presence:changed", onChanged);
+        socket.off("presence:updated", onUpdated);
+        socket.off("presence:activity", onActivity);
+        socket.disconnect();
+      }
       socketRef.current = null;
     };
-  }, [user]);
+  }, [userId, updatePresence]);
 
   const subscribeTo = useCallback((friendId) => {
+    if (!friendId) return;
     socketRef.current?.emit("presence:subscribe", { friendId });
   }, []);
 
   const unsubscribeFrom = useCallback((friendId) => {
+    if (!friendId) return;
     socketRef.current?.emit("presence:unsubscribe", { friendId });
   }, []);
 
@@ -64,13 +112,12 @@ export function PresenceProvider({ children }) {
     socketRef.current?.emit("presence:update", { custom_status, current_activity });
   }, []);
 
-  return (
-    <PresenceContext.Provider
-      value={{ presenceMap, subscribeTo, unsubscribeFrom, setCustomStatus }}
-    >
-      {children}
-    </PresenceContext.Provider>
+  const value = useMemo(
+    () => ({ presenceMap, subscribeTo, unsubscribeFrom, setCustomStatus }),
+    [presenceMap, subscribeTo, unsubscribeFrom, setCustomStatus],
   );
+
+  return <PresenceContext.Provider value={value}>{children}</PresenceContext.Provider>;
 }
 
 export function usePresence() {
