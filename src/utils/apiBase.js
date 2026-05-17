@@ -1,12 +1,18 @@
 /**
  * API base URL for axios / socket.io.
- * On pomopal.lol / www.pomopal.lol use same-origin /api (Vercel rewrite) to avoid CORS.
+ * Production: same-origin /api (Vercel rewrite).
+ * Local dev: same-origin /api (Next rewrite → backend) so auth cookies work on one host:port.
  */
 export function getApiBaseUrl() {
   if (typeof window !== "undefined") {
-    const host = window.location.hostname;
-    if (host === "pomopal.lol" || host === "www.pomopal.lol") {
-      return `${window.location.origin}/api`;
+    const { hostname, origin } = window.location;
+    if (
+      hostname === "pomopal.lol" ||
+      hostname === "www.pomopal.lol" ||
+      hostname === "localhost" ||
+      hostname === "127.0.0.1"
+    ) {
+      return `${origin}/api`;
     }
   }
 
@@ -14,4 +20,15 @@ export function getApiBaseUrl() {
   if (fromEnv) return fromEnv.replace(/\/$/, "");
 
   return "http://localhost:8000";
+}
+
+/** Socket.IO must hit the Nest server directly (not the Next /api rewrite). */
+export function getSocketBaseUrl() {
+  if (typeof window !== "undefined") {
+    const { hostname } = window.location;
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      return process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:8000";
+    }
+  }
+  return getApiBaseUrl();
 }

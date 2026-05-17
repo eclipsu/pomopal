@@ -10,7 +10,7 @@ import {
   useMemo,
 } from "react";
 import { useUser } from "@/hooks/useUser";
-import { getApiBaseUrl } from "@/utils/apiBase";
+import { getSocketBaseUrl } from "@/utils/apiBase";
 
 const PresenceContext = createContext(null);
 
@@ -68,7 +68,7 @@ export function PresenceProvider({ children }) {
     import("socket.io-client").then(({ io }) => {
       if (cancelled) return;
 
-      const socket = io(`${getApiBaseUrl()}/presence`, {
+      const socket = io(`${getSocketBaseUrl()}/presence`, {
         withCredentials: true,
         transports: ["websocket"],
       });

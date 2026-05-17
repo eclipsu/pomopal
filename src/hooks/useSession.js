@@ -35,29 +35,39 @@ export function useSession() {
       return guestId;
     }
 
-    const res = await axiosClient.post("/sessions", {
-      type: getModeType(mode),
-      planned_minutes: minutes,
-    });
+    try {
+      const res = await axiosClient.post("/sessions", {
+        type: getModeType(mode),
+        planned_minutes: minutes,
+      });
 
-    if (res.data?.id) {
-      setSessionId(res.data.id);
-      setStartTime(now);
-      setDuration(totalSeconds);
-      setSelectedMode(mode);
-      localStorage.setItem(
-        "activeSession",
-        JSON.stringify({
-          sessionId: res.data.id,
-          startTime: now,
-          duration: totalSeconds,
-          mode,
-        }),
+      if (res.data?.id) {
+        setSessionId(res.data.id);
+        setStartTime(now);
+        setDuration(totalSeconds);
+        setSelectedMode(mode);
+        localStorage.setItem(
+          "activeSession",
+          JSON.stringify({
+            sessionId: res.data.id,
+            startTime: now,
+            duration: totalSeconds,
+            mode,
+          }),
+        );
+        return res.data.id;
+      }
+
+      console.error("[session] POST /sessions: no id in response", res.data);
+      return null;
+    } catch (err) {
+      console.error(
+        "[session] POST /sessions failed:",
+        err?.response?.status,
+        err?.response?.data ?? err.message,
       );
-      return res.data.id;
+      return null;
     }
-
-    return null;
   }, []);
 
   const updateSession = useCallback(

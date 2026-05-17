@@ -14,6 +14,10 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { clearInterval, setInterval } from "worker-timers";
 import { useSession } from "@/hooks/useSession";
 import { useUser } from "@/hooks/useUser";
+import {
+  useMarkFocusActivity,
+  useMarkFocusTodayLocal,
+} from "@/hooks/useMarkFocusActivity";
 import axiosClient from "../utils/axios";
 
 import {
@@ -25,6 +29,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import Button from "@/components/Button";
+import { toast } from "react-toastify";
 
 function useTimer() {
   const [ticking, setTicking] = useState(false);
@@ -106,6 +111,12 @@ export default function Home() {
     getElapsedSeconds,
   } = useTimer();
   const { sessionId, createSession, updateSession, clearSession, recoverSession } = useSession();
+  const markFocusActivity = useMarkFocusActivity();
+  const markFocusTodayLocal = useMarkFocusTodayLocal();
+  const heartbeatInFlightRef = useRef(false);
+  const completeInFlightRef = useRef(false);
+  const sessionIdRef = useRef(sessionId);
+  sessionIdRef.current = sessionId;
 
   const getModeDefaultMinutes = (idx = selected) => {
     if (idx === 0) return defaults.pomodoro;
@@ -115,17 +126,26 @@ export default function Home() {
 
   useEffect(() => {
     if (!ticking || !sessionId || sessionId.startsWith("guest_")) return;
-    const interval = setInterval(async () => {
+
+    const sendHeartbeat = async () => {
+      if (heartbeatInFlightRef.current) return;
+      heartbeatInFlightRef.current = true;
       try {
         await axiosClient.patch(`/sessions/${sessionId}/heartbeat`, {
           elapsed_seconds: getElapsedSeconds(),
         });
+        markFocusTodayLocal();
       } catch (err) {
         console.error("Heartbeat failed:", err?.response?.data);
+      } finally {
+        heartbeatInFlightRef.current = false;
       }
-    }, 30000);
+    };
+
+    sendHeartbeat();
+    const interval = setInterval(sendHeartbeat, 30000);
     return () => clearInterval(interval);
-  }, [ticking, sessionId]);
+  }, [ticking, sessionId, getElapsedSeconds, markFocusTodayLocal]);
 
   useEffect(() => {
     if (user) {
@@ -216,7 +236,13 @@ export default function Home() {
 
     const minutes = getModeDefaultMinutes();
     const newId = await createSession(selected, minutes, user?.id);
-    if (newId) begin(Date.now(), minutes * 60);
+    if (newId) {
+      begin(Date.now(), minutes * 60);
+    } else if (user?.id) {
+      toast.error(
+        "Could not start focus session — log in again at http://localhost:3000 and use Pomodoro mode.",
+      );
+    }
   };
 
   const handleReset = () => {
@@ -260,6 +286,9 @@ export default function Home() {
 
   useEffect(() => {
     if (!finished) return;
+    if (completeInFlightRef.current) return;
+    completeInFlightRef.current = true;
+
     const snapSessionId = sessionId;
     const snapSelected = selected;
     const snapDefaults = { ...defaults };
@@ -270,12 +299,15 @@ export default function Home() {
       clearSession();
       reset();
 
-      if (snapSessionId && !snapSessionId.startsWith("guest_") && snapUser?.id) {
-        try {
+      try {
+        if (snapSessionId && !snapSessionId.startsWith("guest_") && snapUser?.id) {
           await axiosClient.patch(`/sessions/${snapSessionId}/complete`);
-        } catch (e) {
-          console.error("Complete session failed:", e?.response?.data);
+          markFocusActivity();
         }
+      } catch (e) {
+        console.error("Complete session failed:", e?.response?.data);
+      } finally {
+        completeInFlightRef.current = false;
       }
 
       if (alarmRef.current) alarmRef.current.play();
