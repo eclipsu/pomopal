@@ -1,5 +1,5 @@
 "use client";
-import { createContext, useEffect, useState } from "react";
+import { createContext, useEffect, useState, useCallback, useMemo } from "react";
 import axiosClient from "@/utils/axios";
 
 export const UserContext = createContext({
@@ -15,7 +15,7 @@ export function UserProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
     try {
       const res = await axiosClient.get("/user/profile");
       setUser({ ...res.data, avatar: res.data.avatar_url });
@@ -24,13 +24,13 @@ export function UserProvider({ children }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchProfile();
-  }, []);
+  }, [fetchProfile]);
 
-  async function login(email, password) {
+  const login = useCallback(async (email, password) => {
     try {
       await axiosClient.post("/auth/login", { email, password });
       const profile = await axiosClient.get("/user/profile");
@@ -40,27 +40,28 @@ export function UserProvider({ children }) {
     } catch (error) {
       return { success: false, message: error.response?.data?.message || error.message };
     }
-  }
+  }, []);
 
-  async function register(email, password, name, timezone) {
+  const register = useCallback(async (email, password, name, timezone) => {
     try {
       await axiosClient.post("/user", { email, password, name, timezone });
       return await login(email, password);
     } catch (error) {
       return { success: false, message: error.response?.data?.message || error.message };
     }
-  }
+  }, [login]);
 
-  async function logout() {
+  const logout = useCallback(async () => {
     try {
       await axiosClient.post("/auth/logout");
     } catch {}
     setUser(null);
-  }
+  }, []);
 
-  return (
-    <UserContext.Provider value={{ user, loading, login, register, logout, refetch: fetchProfile }}>
-      {children}
-    </UserContext.Provider>
+  const value = useMemo(
+    () => ({ user, loading, login, register, logout, refetch: fetchProfile }),
+    [user, loading, login, register, logout, fetchProfile],
   );
+
+  return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
 }

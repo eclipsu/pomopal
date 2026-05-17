@@ -4,10 +4,10 @@ import { GiTomato } from "react-icons/gi";
 import Link from "next/link";
 import Image from "next/image";
 import SignOut from "./SignOut";
-import { ChartNoAxesCombined } from "lucide-react";
+import { ChartNoAxesCombined, Users } from "lucide-react";
 import { useUser } from "@/hooks/useUser";
 
-function Navigation({ setOpenSettings, setShowStats }) {
+function Navigation({ setOpenSettings, setShowStats, showFriends, setShowFriends }) {
   const { user } = useUser();
   const [openSignOut, setOpenSignOut] = useState(false);
 
@@ -17,7 +17,7 @@ function Navigation({ setOpenSettings, setShowStats }) {
         <GiTomato className="text-lg" />
         <h1>Pomopal</h1>
       </div>
-      <div className="flex w-32 justify-between items-center cursor-pointer">
+      <div className="flex w-40 justify-between items-center cursor-pointer">
         {user ? (
           user.avatar ? (
             <Image
@@ -49,6 +49,14 @@ function Navigation({ setOpenSettings, setShowStats }) {
           className="text-2xl cursor-pointer"
           onClick={() => setShowStats((v) => !v)}
         />
+        <div className="relative">
+          <Users
+            className={`text-2xl cursor-pointer transition-colors ${
+              showFriends ? "text-red-400" : "text-white hover:text-gray-300"
+            }`}
+            onClick={() => setShowFriends((v) => !v)}
+          />
+        </div>
       </div>
       {user && <SignOut openSettings={openSignOut} setOpenSettings={setOpenSignOut} />}
     </nav>
