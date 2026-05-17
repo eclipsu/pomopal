@@ -10,8 +10,7 @@ import {
   useMemo,
 } from "react";
 import { useUser } from "@/hooks/useUser";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+import { getApiBaseUrl } from "@/utils/apiBase";
 
 const PresenceContext = createContext(null);
 
@@ -69,7 +68,7 @@ export function PresenceProvider({ children }) {
     import("socket.io-client").then(({ io }) => {
       if (cancelled) return;
 
-      const socket = io(`${API_BASE}/presence`, {
+      const socket = io(`${getApiBaseUrl()}/presence`, {
         withCredentials: true,
         transports: ["websocket"],
       });

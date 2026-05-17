@@ -1,4 +1,5 @@
 import axios from "axios";
+import { getApiBaseUrl } from "./apiBase";
 
 let isRefreshing = false;
 let failedQueue = [];
@@ -15,9 +16,13 @@ const processQueue = (error, token = null) => {
 };
 
 const axiosClient = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000",
   headers: { "Content-Type": "application/json" },
   withCredentials: true,
+});
+
+axiosClient.interceptors.request.use((config) => {
+  config.baseURL = getApiBaseUrl();
+  return config;
 });
 
 axiosClient.interceptors.response.use(

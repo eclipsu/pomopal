@@ -6,6 +6,7 @@ import { UserPlus, Mail, Lock } from "lucide-react";
 import Button from "@/components/Button";
 import Input from "@/components/Input";
 import { useUser } from "@/hooks/useUser";
+import { getApiBaseUrl } from "@/utils/apiBase";
 
 export default function Login() {
   const { login } = useUser();
@@ -52,9 +53,7 @@ export default function Login() {
   };
 
   const handleGoogleLogin = () => {
-    window.location.href = `${
-      process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000"
-    }/auth/google/login`;
+    window.location.href = `${getApiBaseUrl()}/auth/google/login`;
   };
 
   return (
