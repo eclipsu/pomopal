@@ -10,7 +10,7 @@ import {
   useMemo,
 } from "react";
 import { useUser } from "@/hooks/useUser";
-import { getSocketBaseUrl } from "@/utils/apiBase";
+import { getSocketBaseUrl, getSocketPath, getSocketClientOptions } from "@/utils/apiBase";
 import axiosClient from "@/utils/axios";
 
 const PresenceContext = createContext(null);
@@ -90,9 +90,10 @@ export function PresenceProvider({ children }) {
       if (cancelled) return;
 
       const socket = io(`${getSocketBaseUrl()}/presence`, {
+        path: getSocketPath(),
         auth: { token },
         withCredentials: true,
-        transports: ["websocket", "polling"],
+        ...getSocketClientOptions(),
       });
 
       socketRef.current = socket;
