@@ -9,6 +9,7 @@ export function getApiBaseUrl() {
     if (
       hostname === "pomopal.lol" ||
       hostname === "www.pomopal.lol" ||
+      hostname === "pomopal.vercel.app" ||
       hostname === "localhost" ||
       hostname === "127.0.0.1"
     ) {

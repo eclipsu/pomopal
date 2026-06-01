@@ -51,11 +51,13 @@ export function PresenceProvider({ children }) {
 
   useEffect(() => {
     if (!userId) {
+      console.log("[presence] waiting for login");
       setPresenceMap({});
       subscriptionsRef.current.clear();
       return;
     }
 
+    console.log("[presence] starting connection for user", userId);
     let cancelled = false;
 
     const onChanged = (data) => updatePresence(data);
@@ -81,26 +83,46 @@ export function PresenceProvider({ children }) {
       try {
         const { data } = await axiosClient.get("/auth/socket-token");
         token = data?.token;
-      } catch {
+      } catch (err) {
+        console.error(
+          "[presence] socket-token failed:",
+          err?.response?.status ?? err?.message,
+        );
         return;
       }
-      if (cancelled || !token) return;
+      if (cancelled || !token) {
+        console.warn("[presence] no token, aborting");
+        return;
+      }
 
       const { io } = await import("socket.io-client");
       if (cancelled) return;
 
-      const socket = io(`${getSocketBaseUrl()}/presence`, {
-        path: getSocketPath(),
+      const url = `${getSocketBaseUrl()}/presence`;
+      const path = getSocketPath();
+      console.log("[presence] connecting", { url, path, ...getSocketClientOptions() });
+
+      const socket = io(url, {
+        path,
         auth: { token },
         withCredentials: true,
         ...getSocketClientOptions(),
       });
 
       socketRef.current = socket;
+      socket.on("connect", () => {
+        console.log("[presence] socket connected");
+        flushSubscriptions();
+      });
+      socket.on("disconnect", (reason) => {
+        console.log("[presence] socket disconnected:", reason);
+      });
+      socket.on("connect_error", (err) => {
+        console.error("[presence] socket connect_error:", err.message);
+      });
       socket.on("presence:changed", onChanged);
       socket.on("presence:updated", onUpdated);
       socket.on("presence:activity", onActivity);
-      socket.on("connect", flushSubscriptions);
 
       heartbeatRef.current = setInterval(() => {
         if (socket.connected) socket.emit("presence:heartbeat");
@@ -115,7 +137,9 @@ export function PresenceProvider({ children }) {
         socket.off("presence:changed", onChanged);
         socket.off("presence:updated", onUpdated);
         socket.off("presence:activity", onActivity);
-        socket.off("connect", flushSubscriptions);
+        socket.removeAllListeners("connect");
+        socket.removeAllListeners("disconnect");
+        socket.removeAllListeners("connect_error");
         socket.disconnect();
       }
       socketRef.current = null;

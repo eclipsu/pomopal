@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { X, UserPlus, Users, Trophy } from "lucide-react";
 import { FriendsProvider, useFriends } from "@/contexts/FriendsContext";
-import { PresenceProvider, usePresence } from "@/contexts/PresenceContext";
+import { usePresence } from "@/contexts/PresenceContext";
 import SendInviteModal from "./SendInviteModal";
 import FriendProfilePanel from "./FriendProfilePanel";
 import axiosClient from "@/utils/axios";
@@ -440,9 +440,7 @@ function FriendsSidebarInner({ open, onClose }) {
 export default function FriendsSidebar(props) {
   return (
     <FriendsProvider>
-      <PresenceProvider>
-        <FriendsSidebarInner {...props} />
-      </PresenceProvider>
+      <FriendsSidebarInner {...props} />
     </FriendsProvider>
   );
 }
