@@ -7,6 +7,7 @@ import SignOut from "./SignOut";
 import { ChartNoAxesCombined, Users } from "lucide-react";
 import { useUser } from "@/hooks/useUser";
 import StreakIndicator from "@/components/StreakIndicator";
+import NotificationBell from "@/components/NotificationBell";
 
 function Navigation({ setOpenSettings, setShowStats, showFriends, setShowFriends }) {
   const { user } = useUser();
@@ -22,6 +23,7 @@ function Navigation({ setOpenSettings, setShowStats, showFriends, setShowFriends
         {user ? (
           <>
             <StreakIndicator />
+            <NotificationBell />
             {user.avatar ? (
               <Image
                 onClick={() => setOpenSignOut((v) => !v)}

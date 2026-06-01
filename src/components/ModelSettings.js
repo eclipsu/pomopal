@@ -5,6 +5,7 @@ import Button from "./Button";
 import { useUser } from "@/hooks/useUser";
 import { AlertCircle, CheckCircle } from "lucide-react";
 import PrivacySettings from "./PrivacySettings";
+import NotificationSettings from "./NotificationSettings";
 
 function ModelSettings({
   pomodoro,
@@ -149,6 +150,7 @@ function ModelSettings({
             )}
           </Button>
           <PrivacySettings />
+          <NotificationSettings />
         </div>
       </div>
     </div>

@@ -9,6 +9,7 @@ import Alarm from "@/components/Alarm";
 const ModelSettings = dynamic(() => import("@/components/ModelSettings"), { ssr: false });
 const ModelStatistics = dynamic(() => import("@/components/ModelStatistics"), { ssr: false });
 const FriendsSidebar = dynamic(() => import("@/components/FriendsSidebar"), { ssr: false });
+const StreakAtRiskBanner = dynamic(() => import("@/components/StreakAtRiskBanner"), { ssr: false });
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { clearInterval, setInterval } from "worker-timers";
@@ -390,6 +391,7 @@ export default function Home() {
             showFriends={showFriends}
             setShowFriends={setShowFriends}
           />
+          <StreakAtRiskBanner onStartFocus={handleStartOrPause} />
           <Timer
             selected={selected}
             switchSelected={handleSwitchRequest}
