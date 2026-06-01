@@ -309,9 +309,18 @@ export default function Home() {
           await axiosClient.patch(`/sessions/${snapSessionId}/complete`);
           markFocusActivity();
           touchActive?.();
+          if (snapSelected === 0) {
+            toast.success("Focus session complete — check your notifications");
+          }
         }
       } catch (e) {
+        const msg =
+          e?.response?.data?.message ??
+          (Array.isArray(e?.response?.data?.message)
+            ? e.response.data.message.join(", ")
+            : null);
         console.error("Complete session failed:", e?.response?.data);
+        toast.error(msg || "Could not save session — streak and notifications may not update");
       } finally {
         completeInFlightRef.current = false;
       }
