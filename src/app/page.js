@@ -14,10 +14,8 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { clearInterval, setInterval } from "worker-timers";
 import { useSession } from "@/hooks/useSession";
 import { useUser } from "@/hooks/useUser";
-import {
-  useMarkFocusActivity,
-  useMarkFocusTodayLocal,
-} from "@/hooks/useMarkFocusActivity";
+import { useMarkFocusActivity, useMarkFocusTodayLocal } from "@/hooks/useMarkFocusActivity";
+import { usePresence } from "@/contexts/PresenceContext";
 import axiosClient from "../utils/axios";
 
 import {
@@ -113,6 +111,7 @@ export default function Home() {
   const { sessionId, createSession, updateSession, clearSession, recoverSession } = useSession();
   const markFocusActivity = useMarkFocusActivity();
   const markFocusTodayLocal = useMarkFocusTodayLocal();
+  const { touchActive } = usePresence() ?? {};
   const heartbeatInFlightRef = useRef(false);
   const completeInFlightRef = useRef(false);
   const sessionIdRef = useRef(sessionId);
@@ -180,6 +179,7 @@ export default function Home() {
   const handleRecoverSession = () => {
     if (!recoveredSession) return;
     begin(recoveredSession.startTime, recoveredSession.duration);
+    touchActive?.();
     setShowRecoverDialog(false);
     setRecoveredSession(null);
   };
@@ -238,6 +238,7 @@ export default function Home() {
     const newId = await createSession(selected, minutes, user?.id);
     if (newId) {
       begin(Date.now(), minutes * 60);
+      touchActive?.();
     } else if (user?.id) {
       toast.error(
         "Could not start focus session — log in again at http://localhost:3000 and use Pomodoro mode.",
@@ -276,7 +277,10 @@ export default function Home() {
     setShowSwitchDialog(false);
     const minutes = getModeDefaultMinutes(idx);
     const newId = await createSession(idx, minutes, user?.id);
-    if (newId) begin(Date.now(), minutes * 60);
+    if (newId) {
+      begin(Date.now(), minutes * 60);
+      touchActive?.();
+    }
   };
 
   const cancelSwitch = () => {
@@ -303,6 +307,7 @@ export default function Home() {
         if (snapSessionId && !snapSessionId.startsWith("guest_") && snapUser?.id) {
           await axiosClient.patch(`/sessions/${snapSessionId}/complete`);
           markFocusActivity();
+          touchActive?.();
         }
       } catch (e) {
         console.error("Complete session failed:", e?.response?.data);
@@ -323,7 +328,10 @@ export default function Home() {
             ? snapDefaults.shortBreak
             : snapDefaults.longBreak;
       const newId = await createSession(next, minutes, snapUser?.id);
-      if (newId) begin(Date.now(), minutes * 60);
+      if (newId) {
+        begin(Date.now(), minutes * 60);
+        touchActive?.();
+      }
     })();
   }, [finished]); // eslint-disable-line react-hooks/exhaustive-deps
 

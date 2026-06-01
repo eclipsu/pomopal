@@ -5,7 +5,7 @@ import axiosClient from "@/utils/axios";
 
 const TOGGLES = [
   { key: "show_online_status", label: "Show online status" },
-  { key: "show_current_activity", label: "Show current activity" },
+  { key: "show_current_activity", label: "Show last active" },
   { key: "show_daily_stats", label: "Show daily stats" },
   { key: "show_streak", label: "Show streak" },
   { key: "show_total_focus_time", label: "Show total focus time" },

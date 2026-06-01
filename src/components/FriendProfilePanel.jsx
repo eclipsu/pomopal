@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Users, Trophy, Flame, Clock, BarChart3, ChevronLeft, EyeOff } from "lucide-react";
 import axiosClient from "@/utils/axios";
+import { formatLastActive } from "@/utils/formatLastActive";
 
 function formatFocusMinutes(mins) {
   if (mins == null) return "—";
@@ -64,6 +65,12 @@ function ProfileStatRow({ icon: Icon, label, value, isPrivate, privateLabel = "P
   );
 }
 
+function lastActiveLabel(status, lastSeen) {
+  if (status === "online") return "Active now";
+  if (lastSeen) return formatLastActive(lastSeen);
+  return "—";
+}
+
 export default function FriendProfilePanel({ friendId, presence, onClose }) {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -81,7 +88,6 @@ export default function FriendProfilePanel({ friendId, presence, onClose }) {
   const v = profile?.visibility ?? {};
   const p = presence ?? {};
   const status = profile?.status ?? p.status;
-  const activity = profile?.current_activity ?? p.current_activity;
   const customStatus = profile?.custom_status ?? p.custom_status;
   const lastSeen = profile?.last_seen_at ?? p.last_seen_at;
 
@@ -127,9 +133,9 @@ export default function FriendProfilePanel({ friendId, presence, onClose }) {
               />
               <div className="min-w-0">
                 <p className="text-white font-semibold truncate">{profile.name}</p>
-                {v.show_current_activity && (activity || customStatus) && (
+                {v.show_current_activity && (
                   <p className="text-xs text-gray-400 mt-0.5 truncate">
-                    {activity || customStatus}
+                    {lastActiveLabel(status, lastSeen)}
                   </p>
                 )}
               </div>
@@ -152,21 +158,25 @@ export default function FriendProfilePanel({ friendId, presence, onClose }) {
                       }`}
                     />
                     {statusLabel}
-                    {status === "offline" && lastSeen && (
-                      <span className="block text-xs text-gray-500 font-normal mt-0.5">
-                        Last seen {new Date(lastSeen).toLocaleString()}
-                      </span>
-                    )}
                   </span>
                 }
               />
 
               <ProfileStatRow
                 icon={Clock}
-                label="Current activity"
+                label="Last active"
                 isPrivate={!v.show_current_activity}
-                value={activity || customStatus || "—"}
+                value={lastActiveLabel(status, lastSeen)}
               />
+
+              {customStatus && (
+                <ProfileStatRow
+                  icon={Clock}
+                  label="Status message"
+                  isPrivate={!v.show_online_status}
+                  value={customStatus}
+                />
+              )}
 
               <ProfileStatRow
                 icon={BarChart3}

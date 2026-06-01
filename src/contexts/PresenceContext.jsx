@@ -20,7 +20,7 @@ function presenceEquals(a, b) {
   return (
     a.status === b.status &&
     a.custom_status === b.custom_status &&
-    a.current_activity === b.current_activity
+    a.last_seen_at === b.last_seen_at
   );
 }
 
@@ -28,7 +28,6 @@ export function PresenceProvider({ children }) {
   const { user } = useUser();
   const userId = user?.id;
   const socketRef = useRef(null);
-  const heartbeatRef = useRef(null);
   const subscriptionsRef = useRef(new Set());
   const [presenceMap, setPresenceMap] = useState({});
 
@@ -41,6 +40,10 @@ export function PresenceProvider({ children }) {
     });
   }, []);
 
+  const touchActive = useCallback(() => {
+    socketRef.current?.emit("presence:active");
+  }, []);
+
   const flushSubscriptions = useCallback(() => {
     const socket = socketRef.current;
     if (!socket?.connected) return;
@@ -51,31 +54,18 @@ export function PresenceProvider({ children }) {
 
   useEffect(() => {
     if (!userId) {
-      console.log("[presence] waiting for login");
       setPresenceMap({});
       subscriptionsRef.current.clear();
       return;
     }
 
-    console.log("[presence] starting connection for user", userId);
     let cancelled = false;
 
     const onChanged = (data) => updatePresence(data);
     const onUpdated = (data) => updatePresence(data);
-    const onActivity = ({ userId: uid, current_activity }) => {
-      if (!uid) return;
-      setPresenceMap((prev) => {
-        const existing = prev[uid];
-        if (existing?.current_activity === current_activity) return prev;
-        return {
-          ...prev,
-          [uid]: {
-            ...(existing ?? { userId: uid, status: "offline", custom_status: null }),
-            userId: uid,
-            current_activity,
-          },
-        };
-      });
+
+    const onVisible = () => {
+      if (document.visibilityState === "visible") touchActive();
     };
 
     (async () => {
@@ -90,20 +80,13 @@ export function PresenceProvider({ children }) {
         );
         return;
       }
-      if (cancelled || !token) {
-        console.warn("[presence] no token, aborting");
-        return;
-      }
+      if (cancelled || !token) return;
 
       const { io } = await import("socket.io-client");
       if (cancelled) return;
 
-      const url = `${getSocketBaseUrl()}/presence`;
-      const path = getSocketPath();
-      console.log("[presence] connecting", { url, path, ...getSocketClientOptions() });
-
-      const socket = io(url, {
-        path,
+      const socket = io(`${getSocketBaseUrl()}/presence`, {
+        path: getSocketPath(),
         auth: { token },
         withCredentials: true,
         ...getSocketClientOptions(),
@@ -111,40 +94,32 @@ export function PresenceProvider({ children }) {
 
       socketRef.current = socket;
       socket.on("connect", () => {
-        console.log("[presence] socket connected");
+        touchActive();
         flushSubscriptions();
-      });
-      socket.on("disconnect", (reason) => {
-        console.log("[presence] socket disconnected:", reason);
-      });
-      socket.on("connect_error", (err) => {
-        console.error("[presence] socket connect_error:", err.message);
       });
       socket.on("presence:changed", onChanged);
       socket.on("presence:updated", onUpdated);
-      socket.on("presence:activity", onActivity);
 
-      heartbeatRef.current = setInterval(() => {
-        if (socket.connected) socket.emit("presence:heartbeat");
-      }, 30_000);
+      document.addEventListener("visibilitychange", onVisible);
+      window.addEventListener("focus", touchActive);
+      window.addEventListener("pagehide", touchActive);
     })();
 
     return () => {
       cancelled = true;
-      clearInterval(heartbeatRef.current);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", touchActive);
+      window.removeEventListener("pagehide", touchActive);
       const socket = socketRef.current;
       if (socket) {
         socket.off("presence:changed", onChanged);
         socket.off("presence:updated", onUpdated);
-        socket.off("presence:activity", onActivity);
         socket.removeAllListeners("connect");
-        socket.removeAllListeners("disconnect");
-        socket.removeAllListeners("connect_error");
         socket.disconnect();
       }
       socketRef.current = null;
     };
-  }, [userId, updatePresence, flushSubscriptions]);
+  }, [userId, updatePresence, flushSubscriptions, touchActive]);
 
   const subscribeTo = useCallback((friendId) => {
     if (!friendId) return;
@@ -161,13 +136,13 @@ export function PresenceProvider({ children }) {
     socketRef.current?.emit("presence:unsubscribe", { friendId });
   }, []);
 
-  const setCustomStatus = useCallback((custom_status, current_activity) => {
-    socketRef.current?.emit("presence:update", { custom_status, current_activity });
+  const setCustomStatus = useCallback((custom_status) => {
+    socketRef.current?.emit("presence:update", { custom_status });
   }, []);
 
   const value = useMemo(
-    () => ({ presenceMap, subscribeTo, unsubscribeFrom, setCustomStatus }),
-    [presenceMap, subscribeTo, unsubscribeFrom, setCustomStatus],
+    () => ({ presenceMap, subscribeTo, unsubscribeFrom, setCustomStatus, touchActive }),
+    [presenceMap, subscribeTo, unsubscribeFrom, setCustomStatus, touchActive],
   );
 
   return <PresenceContext.Provider value={value}>{children}</PresenceContext.Provider>;

@@ -6,6 +6,7 @@ import { FriendsProvider, useFriends } from "@/contexts/FriendsContext";
 import { usePresence } from "@/contexts/PresenceContext";
 import SendInviteModal from "./SendInviteModal";
 import FriendProfilePanel from "./FriendProfilePanel";
+import { formatPresenceSubtitle } from "@/utils/formatLastActive";
 import axiosClient from "@/utils/axios";
 import { Flame } from "lucide-react";
 
@@ -78,7 +79,7 @@ function FriendRow({ friend, presence, onUnfriend, onClick }) {
           {friend.name}
         </p>
         <p className="text-xs text-gray-500 truncate">
-          {presence?.current_activity || presence?.custom_status || status}
+          {formatPresenceSubtitle(presence)}
         </p>
       </div>
       <button
