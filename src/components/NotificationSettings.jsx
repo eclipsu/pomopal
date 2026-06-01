@@ -3,10 +3,10 @@
 import { useNotificationPreferences } from "@/hooks/useNotifications";
 
 const TOGGLES = [
-  { key: "streak_updates", label: "Streak & session updates" },
-  { key: "streak_nudges", label: "Streak reminders & daily nudges" },
-  { key: "inactive_reminders", label: "Comeback reminders" },
-  { key: "product_announcements", label: "Product announcements" },
+  { key: "streak_updates", label: "Streak & session updates (app + email)" },
+  { key: "streak_nudges", label: "Streak reminders & daily nudges (app + email)" },
+  { key: "inactive_reminders", label: "Comeback reminders (app + email)" },
+  { key: "product_announcements", label: "Product announcements (app + email)" },
 ];
 
 export default function NotificationSettings() {
