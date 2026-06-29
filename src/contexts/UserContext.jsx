@@ -8,7 +8,7 @@ export const UserContext = createContext({
   login: async () => {},
   register: async () => {},
   logout: async () => {},
-  refetch: async () => {},
+  refetch: async () => null,
 });
 
 export function UserProvider({ children }) {
@@ -18,9 +18,12 @@ export function UserProvider({ children }) {
   const fetchProfile = useCallback(async () => {
     try {
       const res = await axiosClient.get("/user/profile");
-      setUser({ ...res.data, avatar: res.data.avatar_url });
+      const nextUser = { ...res.data, avatar: res.data.avatar_url };
+      setUser(nextUser);
+      return nextUser;
     } catch {
       setUser(null);
+      return null;
     } finally {
       setLoading(false);
     }

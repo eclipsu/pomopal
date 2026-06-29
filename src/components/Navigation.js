@@ -22,6 +22,14 @@ function Navigation({ setOpenSettings, setShowStats, showFriends, setShowFriends
       <div className="flex items-center gap-3">
         {user ? (
           <>
+            {user.role === "admin" && (
+              <Link
+                href="/admin"
+                className="text-sm font-medium text-blue-400 hover:text-blue-300"
+              >
+                Admin
+              </Link>
+            )}
             <StreakIndicator />
             <NotificationBell />
             {user.avatar ? (

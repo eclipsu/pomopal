@@ -54,7 +54,12 @@ export default function Login() {
 
   const handleGoogleLogin = () => {
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const returnTo =
+      typeof window !== "undefined"
+        ? new URLSearchParams(window.location.search).get("returnTo") || ""
+        : "";
     const params = new URLSearchParams({ timezone });
+    if (returnTo) params.set("returnTo", returnTo);
     window.location.href = `${getApiBaseUrl()}/auth/google/login?${params}`;
   };
 
