@@ -9,6 +9,7 @@ import { getApiBaseUrl } from "@/utils/apiBase";
 import { mediaUrl } from "@/utils/mediaUrl";
 import Button from "@/components/Button";
 import TemplateForm from "@/components/admin/TemplateForm";
+import TestSendPanel from "@/components/admin/TestSendPanel";
 import {
   useAdminTemplates,
   useCreateTemplate,
@@ -133,6 +134,8 @@ function AdminContent() {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-8 space-y-8">
+        <TestSendPanel templates={templates} />
+
         {(creating || editing) && (
           <section className="rounded-2xl border border-white/10 bg-white/5 p-6">
             <h2 className="text-lg font-medium mb-4">

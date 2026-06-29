@@ -21,7 +21,6 @@ export function useCreateTemplate() {
       const { data } = await axiosClient.post(
         "/admin/notification-templates",
         formData,
-        { headers: { "Content-Type": "multipart/form-data" } },
       );
       return data;
     },
@@ -36,7 +35,6 @@ export function useUpdateTemplate() {
       const { data } = await axiosClient.patch(
         `/admin/notification-templates/${id}`,
         formData,
-        { headers: { "Content-Type": "multipart/form-data" } },
       );
       return data;
     },
