@@ -1,11 +1,22 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Upload, X } from "lucide-react";
-import { mediaUrl } from "@/utils/mediaUrl";
+import TemplateImage from "@/components/admin/TemplateImage";
 
 export default function ImageDropzone({ value, previewUrl, onChange, onClear }) {
   const [dragging, setDragging] = useState(false);
+  const [objectUrl, setObjectUrl] = useState(null);
+
+  useEffect(() => {
+    if (!value) {
+      setObjectUrl(null);
+      return undefined;
+    }
+    const url = URL.createObjectURL(value);
+    setObjectUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [value]);
 
   const handleFiles = useCallback(
     (files) => {
@@ -16,15 +27,23 @@ export default function ImageDropzone({ value, previewUrl, onChange, onClear }) 
     [onChange],
   );
 
-  const displayUrl = value ? URL.createObjectURL(value) : previewUrl ? mediaUrl(previewUrl) : null;
+  const showPreview = objectUrl || previewUrl;
 
   return (
     <div className="space-y-2">
       <label className="text-sm font-medium text-gray-300">Image</label>
-      {displayUrl ? (
-        <div className="relative rounded-xl overflow-hidden border border-white/10 bg-black/20">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={displayUrl} alt="Template preview" className="w-full h-40 object-contain bg-gray-950" />
+      {showPreview ? (
+        <div className="relative inline-block max-w-full">
+          {objectUrl ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={objectUrl}
+              alt="Template preview"
+              className="block w-auto h-auto max-w-full max-h-40 rounded-lg border border-white/10"
+            />
+          ) : (
+            <TemplateImage src={previewUrl} alt="Template preview" maxHeightClass="max-h-40" />
+          )}
           <button
             type="button"
             onClick={onClear}
@@ -45,7 +64,7 @@ export default function ImageDropzone({ value, previewUrl, onChange, onClear }) 
             setDragging(false);
             handleFiles(e.dataTransfer.files);
           }}
-          className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors ${
+          className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors max-w-md ${
             dragging ? "border-blue-400 bg-blue-500/10" : "border-white/15 bg-white/5"
           }`}
         >

@@ -6,10 +6,10 @@ import { useRouter } from "next/navigation";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { useUser } from "@/hooks/useUser";
 import { getApiBaseUrl } from "@/utils/apiBase";
-import { mediaUrl } from "@/utils/mediaUrl";
 import Button from "@/components/Button";
 import TemplateForm from "@/components/admin/TemplateForm";
 import TestSendPanel from "@/components/admin/TestSendPanel";
+import TemplateImage from "@/components/admin/TemplateImage";
 import {
   useAdminTemplates,
   useCreateTemplate,
@@ -148,18 +148,14 @@ function AdminContent() {
                 setCreating(false);
                 setEditing(null);
               }}
-              onSubmit={async (formData) => {
-                try {
-                  if (editing) {
-                    await updateTemplate.mutateAsync({ id: editing.id, formData });
-                  } else {
-                    await createTemplate.mutateAsync(formData);
-                  }
-                  setCreating(false);
-                  setEditing(null);
-                } catch (err) {
-                  alert(err?.response?.data?.message || "Failed to save template");
+              onSubmit={async (payload) => {
+                if (editing) {
+                  await updateTemplate.mutateAsync({ id: editing.id, payload });
+                } else {
+                  await createTemplate.mutateAsync(payload);
                 }
+                setCreating(false);
+                setEditing(null);
               }}
             />
           </section>
@@ -183,16 +179,15 @@ function AdminContent() {
                   key={template.id}
                   className="rounded-2xl border border-white/10 bg-white/5 p-4 flex flex-col md:flex-row gap-4"
                 >
-                  <div className="w-full md:w-36 h-28 rounded-xl bg-gray-950 border border-white/10 overflow-hidden flex items-center justify-center shrink-0">
+                  <div className="shrink-0 flex items-start">
                     {template.image_url ? (
-                      /* eslint-disable-next-line @next/next/no-img-element */
-                      <img
-                        src={mediaUrl(template.image_url)}
+                      <TemplateImage
+                        src={template.image_url}
                         alt={template.name}
-                        className="w-full h-full object-contain"
+                        maxHeightClass="max-h-24"
                       />
                     ) : (
-                      <span className="text-xs text-gray-500">No image</span>
+                      <span className="text-xs text-gray-500 px-2 py-1">No image</span>
                     )}
                   </div>
                   <div className="flex-1 min-w-0">

@@ -31,8 +31,12 @@ export function mediaUrl(path) {
 
   if (path.startsWith("http://") || path.startsWith("https://")) {
     try {
-      const key = keyFromUrl(new URL(path).pathname);
-      if (key) return s3TemplateUrl(key);
+      const url = new URL(path);
+      const key = keyFromUrl(url.pathname);
+      if (key) {
+        const base = s3TemplateUrl(key);
+        return url.search ? `${base}${url.search}` : base;
+      }
     } catch {
       // not a valid URL — fall through
     }
