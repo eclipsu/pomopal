@@ -3,12 +3,17 @@
 import { useEffect, useMemo, useState } from "react";
 import Button from "@/components/Button";
 import Input from "@/components/Input";
-import ImageDropzone from "@/components/admin/ImageDropzone";
+import ImageLibrarySelect from "@/components/admin/ImageLibrarySelect";
 import EligibilityRulesHelp from "@/components/admin/EligibilityRulesHelp";
-import {
-  useAdminTemplateImages,
-  useUploadTemplateImage,
-} from "@/hooks/useAdminTemplates";
+import RichTextEditor from "@/components/admin/RichTextEditor";
+import NotificationPreview from "@/components/admin/NotificationPreview";
+import { renderTemplate } from "@/utils/renderTemplate";
+
+const SAMPLE_CONTEXT = {
+  streak: 7,
+  daysAway: 5,
+  today: new Date().toISOString().slice(0, 10),
+};
 
 const NOTIFICATION_TYPES = [
   { value: "streak_at_risk", label: "Streak at risk" },
@@ -35,20 +40,11 @@ function imageKeyFromValue(value) {
   return match ? match[0] : null;
 }
 
-function labelForImage(key) {
-  if (!key) return "";
-  return key.replace("notification-templates/", "").replace(/\.webp$/i, "").slice(0, 8) + "…";
-}
-
 export default function TemplateForm({ initial, saving, onSubmit, onCancel }) {
   const [form, setForm] = useState(emptyForm);
-  const [imageFile, setImageFile] = useState(null);
   const [selectedImageKey, setSelectedImageKey] = useState(null);
   const [clearImage, setClearImage] = useState(false);
   const [submitError, setSubmitError] = useState(null);
-
-  const { data: libraryImages = [], isLoading: imagesLoading } = useAdminTemplateImages();
-  const uploadImage = useUploadTemplateImage();
 
   useEffect(() => {
     if (initial) {
@@ -60,12 +56,10 @@ export default function TemplateForm({ initial, saving, onSubmit, onCancel }) {
         eligibility_rules: JSON.stringify(initial.eligibility_rules ?? {}, null, 2),
         active: initial.active ?? true,
       });
-      setImageFile(null);
       setSelectedImageKey(imageKeyFromValue(initial.image_url));
       setClearImage(false);
     } else {
       setForm(emptyForm);
-      setImageFile(null);
       setSelectedImageKey(null);
       setClearImage(false);
     }
@@ -74,19 +68,21 @@ export default function TemplateForm({ initial, saving, onSubmit, onCancel }) {
 
   const update = (field, value) => setForm((prev) => ({ ...prev, [field]: value }));
 
-  const selectedLibraryImage = useMemo(
-    () => libraryImages.find((img) => img.key === selectedImageKey),
-    [libraryImages, selectedImageKey],
+  const previewTitle = useMemo(
+    () => renderTemplate(form.title, SAMPLE_CONTEXT),
+    [form.title],
+  );
+  const previewBody = useMemo(
+    () => renderTemplate(form.body, SAMPLE_CONTEXT),
+    [form.body],
   );
 
-  const previewUrl = useMemo(() => {
+  const previewImageUrl = useMemo(() => {
     if (clearImage) return null;
-    if (selectedLibraryImage?.url) return selectedLibraryImage.url;
-    if (!imageFile && initial?.image_url) return initial.image_url;
+    if (selectedImageKey) return selectedImageKey;
+    if (initial?.image_url && !selectedImageKey && !clearImage) return initial.image_url;
     return null;
-  }, [clearImage, selectedLibraryImage, imageFile, initial?.image_url]);
-
-  const busy = saving || uploadImage.isPending;
+  }, [clearImage, selectedImageKey, initial?.image_url]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -101,30 +97,20 @@ export default function TemplateForm({ initial, saving, onSubmit, onCancel }) {
     }
 
     let imageKey;
-    try {
-      if (clearImage) {
-        imageKey = "";
-      } else if (imageFile) {
-        const uploaded = await uploadImage.mutateAsync(imageFile);
-        imageKey = uploaded.key;
-        setSelectedImageKey(uploaded.key);
-        setImageFile(null);
-      } else if (
-        selectedImageKey &&
-        (!initial || selectedImageKey !== imageKeyFromValue(initial?.image_url))
-      ) {
+    if (clearImage) {
+      imageKey = "";
+    } else if (selectedImageKey) {
+      const initialKey = imageKeyFromValue(initial?.image_url);
+      if (!initial || selectedImageKey !== initialKey) {
         imageKey = selectedImageKey;
       }
-    } catch (err) {
-      setSubmitError(err?.response?.data?.message || "Image upload failed");
-      return;
     }
 
     const payload = {
       name: form.name.trim(),
       type: form.type,
       title: form.title.trim(),
-      body: form.body.trim(),
+      body: form.body.trim() || "<p></p>",
       active: form.active,
       eligibility_rules: rules,
       ...(imageKey !== undefined ? { image_key: imageKey } : {}),
@@ -178,13 +164,7 @@ export default function TemplateForm({ initial, saving, onSubmit, onCancel }) {
 
       <div className="space-y-2">
         <label className="text-sm font-medium text-gray-300">Body</label>
-        <textarea
-          value={form.body}
-          onChange={(e) => update("body", e.target.value)}
-          rows={4}
-          required
-          className="w-full rounded-md border border-white/20 bg-white/10 text-white px-3 py-2 text-sm"
-        />
+        <RichTextEditor value={form.body} onChange={(html) => update("body", html)} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -202,50 +182,37 @@ export default function TemplateForm({ initial, saving, onSubmit, onCancel }) {
         <EligibilityRulesHelp />
       </div>
 
-      <div className="space-y-3">
-        <label className="text-sm font-medium text-gray-300">Reuse uploaded image</label>
-        <select
-          value={selectedImageKey ?? ""}
-          onChange={(e) => {
-            const key = e.target.value || null;
-            setSelectedImageKey(key);
-            setImageFile(null);
-            setClearImage(false);
-          }}
-          disabled={imagesLoading || !!imageFile || busy}
-          className="w-full h-10 rounded-md border border-white/20 bg-white/10 text-white px-3 text-sm disabled:opacity-50"
-        >
-          <option value="" className="bg-gray-900">
-            {imagesLoading ? "Loading images…" : "Choose from library (optional)"}
-          </option>
-          {libraryImages.map((img) => (
-            <option key={img.key} value={img.key} className="bg-gray-900">
-              {labelForImage(img.key)}
-            </option>
-          ))}
-        </select>
-
-        <p className="text-xs text-gray-500">
-          Or upload a new image below. Uploads are saved immediately and appear in this list.
-        </p>
-      </div>
-
-      <ImageDropzone
-        value={imageFile}
-        previewUrl={!imageFile ? previewUrl : null}
-        onChange={(file) => {
-          setImageFile(file);
-          setSelectedImageKey(null);
-          setClearImage(false);
+      <ImageLibrarySelect
+        value={clearImage ? null : selectedImageKey}
+        onChange={(key) => {
+          setSelectedImageKey(key);
+          setClearImage(!key);
         }}
-        onClear={() => {
-          setImageFile(null);
-          setSelectedImageKey(null);
-          setClearImage(true);
-        }}
+        noneLabel="No image (optional)"
       />
 
+      {initial?.image_url && !clearImage && (
+        <button
+          type="button"
+          onClick={() => {
+            setClearImage(true);
+            setSelectedImageKey(null);
+          }}
+          className="text-xs text-red-400 hover:text-red-300"
+        >
+          Remove current image
+        </button>
+      )}
+
       {submitError && <p className="text-sm text-red-400">{submitError}</p>}
+
+      <NotificationPreview
+        title={previewTitle}
+        body={previewBody}
+        imageUrl={previewImageUrl}
+        type={form.type}
+        emptyMessage="Add a title and body to preview this template"
+      />
 
       <label className="flex items-center gap-2 text-sm text-gray-300">
         <input
@@ -260,22 +227,16 @@ export default function TemplateForm({ initial, saving, onSubmit, onCancel }) {
       <div className="flex gap-3 pt-2">
         <Button
           type="submit"
-          disabled={busy}
+          disabled={saving}
           className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg"
         >
-          {uploadImage.isPending
-            ? "Uploading image..."
-            : saving
-              ? "Saving..."
-              : initial
-                ? "Update template"
-                : "Create template"}
+          {saving ? "Saving..." : initial ? "Update template" : "Create template"}
         </Button>
         {onCancel && (
           <Button
             type="button"
             onClick={onCancel}
-            disabled={busy}
+            disabled={saving}
             className="px-4 py-2 bg-white/10 hover:bg-white/15 text-white rounded-lg"
           >
             Cancel

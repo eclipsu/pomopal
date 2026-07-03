@@ -13,6 +13,7 @@ export const metadata = {
   title: "Pomopal",
   description:
     "PomoPal is a FREE pomodoro timer app that helps students focus on their work by breaking it into intervals and reminding them to take breaks.",
+  manifest: "/favicon_io/site.webmanifest",
   openGraph: {
     images: ["/assets/tomato.png"],
   },

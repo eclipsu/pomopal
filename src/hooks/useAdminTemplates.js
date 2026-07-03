@@ -4,14 +4,6 @@ import axiosClient from "@/utils/axios";
 const TEMPLATES_KEY = ["admin", "notification-templates"];
 const TEMPLATE_IMAGES_KEY = ["admin", "notification-template-images"];
 
-function addImageToLibraryCache(queryClient, image) {
-  if (!image?.key) return;
-  queryClient.setQueryData(TEMPLATE_IMAGES_KEY, (old = []) => {
-    if (old.some((item) => item.key === image.key)) return old;
-    return [image, ...old];
-  });
-}
-
 export function useAdminTemplates(enabled = true) {
   return useQuery({
     queryKey: TEMPLATES_KEY,
@@ -37,17 +29,34 @@ export function useAdminTemplateImages(enabled = true) {
 export function useUploadTemplateImage() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (file) => {
+    mutationFn: async ({ file, name }) => {
       const fd = new FormData();
       fd.append("image", file);
+      if (name?.trim()) fd.append("name", name.trim());
       const { data } = await axiosClient.post(
         "/admin/notification-templates/upload-image",
         fd,
       );
       return data;
     },
-    onSuccess: (data) => {
-      addImageToLibraryCache(queryClient, data);
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: TEMPLATE_IMAGES_KEY });
+    },
+  });
+}
+
+export function useRenameTemplateImage() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ key, name }) => {
+      const { data } = await axiosClient.patch(
+        "/admin/notification-templates/images/rename",
+        { key, name },
+      );
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: TEMPLATE_IMAGES_KEY });
     },
   });
 }
