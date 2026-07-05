@@ -1,6 +1,3 @@
-import { useUser } from "@/hooks/useUser";
-import { FiBellOff } from "react-icons/fi";
-
 export default function PomodoroTimer({
   selected,
   switchSelected,
@@ -10,40 +7,55 @@ export default function PomodoroTimer({
   startTimer,
   isTimesUp,
   muteAlarm,
-  reset,
 }) {
-  const { user } = useUser();
   const options = ["Pomodoro", "Short Break", "Long Break"];
+  const mins = String(getTime()).padStart(2, "0");
+  const secs = String(seconds).padStart(2, "0");
 
   return (
-    <div className="text-white w-10/12 mx-auto pt-5 flex flex-col justify-center items-center mt-10 overflow-y-hidden">
-      <div className="flex gap-5 items-center">
+    <div className="text-white w-full max-w-lg mx-auto px-4 pt-8 flex flex-col justify-center items-center overflow-x-hidden">
+      <div className="flex flex-wrap justify-center gap-1 sm:gap-2 p-1 rounded-2xl bg-white/5 border border-white/10 max-w-full">
         {options.map((option, index) => (
-          <h1
-            key={index}
-            className={`${index === selected ? "bg-gray-500 bg-opacity-30" : ""} p-1 cursor-pointer transition-all rounded`}
+          <button
+            key={option}
+            type="button"
+            className={`px-3 sm:px-4 py-2 text-sm sm:text-base rounded-xl transition-all ${
+              index === selected
+                ? "bg-white/15 text-white"
+                : "text-white/60 hover:text-white hover:bg-white/5"
+            }`}
             onClick={() => switchSelected(index)}
           >
             {option}
-          </h1>
+          </button>
         ))}
       </div>
 
-      <div className="mt-10 mb-10">
-        <h1 className="text-8xl font-bold select-none m-0">
-          {getTime()}:{seconds.toString().padStart(2, "0")}
-        </h1>
+      <div className="mt-12 mb-10 flex items-center justify-center w-full max-w-full px-2">
+        <p
+          className="text-[clamp(3rem,16vw,6rem)] font-bold select-none m-0 tabular-nums tracking-wider text-center min-w-[9ch] sm:min-w-[10ch] md:min-w-[12ch] max-w-full"
+          aria-live="polite"
+        >
+          {mins}:{secs}
+        </p>
       </div>
 
       <div className="flex items-center gap-2">
         <button
+          type="button"
           onClick={startTimer}
-          className="px-16 py-2 text-2xl rounded-md bg-white text-blue-500 uppercase font-bold w-56"
+          className="px-14 sm:px-16 py-2.5 text-xl sm:text-2xl rounded-xl bg-white text-gray-900 uppercase font-bold min-w-[14rem] hover:bg-red-50 active:scale-[0.98] transition-all"
         >
           {ticking ? "Pause" : "Start"}
         </button>
         {isTimesUp && (
-          <FiBellOff className="text-3xl text-white cursor-pointer" onClick={muteAlarm} />
+          <button
+            type="button"
+            className="text-sm text-white/70 underline"
+            onClick={muteAlarm}
+          >
+            Mute
+          </button>
         )}
       </div>
     </div>

@@ -5,7 +5,7 @@ import { useStreak } from "@/hooks/useStreak";
 import { STREAK_STATUS_LABELS } from "@/lib/streakStatus";
 
 export const STYLES = {
-  active: "text-orange-500 fill-orange-500 drop-shadow-[0_0_6px_rgba(249,115,22,0.55)]",
+  active: "text-orange-500 fill-orange-500",
   at_risk: "text-blue-400 fill-blue-400/30",
   inactive: "text-gray-500 fill-transparent opacity-60",
 };

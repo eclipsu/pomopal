@@ -84,7 +84,8 @@ body {
   * {
     @apply border-border;
   }
+  html,
   body {
-    @apply bg-background text-foreground;
+    @apply bg-gray-900 text-foreground font-sans overflow-x-hidden min-h-dvh;
   }
 }

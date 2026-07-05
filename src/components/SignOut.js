@@ -41,7 +41,7 @@ function SignOut({ setOpenSettings, openSettings }) {
               alt={user.name || "User"}
             />
           )}
-          <h1 className="uppercase font-bold tracking-wider">{user?.name || "User"}'s SETTINGS</h1>
+          <h1 className="uppercase font-bold tracking-wider">{user?.name || "User"}</h1>
           <FiX className="text-2xl cursor-pointer" onClick={() => setOpenSettings(false)} />
         </div>
 
@@ -50,7 +50,7 @@ function SignOut({ setOpenSettings, openSettings }) {
         <Button
           type="button"
           disabled={isLoading}
-          className="w-full h-12 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-xl transition-all duration-200 shadow-lg shadow-blue-500/20"
+          className="w-full h-12 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-xl transition-all duration-200"
           onClick={handleSignout}
         >
           {isLoading ? (

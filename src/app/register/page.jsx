@@ -91,7 +91,7 @@ export default function Register() {
         </div>
 
         {/* Register Form */}
-        <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10 shadow-xl">
+        <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10">
           <h2 className="text-2xl font-bold text-white mb-6">Create Account</h2>
 
           {/* ✅ Profile Picture */}
@@ -182,7 +182,7 @@ export default function Register() {
             <Button
               type="submit"
               disabled={isLoading}
-              className="w-full h-12 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-xl transition-all duration-200 shadow-lg shadow-blue-500/20"
+              className="w-full h-12 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-xl transition-all duration-200"
             >
               {isLoading ? (
                 <div className="flex items-center gap-2">

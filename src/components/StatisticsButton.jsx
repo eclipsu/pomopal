@@ -47,7 +47,7 @@ export default function StatisticsDialog({ open, onClose }) {
                 onClick={() => setActiveTab(tab.key)}
                 className={`px-6 py-2.5 rounded-full font-medium transition-all duration-300 text-sm ${
                   activeTab === tab.key
-                    ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg"
+                    ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white"
                     : "text-gray-400 hover:text-white"
                 }`}
               >

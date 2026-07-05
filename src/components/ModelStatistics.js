@@ -17,11 +17,17 @@ import { STYLES } from "@/components/StreakIndicator";
 const ACCENT = "#6366f1";
 const BASE = "#cbd5e1";
 
-const StatCard = ({ icon: Icon, value, label, styles = null }) => (
-  <div className="bg-gray-50 rounded-xl p-4 flex flex-col items-center justify-center aspect-square w-30 border border-gray-200">
-    <Icon className={`text-gray-400 mb-1 ${styles ?? ""}`} size={24} strokeWidth={2} />
-    <div className="text-gray-800 text-3xl font-bold mb-0.5">{value}</div>
-    <div className="text-gray-500 text-xs">{label}</div>
+const StatCard = ({ icon: Icon, value, label, styles = null, compactValue = false }) => (
+  <div className="bg-gray-50 rounded-xl p-3 flex flex-col items-center justify-center w-[7.25rem] h-[7.25rem] shrink-0 border border-gray-200">
+    <Icon className={`text-gray-400 mb-1 ${styles ?? ""}`} size={22} strokeWidth={2} />
+    <div
+      className={`text-gray-800 font-bold mb-0.5 font-mono tabular-nums text-center w-full leading-tight ${
+        compactValue ? "text-lg" : "text-2xl"
+      }`}
+    >
+      {value}
+    </div>
+    <div className="text-gray-500 text-[11px] text-center leading-tight">{label}</div>
   </div>
 );
 
@@ -193,8 +199,8 @@ function ModelStatistics({ setOpenSettings, openSettings }) {
 
         <div className="flex gap-4">
           <StatCard icon={Flame} value={streak} label="day streak" styles={STYLES[status]} />
-          <StatCard icon={Trophy} value={longestStreak} label="longest streak" styles={"text-yellow-500 fill-yellow-500 drop-shadow-[0_0_6px_rgba(250,204,21,0.55)]"} />
-          <StatCard icon={Clock} value={allTimeDisplay} label="all time" />
+          <StatCard icon={Trophy} value={longestStreak} label="longest streak" styles="text-yellow-500 fill-yellow-500" />
+          <StatCard icon={Clock} value={allTimeDisplay} label="all time" compactValue />
         </div>
 
         <div className="my-6">

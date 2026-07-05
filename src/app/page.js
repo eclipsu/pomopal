@@ -3,14 +3,12 @@
 import dynamic from "next/dynamic";
 import Navigation from "@/components/Navigation";
 import Timer from "@/components/Timer";
-import About from "@/components/About";
+import Footer from "@/components/Footer";
 import Alarm from "@/components/Alarm";
 
 const ModelSettings = dynamic(() => import("@/components/ModelSettings"), { ssr: false });
 const ModelStatistics = dynamic(() => import("@/components/ModelStatistics"), { ssr: false });
 const FriendsSidebar = dynamic(() => import("@/components/FriendsSidebar"), { ssr: false });
-const StreakAtRiskBanner = dynamic(() => import("@/components/StreakAtRiskBanner"), { ssr: false });
-
 import { useEffect, useRef, useState, useCallback } from "react";
 import { clearInterval, setInterval } from "worker-timers";
 import { useSession } from "@/hooks/useSession";
@@ -387,48 +385,57 @@ export default function Home() {
   };
 
   return (
-    <div className="bg-gray-900 min-h-screen flex">
-      <div
-        className={`flex-1 min-h-screen transition-all duration-200 ease-in-out ${
-          showFriends ? "mr-60" : "mr-0"
-        }`}
-      >
-        <div className="max-w-2xl min-h-screen mx-auto overflow-y-hidden">
-          <Navigation
-            setOpenSettings={setOpenSettings}
-            setShowStats={setShowStats}
-            showFriends={showFriends}
-            setShowFriends={setShowFriends}
-          />
-          <StreakAtRiskBanner onStartFocus={handleStartOrPause} />
-          <Timer
-            selected={selected}
-            switchSelected={handleSwitchRequest}
-            getTime={getTime}
-            seconds={secondsDisplay}
-            ticking={ticking}
-            startTimer={handleStartOrPause}
-            muteAlarm={() => alarmRef.current?.pause()}
-            isTimesUp={false}
-            reset={handleReset}
-          />
-          <About />
-          <Alarm ref={alarmRef} />
-          <ModelSettings
-            pomodoro={defaults.pomodoro}
-            shortBreaks={defaults.shortBreak}
-            longBreaks={defaults.longBreak}
-            pomodoroRef={pomodoroRef}
-            shortBreakRef={shortBreakRef}
-            longBreakRef={longBreakRef}
-            alarmRef={alarmRef}
-            openSettings={openSettings}
-            setOpenSettings={setOpenSettings}
-            updateTimeDefaultValue={updateTimeDefaultValue}
-          />
-          <ModelStatistics openSettings={showStats} setOpenSettings={setShowStats} />
+    <>
+      <div className="bg-gray-900 flex h-dvh overflow-x-hidden">
+        <div
+          className={`flex h-full min-w-0 flex-1 flex-col overflow-x-hidden transition-all duration-200 ease-in-out ${
+            showFriends ? "md:mr-60" : ""
+          }`}
+        >
+          <div className="mx-auto flex h-full w-full max-w-2xl flex-col overflow-x-hidden">
+            <main className="relative flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto">
+              <Navigation
+                setOpenSettings={setOpenSettings}
+                setShowStats={setShowStats}
+                showFriends={showFriends}
+                setShowFriends={setShowFriends}
+              />
+              <Timer
+                selected={selected}
+                switchSelected={handleSwitchRequest}
+                getTime={getTime}
+                seconds={secondsDisplay}
+                ticking={ticking}
+                startTimer={handleStartOrPause}
+                muteAlarm={() => alarmRef.current?.pause()}
+                isTimesUp={false}
+              />
+            </main>
+            <Footer />
+          </div>
+        </div>
 
-          <Dialog open={showRecoverDialog} onOpenChange={setShowRecoverDialog}>
+        {showFriends && (
+          <FriendsSidebar open={showFriends} onClose={() => setShowFriends(false)} />
+        )}
+      </div>
+
+      <Alarm ref={alarmRef} />
+      <ModelSettings
+        pomodoro={defaults.pomodoro}
+        shortBreaks={defaults.shortBreak}
+        longBreaks={defaults.longBreak}
+        pomodoroRef={pomodoroRef}
+        shortBreakRef={shortBreakRef}
+        longBreakRef={longBreakRef}
+        alarmRef={alarmRef}
+        openSettings={openSettings}
+        setOpenSettings={setOpenSettings}
+        updateTimeDefaultValue={updateTimeDefaultValue}
+      />
+      <ModelStatistics openSettings={showStats} setOpenSettings={setShowStats} />
+
+      <Dialog open={showRecoverDialog} onOpenChange={setShowRecoverDialog}>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Resume Previous Pomodoro?</DialogTitle>
@@ -466,12 +473,6 @@ export default function Home() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
-        </div>
-      </div>
-
-      {showFriends && (
-        <FriendsSidebar open={showFriends} onClose={() => setShowFriends(false)} />
-      )}
-    </div>
+    </>
   );
 }

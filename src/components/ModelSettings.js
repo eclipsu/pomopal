@@ -137,7 +137,7 @@ function ModelSettings({
           <Button
             type="button"
             disabled={isLoading}
-            className="w-full h-12 uppercase mt-5 rounded py-2 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-xl transition-all duration-200 shadow-lg shadow-blue-500/20"
+            className="w-full h-12 uppercase mt-5 rounded py-2 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-xl transition-all duration-200"
             onClick={handleUpdate}
           >
             {isLoading ? (
