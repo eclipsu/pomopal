@@ -2,7 +2,7 @@ import Link from "next/link";
 import { FaDiscord } from "react-icons/fa";
 import PomopalIcon from "./PomopalIcon";
 
-const CONTACT_EMAIL = "contact@pomopal.com";
+const CONTACT_EMAIL = "contact@pomopal.lol";
 
 export default function Footer({ className = "" }) {
   return (
