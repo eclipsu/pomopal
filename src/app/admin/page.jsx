@@ -13,6 +13,7 @@ import TemplateTestModal from "@/components/admin/TemplateTestModal";
 import ReviveStreakPanel from "@/components/admin/ReviveStreakPanel";
 import AnnouncementPanel from "@/components/admin/AnnouncementPanel";
 import ImageLibraryPanel from "@/components/admin/ImageLibraryPanel";
+import SoundsPanel from "@/components/admin/SoundsPanel";
 import {
   useAdminTemplates,
   useCreateTemplate,
@@ -33,6 +34,7 @@ const NOTIFICATION_TYPES = [
 const TABS = [
   { id: "templates", label: "Templates" },
   { id: "images", label: "Images" },
+  { id: "sounds", label: "Sounds" },
   { id: "revive", label: "Revive streak" },
   { id: "announcement", label: "Announcement" },
 ];
@@ -149,7 +151,9 @@ function AdminContent() {
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
           <div>
             <p className="text-xs uppercase tracking-wide text-blue-400">Admin</p>
-            <h1 className="text-xl font-semibold">Notifications</h1>
+            <h1 className="text-xl font-semibold">
+              {tab === "sounds" ? "Sounds" : "Notifications"}
+            </h1>
           </div>
           <div className="flex items-center gap-3">
             <Link href="/" className="text-sm text-gray-400 hover:text-white">
@@ -191,6 +195,7 @@ function AdminContent() {
         {tab === "revive" && <ReviveStreakPanel templates={templates} />}
         {tab === "announcement" && <AnnouncementPanel templates={templates} />}
         {tab === "images" && <ImageLibraryPanel />}
+        {tab === "sounds" && <SoundsPanel />}
 
         {tab === "templates" && (
           <>

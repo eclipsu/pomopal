@@ -13,7 +13,7 @@ export function useSession() {
     return "long_break";
   };
 
-  const createSession = useCallback(async (mode, minutes, userId = null) => {
+  const createSession = useCallback(async (mode, minutes, userId = null, sessionContext = null) => {
     const now = Date.now();
     const totalSeconds = minutes * 60;
 
@@ -39,6 +39,7 @@ export function useSession() {
       const res = await axiosClient.post("/sessions", {
         type: getModeType(mode),
         planned_minutes: minutes,
+        session_context: sessionContext,
       });
 
       if (res.data?.id) {

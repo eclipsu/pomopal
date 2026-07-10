@@ -5,6 +5,7 @@ import Navigation from "@/components/Navigation";
 import Timer from "@/components/Timer";
 import Footer from "@/components/Footer";
 import Alarm from "@/components/Alarm";
+import BackgroundAudio from "@/components/BackgroundAudio";
 
 const ModelSettings = dynamic(() => import("@/components/ModelSettings"), { ssr: false });
 const ModelStatistics = dynamic(() => import("@/components/ModelStatistics"), { ssr: false });
@@ -13,6 +14,12 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { clearInterval, setInterval } from "worker-timers";
 import { useSession } from "@/hooks/useSession";
 import { useUser } from "@/hooks/useUser";
+import { useSoundPreferences } from "@/hooks/useSoundPreferences";
+import {
+  prepareAlarmSource,
+  DEFAULT_ALARM_SRC,
+  MAX_ALARM_SOUND_MS,
+} from "@/lib/playRingSound";
 import { useMarkFocusActivity, useMarkFocusTodayLocal } from "@/hooks/useMarkFocusActivity";
 import { usePresence } from "@/contexts/PresenceContext";
 import axiosClient from "../utils/axios";
@@ -27,6 +34,48 @@ import {
 } from "@/components/ui/dialog";
 import Button from "@/components/Button";
 import { toast } from "react-toastify";
+import { SoundPreferencesProvider } from "@/contexts/SoundPreferencesContext";
+import { bgLog } from "@/lib/backgroundAudioLog";
+import { prefetchAudioSelection } from "@/lib/audioCache";
+
+function sessionSoundSnapshot(selection, fallback = {}) {
+  if (!selection) {
+    return {
+      kind: "none",
+      ...fallback,
+    };
+  }
+
+  if (selection.kind === "youtube") {
+    return {
+      kind: "youtube",
+      videoId: selection.videoId ?? null,
+      title: selection.title ?? null,
+      ...fallback,
+    };
+  }
+
+  if (selection.kind === "library") {
+    return {
+      kind: "library",
+      id: selection.id ?? null,
+      name: selection.name ?? null,
+      ...fallback,
+    };
+  }
+
+  if (selection.kind === "default") {
+    return {
+      kind: "default",
+      ...fallback,
+    };
+  }
+
+  return {
+    kind: "none",
+    ...fallback,
+  };
+}
 
 function useTimer() {
   const [ticking, setTicking] = useState(false);
@@ -80,6 +129,14 @@ function useTimer() {
 }
 
 export default function Home() {
+  return (
+    <SoundPreferencesProvider>
+      <HomeContent />
+    </SoundPreferencesProvider>
+  );
+}
+
+function HomeContent() {
   const { user } = useUser();
   const [selected, setSelected] = useState(0);
   const [defaults, setDefaults] = useState({ pomodoro: 25, shortBreak: 5, longBreak: 10 });
@@ -91,6 +148,9 @@ export default function Home() {
   const [showSwitchDialog, setShowSwitchDialog] = useState(false);
   const [pendingSelected, setPendingSelected] = useState(null);
   const [autoStartBreaks, setAutoStartBreaks] = useState(false);
+  const [alarmPlaying, setAlarmPlaying] = useState(false);
+  const alarmRevokeRef = useRef(null);
+  const alarmStopTimerRef = useRef(null);
 
   const pomodoroRef = useRef();
   const shortBreakRef = useRef();
@@ -111,6 +171,8 @@ export default function Home() {
   const markFocusActivity = useMarkFocusActivity();
   const markFocusTodayLocal = useMarkFocusTodayLocal();
   const { touchActive } = usePresence() ?? {};
+  const { prefs: soundPrefs, loaded: soundPrefsLoaded, volumePreviewActive, setLivePlayback } =
+    useSoundPreferences();
   const heartbeatInFlightRef = useRef(false);
   const completeInFlightRef = useRef(false);
   const sessionIdRef = useRef(sessionId);
@@ -121,6 +183,95 @@ export default function Home() {
     if (idx === 1) return defaults.shortBreak;
     return defaults.longBreak;
   };
+
+  const clearAlarmStopTimer = useCallback(() => {
+    if (alarmStopTimerRef.current != null) {
+      clearTimeout(alarmStopTimerRef.current);
+      alarmStopTimerRef.current = null;
+    }
+  }, []);
+
+  const stopAlarmPlayback = useCallback(() => {
+    clearAlarmStopTimer();
+    setAlarmPlaying(false);
+    if (alarmRevokeRef.current) {
+      alarmRevokeRef.current();
+      alarmRevokeRef.current = null;
+    }
+    if (alarmRef.current) {
+      alarmRef.current.pause();
+      alarmRef.current.currentTime = 0;
+      alarmRef.current.src = DEFAULT_ALARM_SRC;
+    }
+  }, [clearAlarmStopTimer]);
+
+  const scheduleAlarmStop = useCallback(() => {
+    clearAlarmStopTimer();
+    alarmStopTimerRef.current = setTimeout(() => {
+      stopAlarmPlayback();
+    }, MAX_ALARM_SOUND_MS);
+  }, [clearAlarmStopTimer, stopAlarmPlayback]);
+
+  const buildSessionContext = useCallback(
+    (mode, minutes) => ({
+      timer_mode_index: mode,
+      timer_mode_label:
+        mode === 0 ? "pomodoro" : mode === 1 ? "short_break" : "long_break",
+      timer_planned_minutes: minutes,
+      background_sound: sessionSoundSnapshot(soundPrefs.background.selection, {
+        enabled: Boolean(soundPrefs.background.enabled),
+        volume: soundPrefs.background.volume ?? null,
+      }),
+      ring_sound: sessionSoundSnapshot(
+        soundPrefs.ring.selection ?? { kind: "default" },
+        {
+          volume: soundPrefs.ring.volume ?? null,
+        },
+      ),
+    }),
+    [soundPrefs],
+  );
+
+  useEffect(() => {
+    const state = {
+      alarmRinging: alarmPlaying,
+      backgroundPlaying:
+        ticking &&
+        selected === 0 &&
+        soundPrefs.background.enabled &&
+        Boolean(soundPrefs.background.selection),
+    };
+    bgLog("livePlayback:update", {
+      ...state,
+      ticking,
+      selected,
+      bgEnabled: soundPrefs.background.enabled,
+      hasSelection: Boolean(soundPrefs.background.selection),
+    });
+    setLivePlayback(state);
+  }, [
+    alarmPlaying,
+    ticking,
+    selected,
+    soundPrefs.background.enabled,
+    soundPrefs.background.selection,
+    setLivePlayback,
+  ]);
+
+  useEffect(() => {
+    if (!soundPrefsLoaded) return;
+    void prefetchAudioSelection(soundPrefs.background.selection);
+    void prefetchAudioSelection(soundPrefs.ring.selection);
+  }, [
+    soundPrefsLoaded,
+    soundPrefs.background.selection?.kind,
+    soundPrefs.background.selection?.id,
+    soundPrefs.background.selection?.videoId,
+    soundPrefs.background.selection?.url,
+    soundPrefs.ring.selection?.kind,
+    soundPrefs.ring.selection?.id,
+    soundPrefs.ring.selection?.url,
+  ]);
 
   useEffect(() => {
     if (!ticking || !sessionId || sessionId.startsWith("guest_")) return;
@@ -206,6 +357,12 @@ export default function Home() {
   }, [ticking, remaining]);
 
   const handleStartOrPause = async () => {
+    setAlarmPlaying(false);
+    if (alarmRevokeRef.current) {
+      alarmRevokeRef.current();
+      alarmRevokeRef.current = null;
+    }
+
     if (alarmRef.current) {
       try {
         await alarmRef.current.play();
@@ -234,7 +391,12 @@ export default function Home() {
     }
 
     const minutes = getModeDefaultMinutes();
-    const newId = await createSession(selected, minutes, user?.id);
+    const newId = await createSession(
+      selected,
+      minutes,
+      user?.id,
+      buildSessionContext(selected, minutes),
+    );
     if (newId) {
       begin(Date.now(), minutes * 60);
       touchActive?.();
@@ -248,10 +410,7 @@ export default function Home() {
   const handleReset = () => {
     reset();
     clearSession();
-    if (alarmRef.current) {
-      alarmRef.current.pause();
-      alarmRef.current.currentTime = 0;
-    }
+    stopAlarmPlayback();
   };
 
   const handleSwitchRequest = async (idx) => {
@@ -275,7 +434,12 @@ export default function Home() {
     setPendingSelected(null);
     setShowSwitchDialog(false);
     const minutes = getModeDefaultMinutes(idx);
-    const newId = await createSession(idx, minutes, user?.id);
+    const newId = await createSession(
+      idx,
+      minutes,
+      user?.id,
+      buildSessionContext(idx, minutes),
+    );
     if (newId) {
       begin(Date.now(), minutes * 60);
       touchActive?.();
@@ -297,6 +461,7 @@ export default function Home() {
     const snapDefaults = { ...defaults };
     const snapUser = user;
     const snapAutoStart = autoStartBreaks;
+    const snapRing = soundPrefs.ring;
 
     (async () => {
       clearSession();
@@ -323,7 +488,39 @@ export default function Home() {
         completeInFlightRef.current = false;
       }
 
-      if (alarmRef.current) alarmRef.current.play();
+      if (alarmRevokeRef.current) {
+        alarmRevokeRef.current();
+        alarmRevokeRef.current = null;
+      }
+      clearAlarmStopTimer();
+
+      try {
+        const { src, revoke } = await prepareAlarmSource(snapRing.selection);
+        alarmRevokeRef.current = revoke;
+        if (alarmRef.current) {
+          alarmRef.current.src = src;
+          alarmRef.current.volume = Math.max(
+            0,
+            Math.min(1, (snapRing.volume ?? 80) / 100),
+          );
+          alarmRef.current.load();
+          await alarmRef.current.play();
+          setAlarmPlaying(true);
+          scheduleAlarmStop();
+        }
+      } catch (e) {
+        console.error("Ring playback failed:", e);
+        if (alarmRef.current) {
+          alarmRef.current.src = DEFAULT_ALARM_SRC;
+          alarmRef.current.volume = Math.max(
+            0,
+            Math.min(1, (snapRing.volume ?? 80) / 100),
+          );
+          await alarmRef.current.play().catch(() => {});
+          setAlarmPlaying(true);
+          scheduleAlarmStop();
+        }
+      }
 
       const next = snapSelected === 0 ? 1 : snapSelected === 1 ? 2 : 0;
       setSelected(next);
@@ -335,7 +532,12 @@ export default function Home() {
           : next === 1
             ? snapDefaults.shortBreak
             : snapDefaults.longBreak;
-      const newId = await createSession(next, minutes, snapUser?.id);
+      const newId = await createSession(
+        next,
+        minutes,
+        snapUser?.id,
+        buildSessionContext(next, minutes),
+      );
       if (newId) {
         begin(Date.now(), minutes * 60);
         touchActive?.();
@@ -407,8 +609,8 @@ export default function Home() {
                 seconds={secondsDisplay}
                 ticking={ticking}
                 startTimer={handleStartOrPause}
-                muteAlarm={() => alarmRef.current?.pause()}
-                isTimesUp={false}
+                muteAlarm={stopAlarmPlayback}
+                isTimesUp={alarmPlaying}
               />
             </main>
             <Footer />
@@ -421,6 +623,15 @@ export default function Home() {
       </div>
 
       <Alarm ref={alarmRef} />
+      {soundPrefsLoaded && (
+        <BackgroundAudio
+          enabled={soundPrefs.background.enabled}
+          volume={soundPrefs.background.volume}
+          selection={soundPrefs.background.selection}
+          shouldPlay={ticking && selected === 0}
+          previewActive={volumePreviewActive}
+        />
+      )}
       <ModelSettings
         pomodoro={defaults.pomodoro}
         shortBreaks={defaults.shortBreak}

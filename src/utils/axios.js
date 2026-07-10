@@ -21,7 +21,9 @@ const axiosClient = axios.create({
 });
 
 axiosClient.interceptors.request.use((config) => {
-  config.baseURL = getApiBaseUrl();
+  if (!config.baseURL) {
+    config.baseURL = getApiBaseUrl();
+  }
   if (typeof FormData !== "undefined" && config.data instanceof FormData) {
     if (typeof config.headers.delete === "function") {
       config.headers.delete("Content-Type");

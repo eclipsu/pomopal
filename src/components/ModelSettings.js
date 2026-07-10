@@ -6,6 +6,7 @@ import { useUser } from "@/hooks/useUser";
 import { AlertCircle, CheckCircle } from "lucide-react";
 import PrivacySettings from "./PrivacySettings";
 import NotificationSettings from "./NotificationSettings";
+import SoundSettings from "./SoundSettings";
 
 function ModelSettings({
   pomodoro,
@@ -74,7 +75,7 @@ function ModelSettings({
     >
       <div>
         <div
-          className={`p-5 rounded-md max-w-xl bg-white absolute sm:w-86 w-11/12 left-1/2 top-1/2 ${openSettings ? "" : "hidden"}`}
+          className={`p-5 rounded-md max-w-xl max-h-[90vh] overflow-y-auto bg-white absolute sm:w-86 w-11/12 left-1/2 top-1/2 ${openSettings ? "" : "hidden"}`}
           style={{ transform: "translate(-50%, -50%)" }}
         >
           <div className="text-gray-400 flex justify-between items-center">
@@ -149,6 +150,7 @@ function ModelSettings({
               <div className="flex items-center gap-2">Update Settings</div>
             )}
           </Button>
+          <SoundSettings />
           <PrivacySettings />
           <NotificationSettings />
         </div>
