@@ -23,6 +23,35 @@ export function getApiBaseUrl() {
   return "http://localhost:8000";
 }
 
+/**
+ * API base for long-running sound downloads (YouTube parse).
+ * Use direct backend URL in production when /api proxy times out (e.g. Vercel 60s limit).
+ */
+export function getSoundsApiBaseUrl() {
+  const direct = process.env.NEXT_PUBLIC_SOUNDS_API_BASE_URL;
+  if (direct) return direct.replace(/\/$/, "");
+  return getApiBaseUrl();
+}
+
+/**
+ * API base for admin/media uploads.
+ * In local dev, bypass the Next proxy and hit Nest directly to avoid
+ * buffering large multipart uploads through an extra hop.
+ */
+export function getUploadApiBaseUrl() {
+  const direct = process.env.NEXT_PUBLIC_UPLOADS_API_BASE_URL;
+  if (direct) return direct.replace(/\/$/, "");
+
+  if (typeof window !== "undefined") {
+    const { hostname } = window.location;
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      return "http://localhost:8000";
+    }
+  }
+
+  return getApiBaseUrl();
+}
+
 const PRODUCTION_HOSTS = new Set([
   "pomopal.lol",
   "www.pomopal.lol",
