@@ -4,11 +4,18 @@ import Link from "next/link";
 import Image from "next/image";
 import SignOut from "./SignOut";
 import PomopalIcon from "./PomopalIcon";
-import { ChartNoAxesCombined, Users } from "lucide-react";
+import { ChartNoAxesCombined, Paintbrush, Users } from "lucide-react";
 import { useUser } from "@/hooks/useUser";
 import StreakIndicator from "@/components/StreakIndicator";
 
-function Navigation({ setOpenSettings, setShowStats, showFriends, setShowFriends }) {
+function Navigation({
+  setOpenSettings,
+  setShowStats,
+  showFriends,
+  setShowFriends,
+  onOpenSpaceSettings,
+  spaceSettingsOpen,
+}) {
   const { user } = useUser();
   const [openSignOut, setOpenSignOut] = useState(false);
 
@@ -20,6 +27,17 @@ function Navigation({ setOpenSettings, setShowStats, showFriends, setShowFriends
       </Link>
 
       <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+        <button
+          type="button"
+          onClick={onOpenSpaceSettings}
+          className={`shrink-0 rounded-md p-0.5 transition-colors ${
+            spaceSettingsOpen ? "text-red-400" : "text-white hover:text-gray-300"
+          }`}
+          aria-label="Customize space"
+          aria-pressed={spaceSettingsOpen}
+        >
+          <Paintbrush className="h-6 w-6" strokeWidth={1.75} />
+        </button>
         {user ? (
           <>
             {user.role === "admin" && (

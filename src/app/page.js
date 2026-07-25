@@ -10,7 +10,18 @@ import BackgroundAudio from "@/components/BackgroundAudio";
 const ModelSettings = dynamic(() => import("@/components/ModelSettings"), { ssr: false });
 const ModelStatistics = dynamic(() => import("@/components/ModelStatistics"), { ssr: false });
 const FriendsSidebar = dynamic(() => import("@/components/FriendsSidebar"), { ssr: false });
-import { useEffect, useRef, useState, useCallback } from "react";
+const SpaceSettingsSidebar = dynamic(
+  () =>
+    import("@/components/space/SpaceSettingsSidebar").then((m) => m.SpaceSettingsSidebar),
+  { ssr: false },
+);
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import {
+  buildBackgroundCss,
+  buildTimerBoxCss,
+  buildTimerTextCss,
+  useSpaceStore,
+} from "@/stores/useSpaceStore";
 import { clearInterval, setInterval } from "worker-timers";
 import { useSession } from "@/hooks/useSession";
 import { useUser } from "@/hooks/useUser";
@@ -586,33 +597,62 @@ function HomeContent() {
     setSelected(0);
   };
 
+  const spaceAppearance = useSpaceStore();
+  const {
+    sidebarOpen,
+    toggleSidebar,
+  } = spaceAppearance;
+  const timerBoxStyle = useMemo(
+    () => buildTimerBoxCss(spaceAppearance),
+    [spaceAppearance],
+  );
+  const timerTextStyle = useMemo(
+    () => buildTimerTextCss(spaceAppearance),
+    [spaceAppearance],
+  );
+  const pageBackgroundStyle = useMemo(
+    () => buildBackgroundCss(spaceAppearance),
+    [spaceAppearance],
+  );
+
   return (
     <>
-      <div className="bg-gray-900 flex h-dvh overflow-x-hidden">
+      <div
+        className="flex h-dvh overflow-x-hidden bg-gray-900"
+        style={pageBackgroundStyle}
+      >
         <div
-          className={`flex h-full min-w-0 flex-1 flex-col overflow-x-hidden transition-all duration-200 ease-in-out ${
+          className={`relative flex h-full min-w-0 flex-1 flex-col overflow-x-hidden transition-all duration-200 ease-in-out ${
             showFriends ? "md:mr-60" : ""
           }`}
         >
-          <div className="mx-auto flex h-full w-full max-w-2xl flex-col overflow-x-hidden">
-            <main className="relative flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto">
-              <Navigation
-                setOpenSettings={setOpenSettings}
-                setShowStats={setShowStats}
-                showFriends={showFriends}
-                setShowFriends={setShowFriends}
-              />
-              <Timer
-                selected={selected}
-                switchSelected={handleSwitchRequest}
-                getTime={getTime}
-                seconds={secondsDisplay}
-                ticking={ticking}
-                startTimer={handleStartOrPause}
-                muteAlarm={stopAlarmPlayback}
-                isTimesUp={alarmPlaying}
-              />
-            </main>
+          <div className="relative z-10 mx-auto w-full max-w-2xl shrink-0 overflow-x-hidden">
+            <Navigation
+              setOpenSettings={setOpenSettings}
+              setShowStats={setShowStats}
+              showFriends={showFriends}
+              setShowFriends={setShowFriends}
+              onOpenSpaceSettings={toggleSidebar}
+              spaceSettingsOpen={sidebarOpen}
+            />
+          </div>
+
+          <div className="relative min-h-0 flex-1 overflow-hidden">
+            <Timer
+              selected={selected}
+              switchSelected={handleSwitchRequest}
+              getTime={getTime}
+              seconds={secondsDisplay}
+              ticking={ticking}
+              startTimer={handleStartOrPause}
+              muteAlarm={stopAlarmPlayback}
+              isTimesUp={alarmPlaying}
+              boxStyle={timerBoxStyle}
+              textStyle={timerTextStyle}
+            />
+          </div>
+
+          <div className="relative z-10 mx-auto w-full max-w-2xl shrink-0 overflow-x-hidden">
             <Footer />
           </div>
         </div>
@@ -620,6 +660,7 @@ function HomeContent() {
         {showFriends && (
           <FriendsSidebar open={showFriends} onClose={() => setShowFriends(false)} />
         )}
+        <SpaceSettingsSidebar />
       </div>
 
       <Alarm ref={alarmRef} />

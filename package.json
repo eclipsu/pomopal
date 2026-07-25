@@ -27,6 +27,9 @@
     "@supabase/auth-ui-shared": "^0.1.8",
     "@supabase/supabase-js": "^2.38.4",
     "@tanstack/react-query": "^5.100.10",
+    "@types/node": "^26.1.1",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
     "appwrite": "^21.3.0",
     "autoprefixer": "10.4.14",
     "axios": "^1.13.2",
@@ -54,9 +57,11 @@
     "tailwind-merge": "^3.4.0",
     "tailwindcss": "3.3.2",
     "tailwindcss-animate": "^1.0.7",
-    "worker-timers": "^7.0.77"
+    "worker-timers": "^7.0.77",
+    "zustand": "^5.0.14"
   },
   "devDependencies": {
-    "@types/react-easy-crop": "^1.16.0"
+    "@types/react-easy-crop": "^1.16.0",
+    "typescript": "^5.9.3"
   }
 }

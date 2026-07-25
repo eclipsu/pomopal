@@ -7,13 +7,18 @@ export default function PomodoroTimer({
   startTimer,
   isTimesUp,
   muteAlarm,
+  boxStyle,
+  textStyle,
 }) {
   const options = ["Pomodoro", "Short Break", "Long Break"];
   const mins = String(getTime()).padStart(2, "0");
   const secs = String(seconds).padStart(2, "0");
 
   return (
-    <div className="text-white w-full max-w-lg mx-auto px-4 pt-8 flex flex-col justify-center items-center overflow-x-hidden">
+    <div
+      className="pointer-events-auto px-4 text-white flex flex-col justify-center items-center"
+      style={boxStyle}
+    >
       <div className="flex flex-wrap justify-center gap-1 sm:gap-2 p-1 rounded-2xl bg-white/5 border border-white/10 max-w-full">
         {options.map((option, index) => (
           <button
@@ -33,7 +38,8 @@ export default function PomodoroTimer({
 
       <div className="mt-12 mb-10 flex items-center justify-center w-full max-w-full px-2">
         <p
-          className="text-[clamp(3rem,16vw,6rem)] font-bold select-none m-0 tabular-nums tracking-wider text-center min-w-[9ch] sm:min-w-[10ch] md:min-w-[12ch] max-w-full"
+          className="font-bold select-none m-0 tabular-nums tracking-wider text-center min-w-[9ch] sm:min-w-[10ch] md:min-w-[12ch] max-w-full"
+          style={textStyle}
           aria-live="polite"
         >
           {mins}:{secs}
