@@ -1,12 +1,12 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { Upload, X } from "lucide-react";
-import { MAX_AUDIO_UPLOAD_BYTES } from "@/hooks/useAdminSounds";
+import { Type, Upload, X } from "lucide-react";
+import { MAX_FONT_UPLOAD_BYTES } from "@/hooks/useAdminFonts";
 
-const MAX_MB = Math.round(MAX_AUDIO_UPLOAD_BYTES / (1024 * 1024));
+const MAX_MB = Math.round(MAX_FONT_UPLOAD_BYTES / (1024 * 1024));
 
-export default function AudioDropzone({ value, onChange, onClear, error }) {
+export default function FontDropzone({ value, onChange, onClear, error }) {
   const [dragging, setDragging] = useState(false);
   const [localError, setLocalError] = useState(null);
 
@@ -16,15 +16,15 @@ export default function AudioDropzone({ value, onChange, onClear, error }) {
       setLocalError(null);
       if (!file) return;
       const ok =
-        file.type.startsWith("audio/") ||
-        /\.(mp3|m4a|aac|wav|ogg|webm)$/i.test(file.name);
+        /\.ttf$/i.test(file.name) ||
+        /font|ttf|sfnt|octet/i.test(file.type || "");
       if (!ok) {
-        setLocalError("Use MP3, M4A, AAC, WAV, OGG, or WebM");
+        setLocalError("Use a .ttf font file");
         return;
       }
-      if (file.size > MAX_AUDIO_UPLOAD_BYTES) {
+      if (file.size > MAX_FONT_UPLOAD_BYTES) {
         setLocalError(
-          `File is ${Math.round(file.size / (1024 * 1024))} MB — max is ${MAX_MB} MB (about 2–3 hours of MP3)`,
+          `File is ${Math.round(file.size / (1024 * 1024))} MB — max is ${MAX_MB} MB`,
         );
         return;
       }
@@ -37,13 +37,13 @@ export default function AudioDropzone({ value, onChange, onClear, error }) {
 
   return (
     <div className="space-y-2">
-      <label className="text-sm font-medium text-gray-300">Audio file</label>
+      <label className="text-sm font-medium text-gray-300">TTF font file</label>
       {value ? (
         <div className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/5 px-3 py-2">
           <div className="min-w-0">
             <p className="text-sm text-gray-200 truncate">{value.name}</p>
             <p className="text-xs text-gray-500">
-              {(value.size / (1024 * 1024)).toFixed(1)} MB
+              {(value.size / (1024 * 1024)).toFixed(2)} MB
             </p>
           </div>
           <button
@@ -76,16 +76,16 @@ export default function AudioDropzone({ value, onChange, onClear, error }) {
           }`}
         >
           <Upload className="w-8 h-8 mx-auto mb-3 text-gray-400" />
-          <p className="text-sm text-gray-300 mb-1">Drag and drop audio here</p>
+          <p className="text-sm text-gray-300 mb-1">Drag and drop a TTF here</p>
           <p className="text-xs text-gray-500 mb-4">
-            MP3, M4A, AAC, WAV, OGG, or WebM — up to {MAX_MB} MB (2–3 hour tracks
-            OK)
+            TrueType (.ttf) — up to {MAX_MB} MB
           </p>
-          <label className="inline-flex items-center px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium cursor-pointer">
+          <label className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium cursor-pointer">
+            <Type className="w-4 h-4" />
             Choose file
             <input
               type="file"
-              accept="audio/*,.mp3,.m4a,.aac,.wav,.ogg,.webm"
+              accept=".ttf,font/ttf,application/x-font-ttf"
               className="hidden"
               onChange={(e) => handleFiles(e.target.files)}
             />

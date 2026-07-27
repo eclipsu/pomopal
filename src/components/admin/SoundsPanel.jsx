@@ -1,20 +1,26 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, Music, Trash2 } from "lucide-react";
+import { Link2, Loader2, Music, Trash2 } from "lucide-react";
 import Button from "@/components/Button";
 import AudioDropzone from "@/components/admin/AudioDropzone";
 import {
   useAdminSounds,
+  useCreateYoutubeSound,
   useDeleteSound,
   useUpdateSound,
   useUploadSound,
 } from "@/hooks/useAdminSounds";
+import { getSoundsApiBaseUrl } from "@/utils/apiBase";
 
 const SOUND_TYPES = [
   { value: "background", label: "Background" },
   { value: "ring", label: "Ring" },
 ];
+
+function libraryStreamSrc(soundId) {
+  return `${getSoundsApiBaseUrl().replace(/\/$/, "")}/sounds/library/${soundId}/stream`;
+}
 
 function nameFromFile(file) {
   const raw = file?.name?.trim() || "sound";
@@ -28,8 +34,13 @@ export default function SoundsPanel() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState(null);
 
+  const [youtubeUrl, setYoutubeUrl] = useState("");
+  const [youtubeName, setYoutubeName] = useState("");
+  const [youtubeError, setYoutubeError] = useState(null);
+
   const { data: sounds = [], isLoading } = useAdminSounds(typeFilter, true);
   const uploadSound = useUploadSound();
+  const createYoutube = useCreateYoutubeSound();
   const updateSound = useUpdateSound();
   const deleteSound = useDeleteSound();
 
@@ -60,11 +71,33 @@ export default function SoundsPanel() {
     } catch (err) {
       const msg = err?.response?.data?.message;
       setError(
-        Array.isArray(msg)
-          ? msg[0]
-          : msg || err?.message || "Upload failed",
+        Array.isArray(msg) ? msg[0] : msg || err?.message || "Upload failed",
       );
       setUploadProgress(0);
+    }
+  };
+
+  const handleYoutubeAdd = async () => {
+    setYoutubeError(null);
+    if (!youtubeUrl.trim() || !youtubeName.trim()) {
+      setYoutubeError("Paste a YouTube URL and a display name");
+      return;
+    }
+    try {
+      await createYoutube.mutateAsync({
+        url: youtubeUrl.trim(),
+        name: youtubeName.trim(),
+        type: typeFilter,
+      });
+      setYoutubeUrl("");
+      setYoutubeName("");
+    } catch (err) {
+      const msg = err?.response?.data?.message;
+      setYoutubeError(
+        Array.isArray(msg)
+          ? msg[0]
+          : msg || err?.message || "Could not add YouTube sound",
+      );
     }
   };
 
@@ -73,9 +106,10 @@ export default function SoundsPanel() {
       <section className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h2 className="text-lg font-medium">Upload sound</h2>
+            <h2 className="text-lg font-medium">Add from YouTube</h2>
             <p className="text-sm text-gray-400">
-              Background sounds loop during focus. Ring sounds play when the timer ends.
+              Paste a link and name it. Audio is not stored on S3 — users fetch
+              it on first play and cache it locally.
             </p>
           </div>
           <select
@@ -85,6 +119,7 @@ export default function SoundsPanel() {
               setPendingFile(null);
               setUploadName("");
               setError(null);
+              setYoutubeError(null);
             }}
             className="h-10 rounded-md border border-white/20 bg-white/10 text-white px-3 text-sm w-full sm:w-48"
           >
@@ -94,6 +129,55 @@ export default function SoundsPanel() {
               </option>
             ))}
           </select>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div>
+            <label className="text-sm text-gray-300">YouTube URL</label>
+            <input
+              type="url"
+              value={youtubeUrl}
+              onChange={(e) => setYoutubeUrl(e.target.value)}
+              placeholder="https://www.youtube.com/watch?v=…"
+              className="mt-1 w-full h-10 rounded-md border border-white/20 bg-white/10 text-white px-3 text-sm"
+            />
+          </div>
+          <div>
+            <label className="text-sm text-gray-300">Display name</label>
+            <input
+              type="text"
+              value={youtubeName}
+              onChange={(e) => setYoutubeName(e.target.value)}
+              maxLength={120}
+              placeholder="Rain loft"
+              className="mt-1 w-full h-10 rounded-md border border-white/20 bg-white/10 text-white px-3 text-sm"
+            />
+          </div>
+        </div>
+
+        <Button
+          onClick={handleYoutubeAdd}
+          disabled={createYoutube.isPending}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg text-sm disabled:opacity-50"
+        >
+          {createYoutube.isPending ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Link2 className="w-4 h-4" />
+          )}
+          Add to library
+        </Button>
+
+        {youtubeError && <p className="text-sm text-red-400">{youtubeError}</p>}
+      </section>
+
+      <section className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-4">
+        <div>
+          <h2 className="text-lg font-medium">Upload sound file</h2>
+          <p className="text-sm text-gray-400">
+            Optional — host an audio file on S3 instead of YouTube. Long tracks
+            (2–3 hours) upload directly to S3; keep under 500 MB.
+          </p>
         </div>
 
         <AudioDropzone
@@ -158,7 +242,7 @@ export default function SoundsPanel() {
           <p className="text-gray-400">Loading sounds...</p>
         ) : sounds.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-white/15 p-10 text-center text-gray-400">
-            <p>No {typeFilter} sounds uploaded yet.</p>
+            <p>No {typeFilter} sounds yet.</p>
           </div>
         ) : (
           <div className="grid gap-3">
@@ -173,18 +257,32 @@ export default function SoundsPanel() {
                     <span className="text-xs px-2 py-0.5 rounded-full bg-white/10 text-gray-300">
                       {sound.type}
                     </span>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-white/10 text-gray-300">
+                      {sound.source === "youtube" ? "YouTube" : "S3"}
+                    </span>
                     {!sound.active && (
                       <span className="text-xs px-2 py-0.5 rounded-full bg-red-500/20 text-red-300">
                         hidden
                       </span>
                     )}
                   </div>
-                  <audio
-                    controls
-                    preload="none"
-                    src={sound.url}
-                    className="w-full max-w-md h-8 mt-2"
-                  />
+                  {sound.source === "youtube" && sound.youtube_url ? (
+                    <a
+                      href={sound.youtube_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-sm text-blue-300 hover:text-blue-200 truncate block"
+                    >
+                      {sound.youtube_url}
+                    </a>
+                  ) : sound.url || sound.id ? (
+                    <audio
+                      controls
+                      preload="metadata"
+                      src={libraryStreamSrc(sound.id)}
+                      className="w-full max-w-md h-8 mt-2"
+                    />
+                  ) : null}
                 </div>
 
                 <div className="flex flex-wrap gap-2 shrink-0">

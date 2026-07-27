@@ -10,6 +10,7 @@ import {
   stopAudioFade,
 } from "@/lib/audioFade";
 import { MAX_ALARM_SOUND_MS, prepareAlarmSource } from "@/lib/playRingSound";
+import { getSelectionStreamUrl } from "@/lib/librarySoundSelection";
 
 export function useVolumePreview(setPreviewActive) {
   const audioRef = useRef(null);
@@ -30,16 +31,17 @@ export function useVolumePreview(setPreviewActive) {
     bgLog("preview:releaseSrc", { kind: activeKindRef.current });
     clearStopTimer();
     const audio = audioRef.current;
+    const pendingCleanup = cleanupRef.current;
+    cleanupRef.current = null;
+    activeKindRef.current = null;
+
     if (audio) {
       audio.pause();
       audio.removeAttribute("src");
+      audio.load();
     }
-    if (cleanupRef.current) {
-      cleanupRef.current();
-      cleanupRef.current = null;
-    }
-    activeKindRef.current = null;
-  }, []);
+    if (pendingCleanup) pendingCleanup();
+  }, [clearStopTimer]);
 
   const cleanup = useCallback(() => {
     bgLog("preview:cleanup");
@@ -54,7 +56,7 @@ export function useVolumePreview(setPreviewActive) {
   const beginPreview = useCallback(
     async (kind, selection, volumePercent) => {
       bgLog("preview:begin", { kind, volumePercent, selection });
-      if (activeKindRef.current === kind && audioRef.current?.src) {
+      if (activeKindRef.current === kind && audioRef.current?.getAttribute("src")) {
         bgLog("preview:update existing", { kind, volumePercent });
         stopAudioFade(fadeTimerRef);
         audioRef.current.volume = clampAudioVolume(volumePercent);
@@ -80,17 +82,33 @@ export function useVolumePreview(setPreviewActive) {
             setPreviewActive?.(false);
             return;
           }
-          bgLog("preview:background loading track");
-          const track = await resolveAudioTrack(selection);
-          if (token !== loadTokenRef.current) return;
-          src = createTrackObjectUrl(track);
-          loop = true;
-          cleanupFn = () => URL.revokeObjectURL(src);
-          bgLog("preview:background ready", { cacheKey: track.cacheKey, src: src.slice(0, 60) });
+          const streamUrl = getSelectionStreamUrl(selection);
+          if (streamUrl) {
+            bgLog("preview:background stream url", { streamUrl });
+            src = streamUrl;
+            loop = true;
+            cleanupFn = null;
+          } else {
+            bgLog("preview:background loading track");
+            const track = await resolveAudioTrack(selection);
+            if (token !== loadTokenRef.current) return;
+            const objectUrl = createTrackObjectUrl(track);
+            if (token !== loadTokenRef.current) {
+              URL.revokeObjectURL(objectUrl);
+              return;
+            }
+            src = objectUrl;
+            loop = true;
+            cleanupFn = () => URL.revokeObjectURL(src);
+            bgLog("preview:background ready", { cacheKey: track.cacheKey, src: src.slice(0, 60) });
+          }
         } else if (kind === "ring") {
           bgLog("preview:ring loading source");
           const prepared = await prepareAlarmSource(selection);
-          if (token !== loadTokenRef.current) return;
+          if (token !== loadTokenRef.current) {
+            prepared.revoke?.();
+            return;
+          }
           src = prepared.src;
           loop = false;
           cleanupFn = prepared.revoke;
@@ -100,7 +118,10 @@ export function useVolumePreview(setPreviewActive) {
         }
 
         const audio = audioRef.current;
-        if (!audio || token !== loadTokenRef.current) return;
+        if (!audio || token !== loadTokenRef.current) {
+          cleanupFn?.();
+          return;
+        }
 
         audio.loop = loop;
         audio.src = src;
@@ -132,7 +153,7 @@ export function useVolumePreview(setPreviewActive) {
 
   const setPreviewVolume = useCallback((volumePercent) => {
     const audio = audioRef.current;
-    if (!audio?.src) return;
+    if (!audio?.getAttribute("src")) return;
     bgLog("preview:setVolume", { volumePercent, kind: activeKindRef.current });
     stopAudioFade(fadeTimerRef);
     audio.volume = clampAudioVolume(volumePercent);
@@ -144,7 +165,7 @@ export function useVolumePreview(setPreviewActive) {
   const endPreview = useCallback(async () => {
     bgLog("preview:end", { kind: activeKindRef.current });
     const audio = audioRef.current;
-    if (!audio?.src) {
+    if (!audio?.getAttribute("src")) {
       cleanup();
       return;
     }

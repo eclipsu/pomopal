@@ -60,12 +60,29 @@ export function PresenceProvider({ children }) {
     }
 
     let cancelled = false;
+    let listenersAttached = false;
 
     const onChanged = (data) => updatePresence(data);
     const onUpdated = (data) => updatePresence(data);
 
     const onVisible = () => {
       if (document.visibilityState === "visible") touchActive();
+    };
+
+    const detachDomListeners = () => {
+      if (!listenersAttached) return;
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", touchActive);
+      window.removeEventListener("pagehide", touchActive);
+      listenersAttached = false;
+    };
+
+    const attachDomListeners = () => {
+      if (listenersAttached || cancelled) return;
+      document.addEventListener("visibilitychange", onVisible);
+      window.addEventListener("focus", touchActive);
+      window.addEventListener("pagehide", touchActive);
+      listenersAttached = true;
     };
 
     (async () => {
@@ -92,6 +109,11 @@ export function PresenceProvider({ children }) {
         ...getSocketClientOptions(),
       });
 
+      if (cancelled) {
+        socket.disconnect();
+        return;
+      }
+
       socketRef.current = socket;
       socket.on("connect", () => {
         touchActive();
@@ -99,17 +121,22 @@ export function PresenceProvider({ children }) {
       });
       socket.on("presence:changed", onChanged);
       socket.on("presence:updated", onUpdated);
+      attachDomListeners();
 
-      document.addEventListener("visibilitychange", onVisible);
-      window.addEventListener("focus", touchActive);
-      window.addEventListener("pagehide", touchActive);
+      // Cleanup may have run between io() and attach — tear down immediately.
+      if (cancelled) {
+        detachDomListeners();
+        socket.off("presence:changed", onChanged);
+        socket.off("presence:updated", onUpdated);
+        socket.removeAllListeners("connect");
+        socket.disconnect();
+        if (socketRef.current === socket) socketRef.current = null;
+      }
     })();
 
     return () => {
       cancelled = true;
-      document.removeEventListener("visibilitychange", onVisible);
-      window.removeEventListener("focus", touchActive);
-      window.removeEventListener("pagehide", touchActive);
+      detachDomListeners();
       const socket = socketRef.current;
       if (socket) {
         socket.off("presence:changed", onChanged);

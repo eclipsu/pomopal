@@ -14,6 +14,7 @@ import ReviveStreakPanel from "@/components/admin/ReviveStreakPanel";
 import AnnouncementPanel from "@/components/admin/AnnouncementPanel";
 import ImageLibraryPanel from "@/components/admin/ImageLibraryPanel";
 import SoundsPanel from "@/components/admin/SoundsPanel";
+import FontsPanel from "@/components/admin/FontsPanel";
 import {
   useAdminTemplates,
   useCreateTemplate,
@@ -35,6 +36,7 @@ const TABS = [
   { id: "templates", label: "Templates" },
   { id: "images", label: "Images" },
   { id: "sounds", label: "Sounds" },
+  { id: "fonts", label: "Fonts" },
   { id: "revive", label: "Revive streak" },
   { id: "announcement", label: "Announcement" },
 ];
@@ -152,7 +154,11 @@ function AdminContent() {
           <div>
             <p className="text-xs uppercase tracking-wide text-blue-400">Admin</p>
             <h1 className="text-xl font-semibold">
-              {tab === "sounds" ? "Sounds" : "Notifications"}
+              {tab === "sounds"
+                ? "Sounds"
+                : tab === "fonts"
+                  ? "Fonts"
+                  : "Notifications"}
             </h1>
           </div>
           <div className="flex items-center gap-3">
@@ -196,6 +202,7 @@ function AdminContent() {
         {tab === "announcement" && <AnnouncementPanel templates={templates} />}
         {tab === "images" && <ImageLibraryPanel />}
         {tab === "sounds" && <SoundsPanel />}
+        {tab === "fonts" && <FontsPanel />}
 
         {tab === "templates" && (
           <>

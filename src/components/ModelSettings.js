@@ -1,12 +1,12 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { FiX } from "react-icons/fi";
-import Image from "next/image";
 import Button from "./Button";
 import { useUser } from "@/hooks/useUser";
 import { AlertCircle, CheckCircle } from "lucide-react";
 import PrivacySettings from "./PrivacySettings";
 import NotificationSettings from "./NotificationSettings";
 import SoundSettings from "./SoundSettings";
+import AvatarSettings from "./AvatarSettings";
 
 function ModelSettings({
   pomodoro,
@@ -18,11 +18,14 @@ function ModelSettings({
   setOpenSettings,
   openSettings,
   updateTimeDefaultValue,
+  hideChromeWhileFocusing = true,
+  setHideChromeWhileFocusing,
 }) {
   const { user } = useUser();
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState([]);
   const [success, setSuccess] = useState(false);
+  const successTimerRef = useRef(null);
 
   useEffect(() => {
     if (pomodoroRef.current) pomodoroRef.current.value = pomodoro;
@@ -30,13 +33,20 @@ function ModelSettings({
     if (longBreakRef.current) longBreakRef.current.value = longBreaks;
   }, [pomodoro, shortBreaks, longBreaks, openSettings]);
 
-  // Reset state when modal opens
   useEffect(() => {
     if (openSettings) {
       setErrors([]);
       setSuccess(false);
     }
   }, [openSettings]);
+
+  useEffect(() => {
+    return () => {
+      if (successTimerRef.current != null) {
+        clearTimeout(successTimerRef.current);
+      }
+    };
+  }, []);
 
   const formatError = (msg) => {
     return msg.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -48,7 +58,11 @@ function ModelSettings({
       setIsLoading(true);
       await updateTimeDefaultValue();
       setSuccess(true);
-      setTimeout(() => setSuccess(false), 2000);
+      if (successTimerRef.current != null) clearTimeout(successTimerRef.current);
+      successTimerRef.current = setTimeout(() => {
+        successTimerRef.current = null;
+        setSuccess(false);
+      }, 2000);
     } catch (err) {
       const msgs = err?.response?.data?.message;
       if (Array.isArray(msgs)) {
@@ -71,22 +85,25 @@ function ModelSettings({
 
   return (
     <div
-      className={`absolute h-full w-full left-0 top-0 bg-black bg-opacity-30 ${openSettings ? "" : "hidden"}`}
+      className={`absolute inset-0 z-50 bg-black bg-opacity-30 ${openSettings ? "" : "hidden"}`}
     >
       <div>
         <div
-          className={`p-5 rounded-md max-w-xl max-h-[90vh] overflow-y-auto bg-white absolute sm:w-86 w-11/12 left-1/2 top-1/2 ${openSettings ? "" : "hidden"}`}
+          className={`p-5 rounded-md max-w-xl max-h-[90vh] overflow-y-auto bg-white absolute z-50 sm:w-86 w-11/12 left-1/2 top-1/2 ${openSettings ? "" : "hidden"}`}
           style={{ transform: "translate(-50%, -50%)" }}
         >
           <div className="text-gray-400 flex justify-between items-center">
-            {user?.avatar && (
-              <Image
-                width={500}
-                height={500}
+            {user?.avatar ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
                 className="w-10 h-10 rounded-full object-cover"
                 src={user.avatar}
                 alt={user.name || "User"}
               />
+            ) : (
+              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-200 text-sm font-semibold text-gray-600">
+                {user?.name ? user.name[0].toUpperCase() : "U"}
+              </span>
             )}
             <h1 className="uppercase font-bold tracking-wider">
               {user?.name || "User"}'s SETTINGS
@@ -109,7 +126,6 @@ function ModelSettings({
             ))}
           </div>
 
-          {/* Error messages */}
           {errors.length > 0 && (
             <div className="mt-4 p-3 rounded-lg bg-red-50 border border-red-200">
               <div className="flex items-start gap-2">
@@ -125,7 +141,6 @@ function ModelSettings({
             </div>
           )}
 
-          {/* Success message */}
           {success && (
             <div className="mt-4 p-3 rounded-lg bg-green-50 border border-green-200">
               <div className="flex items-center gap-2">
@@ -150,7 +165,37 @@ function ModelSettings({
               <div className="flex items-center gap-2">Update Settings</div>
             )}
           </Button>
+
           <SoundSettings />
+
+          <AvatarSettings />
+
+          <div className="mt-5">
+            <div className="h-px w-full bg-gray-200 mb-4" />
+            <label className="flex items-center justify-between gap-4 cursor-pointer">
+              <span className="text-sm font-medium text-gray-700">
+                Hide UI while focusing
+              </span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={hideChromeWhileFocusing}
+                onClick={() =>
+                  setHideChromeWhileFocusing?.(!hideChromeWhileFocusing)
+                }
+                className={`relative h-5 w-10 shrink-0 rounded-full transition-colors ${
+                  hideChromeWhileFocusing ? "bg-blue-500" : "bg-gray-300"
+                }`}
+              >
+                <span
+                  className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                    hideChromeWhileFocusing ? "translate-x-5" : "translate-x-0"
+                  }`}
+                />
+              </button>
+            </label>
+          </div>
+
           <PrivacySettings />
           <NotificationSettings />
         </div>

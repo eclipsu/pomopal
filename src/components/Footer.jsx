@@ -7,7 +7,7 @@ const CONTACT_EMAIL = "contact@pomopal.lol";
 export default function Footer({ className = "" }) {
   return (
     <footer
-      className={`w-11/12 mx-auto pt-8 pb-10 border-t border-white/10 text-white/60 shrink-0 ${className}`}
+      className={`mx-auto w-11/12 shrink-0 border-t border-white/10 pb-4 pt-4 text-white/60 sm:pb-10 sm:pt-8 ${className}`}
     >
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-2 text-sm">

@@ -45,9 +45,15 @@ export function UserProvider({ children }) {
     }
   }, []);
 
-  const register = useCallback(async (email, password, name, timezone) => {
+  const register = useCallback(async (email, password, name, timezone, username) => {
     try {
-      await axiosClient.post("/user", { email, password, name, timezone });
+      await axiosClient.post("/user", {
+        email,
+        password,
+        name,
+        timezone,
+        username,
+      });
       return await login(email, password);
     } catch (error) {
       return { success: false, message: error.response?.data?.message || error.message };

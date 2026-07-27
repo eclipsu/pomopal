@@ -16,11 +16,17 @@ export default function SuccessPage() {
       } catch {
         // profile may not be ready yet; refetch still runs
       }
-      await refetch();
+      const user = await refetch();
       const returnTo =
         typeof window !== "undefined"
           ? new URLSearchParams(window.location.search).get("returnTo") || "/"
           : "/";
+      if (user && !user.username) {
+        const params = new URLSearchParams({ setUsername: "1" });
+        if (returnTo && returnTo !== "/") params.set("returnTo", returnTo);
+        router.push(`/login?${params}`);
+        return;
+      }
       router.push(returnTo);
     };
     sync().catch(() => router.push("/login"));

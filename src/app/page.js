@@ -22,6 +22,8 @@ import {
   buildTimerTextCss,
   useSpaceStore,
 } from "@/stores/useSpaceStore";
+import { applyLayoutSounds } from "@/app/services/spaces";
+import { useFontLibrary } from "@/hooks/useFontLibrary";
 import { clearInterval, setInterval } from "worker-timers";
 import { useSession } from "@/hooks/useSession";
 import { useUser } from "@/hooks/useUser";
@@ -34,6 +36,10 @@ import {
 import { useMarkFocusActivity, useMarkFocusTodayLocal } from "@/hooks/useMarkFocusActivity";
 import { usePresence } from "@/contexts/PresenceContext";
 import axiosClient from "../utils/axios";
+import {
+  readUiPreferences,
+  writeUiPreferences,
+} from "@/lib/uiPreferences";
 
 import {
   Dialog,
@@ -45,7 +51,6 @@ import {
 } from "@/components/ui/dialog";
 import Button from "@/components/Button";
 import { toast } from "react-toastify";
-import { SoundPreferencesProvider } from "@/contexts/SoundPreferencesContext";
 import { bgLog } from "@/lib/backgroundAudioLog";
 import { prefetchAudioSelection } from "@/lib/audioCache";
 
@@ -140,11 +145,7 @@ function useTimer() {
 }
 
 export default function Home() {
-  return (
-    <SoundPreferencesProvider>
-      <HomeContent />
-    </SoundPreferencesProvider>
-  );
+  return <HomeContent />;
 }
 
 function HomeContent() {
@@ -160,13 +161,30 @@ function HomeContent() {
   const [pendingSelected, setPendingSelected] = useState(null);
   const [autoStartBreaks, setAutoStartBreaks] = useState(false);
   const [alarmPlaying, setAlarmPlaying] = useState(false);
+  const [hideChromeWhileFocusing, setHideChromeWhileFocusingState] = useState(
+    false,
+  );
   const alarmRevokeRef = useRef(null);
   const alarmStopTimerRef = useRef(null);
+  const homeMountedRef = useRef(true);
 
   const pomodoroRef = useRef();
   const shortBreakRef = useRef();
   const longBreakRef = useRef();
   const alarmRef = useRef();
+
+  useEffect(() => {
+    const prefs = readUiPreferences();
+    setHideChromeWhileFocusingState(Boolean(prefs.hideChromeWhileFocusing));
+  }, []);
+
+  const setHideChromeWhileFocusing = useCallback((enabled) => {
+    setHideChromeWhileFocusingState(enabled);
+    writeUiPreferences({
+      ...readUiPreferences(),
+      hideChromeWhileFocusing: enabled,
+    });
+  }, []);
 
   const {
     ticking,
@@ -182,7 +200,7 @@ function HomeContent() {
   const markFocusActivity = useMarkFocusActivity();
   const markFocusTodayLocal = useMarkFocusTodayLocal();
   const { touchActive } = usePresence() ?? {};
-  const { prefs: soundPrefs, loaded: soundPrefsLoaded, volumePreviewActive, setLivePlayback } =
+  const { prefs: soundPrefs, loaded: soundPrefsLoaded, volumePreviewActive, setLivePlayback, updateBackground, updateRing } =
     useSoundPreferences();
   const heartbeatInFlightRef = useRef(false);
   const completeInFlightRef = useRef(false);
@@ -418,7 +436,8 @@ function HomeContent() {
     }
   };
 
-  const handleReset = () => {
+  const handleReset = async () => {
+    if (sessionId) await updateSession(false, user?.id);
     reset();
     clearSession();
     stopAlarmPlayback();
@@ -481,6 +500,7 @@ function HomeContent() {
       try {
         if (snapSessionId && !snapSessionId.startsWith("guest_") && snapUser?.id) {
           await axiosClient.patch(`/sessions/${snapSessionId}/complete`);
+          if (!homeMountedRef.current) return;
           markFocusActivity();
           touchActive?.();
           if (snapSelected === 0) {
@@ -488,6 +508,7 @@ function HomeContent() {
           }
         }
       } catch (e) {
+        if (!homeMountedRef.current) return;
         const msg =
           e?.response?.data?.message ??
           (Array.isArray(e?.response?.data?.message)
@@ -499,6 +520,8 @@ function HomeContent() {
         completeInFlightRef.current = false;
       }
 
+      if (!homeMountedRef.current) return;
+
       if (alarmRevokeRef.current) {
         alarmRevokeRef.current();
         alarmRevokeRef.current = null;
@@ -507,6 +530,10 @@ function HomeContent() {
 
       try {
         const { src, revoke } = await prepareAlarmSource(snapRing.selection);
+        if (!homeMountedRef.current) {
+          revoke?.();
+          return;
+        }
         alarmRevokeRef.current = revoke;
         if (alarmRef.current) {
           alarmRef.current.src = src;
@@ -516,11 +543,16 @@ function HomeContent() {
           );
           alarmRef.current.load();
           await alarmRef.current.play();
+          if (!homeMountedRef.current) {
+            stopAlarmPlayback();
+            return;
+          }
           setAlarmPlaying(true);
           scheduleAlarmStop();
         }
       } catch (e) {
         console.error("Ring playback failed:", e);
+        if (!homeMountedRef.current) return;
         if (alarmRef.current) {
           alarmRef.current.src = DEFAULT_ALARM_SRC;
           alarmRef.current.volume = Math.max(
@@ -528,10 +560,16 @@ function HomeContent() {
             Math.min(1, (snapRing.volume ?? 80) / 100),
           );
           await alarmRef.current.play().catch(() => {});
+          if (!homeMountedRef.current) {
+            stopAlarmPlayback();
+            return;
+          }
           setAlarmPlaying(true);
           scheduleAlarmStop();
         }
       }
+
+      if (!homeMountedRef.current) return;
 
       const next = snapSelected === 0 ? 1 : snapSelected === 1 ? 2 : 0;
       setSelected(next);
@@ -549,12 +587,23 @@ function HomeContent() {
         snapUser?.id,
         buildSessionContext(next, minutes),
       );
-      if (newId) {
-        begin(Date.now(), minutes * 60);
-        touchActive?.();
-      }
+      if (!homeMountedRef.current || !newId) return;
+      begin(Date.now(), minutes * 60);
+      touchActive?.();
     })();
   }, [finished]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    homeMountedRef.current = true;
+    return () => {
+      homeMountedRef.current = false;
+      clearAlarmStopTimer();
+      if (alarmRevokeRef.current) {
+        alarmRevokeRef.current();
+        alarmRevokeRef.current = null;
+      }
+    };
+  }, [clearAlarmStopTimer]);
 
   const updateTimeDefaultValue = async () => {
     const pomodoroVal = Number(pomodoroRef.current.value);
@@ -598,6 +647,7 @@ function HomeContent() {
   };
 
   const spaceAppearance = useSpaceStore();
+  const { data: customFonts = [] } = useFontLibrary(true);
   const {
     sidebarOpen,
     toggleSidebar,
@@ -607,13 +657,61 @@ function HomeContent() {
     [spaceAppearance],
   );
   const timerTextStyle = useMemo(
-    () => buildTimerTextCss(spaceAppearance),
-    [spaceAppearance],
+    () => buildTimerTextCss(spaceAppearance, customFonts),
+    [spaceAppearance, customFonts],
   );
   const pageBackgroundStyle = useMemo(
     () => buildBackgroundCss(spaceAppearance),
     [spaceAppearance],
   );
+
+  useEffect(() => {
+    if (!Array.isArray(customFonts)) return;
+    for (const font of customFonts) {
+      if (font?.family_name && font?.url) {
+        const id = `pomopal-font-${font.family_name}`;
+        if (document.getElementById(id)) continue;
+        const style = document.createElement("style");
+        style.id = id;
+        style.textContent = `
+          @font-face {
+            font-family: "${font.family_name}";
+            src: url("${font.url}") format("truetype");
+            font-display: swap;
+          }
+        `;
+        document.head.appendChild(style);
+      }
+    }
+  }, [customFonts]);
+
+  // Restore focus/alarm sounds from the last-used space after prefs load.
+  const focusSoundId = useSpaceStore((s) => s.focusSoundId);
+  const ringSoundId = useSpaceStore((s) => s.ringSoundId);
+  const restoredSoundsRef = useRef(false);
+  useEffect(() => {
+    if (!soundPrefsLoaded || restoredSoundsRef.current) return;
+    if (!focusSoundId && !ringSoundId) {
+      restoredSoundsRef.current = true;
+      return;
+    }
+    applyLayoutSounds(
+      { focusSoundId, ringSoundId },
+      { updateBackground, updateRing },
+      { clearMissing: false },
+    );
+    restoredSoundsRef.current = true;
+  }, [
+    soundPrefsLoaded,
+    focusSoundId,
+    ringSoundId,
+    updateBackground,
+    updateRing,
+  ]);
+
+  const hideNavFooter =
+    sidebarOpen || (ticking && hideChromeWhileFocusing);
+  const hideSessionTabs = ticking && hideChromeWhileFocusing;
 
   return (
     <>
@@ -626,7 +724,14 @@ function HomeContent() {
             showFriends ? "md:mr-60" : ""
           }`}
         >
-          <div className="relative z-10 mx-auto w-full max-w-2xl shrink-0 overflow-x-hidden">
+          <div
+            className={`relative z-10 mx-auto w-full max-w-2xl shrink-0 overflow-x-hidden transition-all duration-500 ease-in-out ${
+              hideNavFooter
+                ? "pointer-events-none max-h-0 -translate-y-2 opacity-0"
+                : "max-h-40 translate-y-0 opacity-100"
+            }`}
+            aria-hidden={hideNavFooter}
+          >
             <Navigation
               setOpenSettings={setOpenSettings}
               setShowStats={setShowStats}
@@ -644,7 +749,12 @@ function HomeContent() {
               getTime={getTime}
               seconds={secondsDisplay}
               ticking={ticking}
-              startTimer={handleStartOrPause}
+              hideSessionTabs={hideSessionTabs}
+              onPlayPause={handleStartOrPause}
+              onReset={handleReset}
+              canReset={
+                ticking || remaining != null || alarmPlaying || Boolean(sessionId)
+              }
               muteAlarm={stopAlarmPlayback}
               isTimesUp={alarmPlaying}
               boxStyle={timerBoxStyle}
@@ -652,7 +762,14 @@ function HomeContent() {
             />
           </div>
 
-          <div className="relative z-10 mx-auto w-full max-w-2xl shrink-0 overflow-x-hidden">
+          <div
+            className={`relative z-10 mx-auto w-full max-w-2xl shrink-0 overflow-hidden transition-all duration-500 ease-in-out ${
+              hideNavFooter
+                ? "pointer-events-none max-h-0 translate-y-2 opacity-0"
+                : "max-h-28 translate-y-0 opacity-100 sm:max-h-48"
+            }`}
+            aria-hidden={hideNavFooter}
+          >
             <Footer />
           </div>
         </div>
@@ -684,6 +801,8 @@ function HomeContent() {
         openSettings={openSettings}
         setOpenSettings={setOpenSettings}
         updateTimeDefaultValue={updateTimeDefaultValue}
+        hideChromeWhileFocusing={hideChromeWhileFocusing}
+        setHideChromeWhileFocusing={setHideChromeWhileFocusing}
       />
       <ModelStatistics openSettings={showStats} setOpenSettings={setShowStats} />
 

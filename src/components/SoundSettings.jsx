@@ -7,6 +7,7 @@ import {
   listCachedTracks,
   prefetchAudioSelection,
 } from "@/lib/audioCache";
+import { selectionFromLibrarySound } from "@/lib/librarySoundSelection";
 import { buildYoutubeWatchUrl } from "@/lib/youtube.util";
 import { bgLog } from "@/lib/backgroundAudioLog";
 import { useSoundLibrary } from "@/hooks/useSoundLibrary";
@@ -175,55 +176,24 @@ export default function SoundSettings() {
     void prefetchAudioSelection(prefs.ring.selection);
   }, [loaded, ringSelectionKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!loaded) return null;
-
-  const selectYoutubeTrack = (track) => {
-    const selection = {
-      kind: "youtube",
-      url: track.sourceUrl || buildYoutubeWatchUrl(track.sourceId),
-      videoId: track.sourceId,
-      title: track.title,
-    };
-    updateBackground({ enabled: true, selection });
-    void prefetchAudioSelection(selection);
-  };
-
-  const selectLibraryBackground = (sound) => {
-    const selection = {
-      kind: "library",
-      id: sound.id,
-      url: sound.url,
-      name: sound.name,
-    };
-    updateBackground({ enabled: true, selection });
-    void prefetchAudioSelection(selection);
-  };
-
-  const selectLibraryRing = (sound) => {
-    const selection = {
-      kind: "library",
-      id: sound.id,
-      url: sound.url,
-      name: sound.name,
-    };
-    updateRing({ selection });
-    void prefetchAudioSelection(selection);
-  };
-
   const bgSelection = prefs.background.selection;
   const ringSelection = prefs.ring.selection;
-  const hasBackgroundChoices =
-    backgroundSounds.length > 0 || cachedYoutube.length > 0;
   const previewBlocked =
     livePlayback.alarmRinging || livePlayback.backgroundPlaying;
 
   useEffect(() => {
+    if (!loaded) return;
     bgLog("settings:previewBlocked", {
       previewBlocked,
       alarmRinging: livePlayback.alarmRinging,
       backgroundPlaying: livePlayback.backgroundPlaying,
     });
-  }, [previewBlocked, livePlayback.alarmRinging, livePlayback.backgroundPlaying]);
+  }, [
+    loaded,
+    previewBlocked,
+    livePlayback.alarmRinging,
+    livePlayback.backgroundPlaying,
+  ]);
 
   const startBackgroundPreview = useCallback(
     (volume) => {
@@ -238,6 +208,34 @@ export default function SoundSettings() {
     },
     [beginPreview, ringSelection],
   );
+
+  if (!loaded) return null;
+
+  const selectYoutubeTrack = (track) => {
+    const selection = {
+      kind: "youtube",
+      url: track.sourceUrl || buildYoutubeWatchUrl(track.sourceId),
+      videoId: track.sourceId,
+      title: track.title,
+    };
+    updateBackground({ enabled: true, selection });
+    void prefetchAudioSelection(selection);
+  };
+
+  const selectLibraryBackground = (sound) => {
+    const selection = selectionFromLibrarySound(sound);
+    updateBackground({ enabled: true, selection });
+    void prefetchAudioSelection(selection);
+  };
+
+  const selectLibraryRing = (sound) => {
+    const selection = selectionFromLibrarySound(sound);
+    updateRing({ selection });
+    void prefetchAudioSelection(selection);
+  };
+
+  const hasBackgroundChoices =
+    backgroundSounds.length > 0 || cachedYoutube.length > 0;
 
   const backgroundOptions = [
     { value: "none", label: "None" },

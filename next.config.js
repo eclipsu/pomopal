@@ -15,6 +15,12 @@ module.exports = {
     const backend = process.env.API_PROXY_TARGET || "http://localhost:8000";
     return [
       {
+        // Fonts are served from the frontend origin (`/fonts/...`) so @font-face
+        // never hits S3 cross-origin — Next proxies to Nest.
+        source: "/fonts/:path*",
+        destination: `${backend}/fonts/:path*`,
+      },
+      {
         source: "/api/:path*",
         destination: `${backend}/:path*`,
       },

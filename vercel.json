@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/fonts/:path*",
+      "destination": "http://3.150.110.6/fonts/:path*"
+    },
+    {
       "source": "/api/:path*",
       "destination": "http://3.150.110.6/:path*"
     }

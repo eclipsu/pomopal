@@ -3,7 +3,6 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { FiX } from "react-icons/fi";
 import { GrFormPreviousLink, GrFormNextLink } from "react-icons/gr";
-import Image from "next/image";
 import Box from "@mui/material/Box";
 import { BarChart } from "@mui/x-charts/BarChart";
 import { Clock, Flame, Trophy } from "lucide-react";
@@ -171,21 +170,22 @@ function ModelStatistics({ setOpenSettings, openSettings }) {
   if (!openSettings) return null;
 
   return (
-    <div className="absolute inset-0 bg-black bg-opacity-30">
+    <div className="absolute inset-0 z-50 bg-black bg-opacity-30">
       <div
-        className="p-5 rounded-md max-w-xl bg-white absolute sm:w-86 w-11/12 left-1/2 top-1/2"
+        className="p-5 rounded-md max-w-xl bg-white absolute z-50 sm:w-86 w-11/12 left-1/2 top-1/2"
         style={{ transform: "translate(-50%, -50%)" }}
       >
         <div className="text-gray-400 flex justify-between items-center">
-          {user?.avatar && (
-            <Image
+          {user?.avatar ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
               width={40}
               height={40}
               className="w-10 h-10 rounded-full object-cover"
               src={user.avatar}
               alt={user.name}
             />
-          )}
+          ) : null}
           <h1 className="uppercase font-bold tracking-wider text-gray-800">
             {user?.name || "User"}'s Statistics
           </h1>

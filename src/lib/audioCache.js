@@ -480,12 +480,26 @@ export async function getOrParseYoutubeAudio(url, options = {}) {
 
 /**
  * Return cached library sound or fetch from S3 once, then cache.
- * @param {{ id: string, url: string, name?: string }} sound
+ * YouTube-backed library items resolve via parse-youtube (client IndexedDB).
+ * @param {{ id: string, url?: string, name?: string, source?: string, youtubeUrl?: string, videoId?: string }} sound
  */
 export async function getOrFetchLibraryAudio(sound) {
-  bgLog("library:resolve start", { id: sound?.id, url: sound?.url });
+  bgLog("library:resolve start", {
+    id: sound?.id,
+    source: sound?.source,
+    url: sound?.url,
+  });
   if (!sound?.id) {
     throw new Error("Invalid library sound");
+  }
+
+  if (sound.source === "youtube" || (!sound.url && (sound.youtubeUrl || sound.videoId))) {
+    const ytUrl =
+      sound.youtubeUrl ||
+      (sound.videoId ? `https://www.youtube.com/watch?v=${sound.videoId}` : null);
+    if (!ytUrl) throw new Error("YouTube library sound is missing a URL");
+    bgLog("library:youtube-backed → parse", { id: sound.id, ytUrl });
+    return getOrParseYoutubeAudio(ytUrl);
   }
 
   const version = parseVersionFromUrl(sound.url);
@@ -524,6 +538,17 @@ export async function getOrFetchLibraryAudio(sound) {
  */
 export async function prefetchAudioSelection(selection) {
   if (!selection?.kind) return null;
+
+  // Streamed sounds play straight from the network — nothing to prefetch.
+  // Includes S3 library sounds (long files must not fill IndexedDB).
+  if (
+    selection.streamUrl ||
+    selection.source === "youtube" ||
+    selection.source === "s3" ||
+    (selection.kind === "library" && selection.id)
+  ) {
+    return null;
+  }
 
   try {
     if (selection.kind === "library") {

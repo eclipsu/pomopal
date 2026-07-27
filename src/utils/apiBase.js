@@ -37,9 +37,13 @@ export function getSoundsApiBaseUrl() {
  * API base for admin/media uploads.
  * In local dev, bypass the Next proxy and hit Nest directly to avoid
  * buffering large multipart uploads through an extra hop.
+ * In production, prefer a direct backend URL when set so large files
+ * are not limited by the Vercel /api proxy body size.
  */
 export function getUploadApiBaseUrl() {
-  const direct = process.env.NEXT_PUBLIC_UPLOADS_API_BASE_URL;
+  const direct =
+    process.env.NEXT_PUBLIC_UPLOADS_API_BASE_URL ||
+    process.env.NEXT_PUBLIC_SOUNDS_API_BASE_URL;
   if (direct) return direct.replace(/\/$/, "");
 
   if (typeof window !== "undefined") {

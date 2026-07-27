@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { createTrackObjectUrl, resolveAudioTrack } from "@/lib/audioCache";
+import { getSelectionStreamUrl } from "@/lib/librarySoundSelection";
 import { bgAudioState, bgError, bgLog, bgWarn } from "@/lib/backgroundAudioLog";
 
 const FADE_IN_MS = 1200;
@@ -23,21 +24,32 @@ function clampVolume(volume) {
   return Math.max(0, Math.min(1, volume / 100));
 }
 
-function waitForCanPlay(audio, label) {
+function waitForCanPlay(audio, label, signal) {
   bgLog(`waitForCanPlay:start (${label})`, { readyState: audio.readyState });
+  if (signal?.aborted) return Promise.resolve();
   if (audio.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) {
     bgLog(`waitForCanPlay:already-ready (${label})`);
     return Promise.resolve();
   }
   return new Promise((resolve) => {
-    const onReady = (evt) => {
-      bgLog(`waitForCanPlay:ready (${label})`, { event: evt.type, readyState: audio.readyState });
+    const cleanup = () => {
       audio.removeEventListener("canplay", onReady);
       audio.removeEventListener("loadedmetadata", onReady);
+      signal?.removeEventListener("abort", onAbort);
+    };
+    const onReady = (evt) => {
+      bgLog(`waitForCanPlay:ready (${label})`, { event: evt.type, readyState: audio.readyState });
+      cleanup();
+      resolve();
+    };
+    const onAbort = () => {
+      bgLog(`waitForCanPlay:aborted (${label})`);
+      cleanup();
       resolve();
     };
     audio.addEventListener("canplay", onReady);
     audio.addEventListener("loadedmetadata", onReady);
+    signal?.addEventListener("abort", onAbort);
   });
 }
 
@@ -99,6 +111,7 @@ export default function BackgroundAudio({
   const objectUrlRef = useRef(null);
   const targetVolumeRef = useRef(clampVolume(volume));
   const fadeTimerRef = useRef(null);
+  const fadeResolveRef = useRef(null);
   const loopHandlerRef = useRef(null);
   const debugCleanupRef = useRef(null);
   const selectionId = selectionKey(selection);
@@ -120,6 +133,11 @@ export default function BackgroundAudio({
       clearInterval(fadeTimerRef.current);
       fadeTimerRef.current = null;
     }
+    const resolve = fadeResolveRef.current;
+    if (resolve) {
+      fadeResolveRef.current = null;
+      resolve();
+    }
   };
 
   const detachLoopHandler = () => {
@@ -137,13 +155,15 @@ export default function BackgroundAudio({
     if (!audio || loopHandlerRef.current) return;
 
     const onEnded = () => {
+      const el = audioRef.current;
+      // After clearAudio, src is gone — never restart against a revoked blob.
+      if (!el?.getAttribute("src")) return;
       bgLog("loop:ended → restart", {
-        currentTime: audioRef.current?.currentTime,
-        duration: audioRef.current?.duration,
+        currentTime: el.currentTime,
+        duration: el.duration,
       });
-      if (!audioRef.current) return;
-      audioRef.current.currentTime = 0;
-      audioRef.current.play().catch((err) => {
+      el.currentTime = 0;
+      el.play().catch((err) => {
         bgWarn("loop:restart play failed", err);
       });
     };
@@ -155,7 +175,7 @@ export default function BackgroundAudio({
 
   const fadeTo = (toVolume, durationMs, { pauseAtEnd = false, reason = "unknown" } = {}) => {
     const audio = audioRef.current;
-    if (!audio) return Promise.resolve();
+    if (!audio?.getAttribute("src")) return Promise.resolve();
 
     stopFade("new-fade");
 
@@ -174,11 +194,11 @@ export default function BackgroundAudio({
 
     const startedAt = Date.now();
     return new Promise((resolve) => {
+      fadeResolveRef.current = resolve;
       fadeTimerRef.current = setInterval(() => {
         const audioEl = audioRef.current;
-        if (!audioEl) {
-          stopFade("audio-gone");
-          resolve();
+        if (!audioEl?.getAttribute("src")) {
+          stopFade("audio-cleared");
           return;
         }
 
@@ -187,14 +207,13 @@ export default function BackgroundAudio({
         audioEl.volume = from + (to - from) * t;
 
         if (t >= 1) {
-          stopFade("complete");
           audioEl.volume = to;
           bgLog("fade:complete", { reason, to });
           if (pauseAtEnd) {
             audioEl.pause();
             bgAudioState(audioEl, "after fade pause");
           }
-          resolve();
+          stopFade("complete");
         }
       }, FADE_TICK_MS);
     });
@@ -209,29 +228,37 @@ export default function BackgroundAudio({
       debugCleanupRef.current = null;
     }
     const audio = audioRef.current;
-    if (!audio) return;
-    audio.pause();
-    audio.currentTime = 0;
-    audio.removeAttribute("src");
-    if (objectUrlRef.current) {
-      bgLog("clearAudio:revokeObjectURL", { url: objectUrlRef.current.slice(0, 60) });
-      URL.revokeObjectURL(objectUrlRef.current);
-      objectUrlRef.current = null;
+    const pendingRevoke = objectUrlRef.current;
+    objectUrlRef.current = null;
+
+    if (audio) {
+      audio.pause();
+      // Empty src + load() aborts the resource before we revoke the blob.
+      // removeAttribute alone leaves audio.src as the document URL (truthy)
+      // and the element can keep fetching the old blob → ERR_FILE_NOT_FOUND loop.
+      audio.removeAttribute("src");
+      audio.load();
+    }
+
+    if (pendingRevoke) {
+      bgLog("clearAudio:revokeObjectURL", { url: pendingRevoke.slice(0, 60) });
+      URL.revokeObjectURL(pendingRevoke);
     }
   };
 
   useEffect(() => {
     targetVolumeRef.current = clampVolume(volume);
     const audio = audioRef.current;
+    const hasSrc = Boolean(audio?.getAttribute("src"));
     bgLog("effect:volume", {
       volume,
       clamped: targetVolumeRef.current,
       shouldPlay,
       enabled,
-      hasSrc: Boolean(audio?.src),
+      hasSrc,
       fading: fadeTimerRef.current != null,
     });
-    if (!audio?.src) return;
+    if (!hasSrc) return;
     if (shouldPlay && enabled && fadeTimerRef.current == null) {
       audio.volume = targetVolumeRef.current;
       bgLog("effect:volume applied live", { volume: audio.volume });
@@ -240,6 +267,7 @@ export default function BackgroundAudio({
 
   useEffect(() => {
     let cancelled = false;
+    const abort = new AbortController();
     bgLog("effect:load-track", { enabled, selectionId, selection });
 
     if (!enabled || !selection) {
@@ -247,27 +275,46 @@ export default function BackgroundAudio({
       return undefined;
     }
 
+    const streamUrl = getSelectionStreamUrl(selection);
+
     (async () => {
       try {
-        bgLog("resolveAudioTrack:start", { selection });
-        const track = await resolveAudioTrack(selection);
-        if (cancelled) {
-          bgLog("resolveAudioTrack:cancelled after load");
-          return;
+        let url;
+        if (streamUrl) {
+          // Progressive streaming — play straight from the backend Range proxy.
+          bgLog("load-track:stream url", { streamUrl });
+          clearAudio("before-new-stream");
+          url = streamUrl;
+          objectUrlRef.current = null;
+        } else {
+          bgLog("resolveAudioTrack:start", { selection });
+          const track = await resolveAudioTrack(selection);
+          if (cancelled) {
+            bgLog("resolveAudioTrack:cancelled after load");
+            return;
+          }
+
+          bgLog("resolveAudioTrack:done", {
+            cacheKey: track.cacheKey,
+            title: track.title,
+            blobSize: track.blob?.size,
+            durationSeconds: track.durationSeconds,
+            mimeType: track.mimeType,
+          });
+
+          clearAudio("before-new-track");
+          url = createTrackObjectUrl(track);
+          objectUrlRef.current = url;
+          bgLog("createObjectURL", { url: url.slice(0, 80) });
         }
 
-        bgLog("resolveAudioTrack:done", {
-          cacheKey: track.cacheKey,
-          title: track.title,
-          blobSize: track.blob?.size,
-          durationSeconds: track.durationSeconds,
-          mimeType: track.mimeType,
-        });
-
-        clearAudio("before-new-track");
-        const url = createTrackObjectUrl(track);
-        objectUrlRef.current = url;
-        bgLog("createObjectURL", { url: url.slice(0, 80) });
+        if (cancelled) {
+          if (objectUrlRef.current) {
+            URL.revokeObjectURL(objectUrlRef.current);
+            objectUrlRef.current = null;
+          }
+          return;
+        }
 
         const audio = audioRef.current;
         if (!audio) {
@@ -281,7 +328,7 @@ export default function BackgroundAudio({
         audio.load();
         attachLoopHandler();
         debugCleanupRef.current = attachDebugListeners(audio, selectionId);
-        await waitForCanPlay(audio, "initial-load");
+        await waitForCanPlay(audio, "initial-load", abort.signal);
         if (cancelled) {
           bgLog("load-track:cancelled after canplay");
           return;
@@ -307,22 +354,25 @@ export default function BackgroundAudio({
     return () => {
       bgLog("effect:load-track cleanup", { selectionId });
       cancelled = true;
+      abort.abort();
       clearAudio("load-effect-unmount");
     };
   }, [enabled, selectionId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const audio = audioRef.current;
+    const hasSrc = Boolean(audio?.getAttribute("src"));
     bgLog("effect:playback", {
       shouldPlay,
       enabled,
       previewActive,
-      hasSrc: Boolean(audio?.src),
+      hasSrc,
       paused: audio?.paused,
     });
-    if (!audio?.src) return;
+    if (!hasSrc) return;
 
     let cancelled = false;
+    const abort = new AbortController();
 
     (async () => {
       if (previewActive) {
@@ -336,8 +386,8 @@ export default function BackgroundAudio({
         attachLoopHandler();
         if (audio.paused) {
           bgLog("playback:resume → play + fade in");
-          await waitForCanPlay(audio, "resume");
-          if (cancelled) return;
+          await waitForCanPlay(audio, "resume", abort.signal);
+          if (cancelled || !audio.getAttribute("src")) return;
           audio.volume = 0;
           await audio.play().catch((err) => bgWarn("playback:resume play failed", err));
           if (!cancelled) {
@@ -360,9 +410,10 @@ export default function BackgroundAudio({
     return () => {
       bgLog("effect:playback cleanup");
       cancelled = true;
+      abort.abort();
       stopFade("playback-effect-cleanup");
     };
   }, [shouldPlay, enabled, previewActive]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return <audio ref={audioRef} loop preload="auto" />;
+  return <audio ref={audioRef} preload="auto" />;
 }

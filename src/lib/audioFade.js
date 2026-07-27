@@ -6,6 +6,11 @@ export function stopAudioFade(timerRef) {
     clearInterval(timerRef.current);
     timerRef.current = null;
   }
+  const resolve = timerRef._fadeResolve;
+  if (resolve) {
+    timerRef._fadeResolve = undefined;
+    resolve();
+  }
 }
 
 export function clampAudioVolume(volumePercent) {
@@ -33,10 +38,10 @@ export function fadeAudioTo(
 
   const startedAt = Date.now();
   return new Promise((resolve) => {
+    timerRef._fadeResolve = resolve;
     timerRef.current = setInterval(() => {
       if (!audio) {
         stopAudioFade(timerRef);
-        resolve();
         return;
       }
 
@@ -45,10 +50,9 @@ export function fadeAudioTo(
       audio.volume = from + (to - from) * t;
 
       if (t >= 1) {
-        stopAudioFade(timerRef);
         audio.volume = to;
         if (pauseAtEnd) audio.pause();
-        resolve();
+        stopAudioFade(timerRef);
       }
     }, FADE_TICK_MS);
   });

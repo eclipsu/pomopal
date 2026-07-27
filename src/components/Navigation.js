@@ -1,12 +1,42 @@
+"use client";
+
 import React, { useState } from "react";
-import { FiSettings } from "react-icons/fi";
 import Link from "next/link";
-import Image from "next/image";
+import {
+  ChartNoAxesCombined,
+  LayoutGrid,
+  Paintbrush,
+  Settings,
+  Users,
+} from "lucide-react";
 import SignOut from "./SignOut";
 import PomopalIcon from "./PomopalIcon";
-import { ChartNoAxesCombined, Paintbrush, Users } from "lucide-react";
 import { useUser } from "@/hooks/useUser";
 import StreakIndicator from "@/components/StreakIndicator";
+
+function NavIconButton({
+  label,
+  active = false,
+  onClick,
+  children,
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      aria-pressed={active || undefined}
+      title={label}
+      className={`inline-flex h-9 w-9 items-center justify-center rounded-lg transition-colors ${
+        active
+          ? "bg-white/15 text-white"
+          : "text-white/70 hover:bg-white/10 hover:text-white"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
 
 function Navigation({
   setOpenSettings,
@@ -20,86 +50,107 @@ function Navigation({
   const [openSignOut, setOpenSignOut] = useState(false);
 
   return (
-    <nav className="pt-5 text-white flex items-center justify-between w-11/12 max-w-full mx-auto gap-2 sm:gap-4 min-w-0">
-      <Link href="/" className="flex items-center gap-1.5 shrink-0 hover:opacity-90 transition-opacity">
-        <PomopalIcon size={28} className="shrink-0" />
-        <h1 className="font-semibold tracking-tight">Pomopal</h1>
+    <nav className="mx-auto flex w-11/12 max-w-full min-w-0 items-center justify-between gap-3 pt-4 text-white sm:pt-5">
+      <Link
+        href="/"
+        className="flex shrink-0 items-center gap-2 transition-opacity hover:opacity-90"
+      >
+        <PomopalIcon size={26} className="shrink-0" />
+        <span className="text-[15px] font-semibold tracking-tight">
+          Pomopal
+        </span>
       </Link>
 
-      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-        <button
-          type="button"
-          onClick={onOpenSpaceSettings}
-          className={`shrink-0 rounded-md p-0.5 transition-colors ${
-            spaceSettingsOpen ? "text-red-400" : "text-white hover:text-gray-300"
-          }`}
-          aria-label="Customize space"
-          aria-pressed={spaceSettingsOpen}
+      <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
+        <Link
+          href="/spaces"
+          className="inline-flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-sm font-medium text-white/75 transition-colors hover:bg-white/10 hover:text-white"
+          title="Spaces"
         >
-          <Paintbrush className="h-6 w-6" strokeWidth={1.75} />
-        </button>
+          <LayoutGrid className="h-[18px] w-[18px] sm:hidden" strokeWidth={1.75} />
+          <span className="hidden sm:inline">Spaces</span>
+        </Link>
+
         {user ? (
           <>
-            {user.role === "admin" && (
+            <div className="flex items-center gap-0.5 rounded-xl bg-white/[0.06] p-0.5 ring-1 ring-white/10">
+              <NavIconButton
+                label="Customize space"
+                active={spaceSettingsOpen}
+                onClick={onOpenSpaceSettings}
+              >
+                <Paintbrush className="h-[18px] w-[18px]" strokeWidth={1.75} />
+              </NavIconButton>
+              <NavIconButton
+                label="Friends"
+                active={showFriends}
+                onClick={() => setShowFriends((v) => !v)}
+              >
+                <Users className="h-[18px] w-[18px]" strokeWidth={1.75} />
+              </NavIconButton>
+              <NavIconButton
+                label="Statistics"
+                onClick={() => setShowStats((v) => !v)}
+              >
+                <ChartNoAxesCombined
+                  className="h-[18px] w-[18px]"
+                  strokeWidth={1.75}
+                />
+              </NavIconButton>
+              <NavIconButton
+                label="Settings"
+                onClick={() => setOpenSettings((v) => !v)}
+              >
+                <Settings className="h-[18px] w-[18px]" strokeWidth={1.75} />
+              </NavIconButton>
+            </div>
+
+            <StreakIndicator className="ml-0.5" />
+
+            {user.role === "admin" ? (
               <Link
                 href="/admin"
-                className="text-sm font-medium text-blue-400 hover:text-blue-300 shrink-0"
+                className="hidden h-9 items-center rounded-lg px-2 text-xs font-medium uppercase tracking-wide text-sky-300/90 transition-colors hover:bg-white/10 hover:text-sky-200 md:inline-flex"
               >
                 Admin
               </Link>
-            )}
-            <StreakIndicator />
-            <FiSettings
-              className="text-2xl cursor-pointer shrink-0 hover:text-gray-300 transition-colors"
-              onClick={() => setOpenSettings((v) => !v)}
-              aria-label="Settings"
-            />
-            <ChartNoAxesCombined
-              className="text-2xl cursor-pointer shrink-0 hover:text-gray-300 transition-colors"
-              onClick={() => setShowStats((v) => !v)}
-              aria-label="Statistics"
-            />
-            <Users
-              className={`text-2xl cursor-pointer shrink-0 transition-colors ${
-                showFriends ? "text-red-400" : "text-white hover:text-gray-300"
-              }`}
-              onClick={() => setShowFriends((v) => !v)}
-              aria-label="Friends"
-            />
-            {user.avatar ? (
-              <button
-                type="button"
-                onClick={() => setOpenSignOut((v) => !v)}
-                className="shrink-0 ml-1 rounded-full ring-2 ring-transparent hover:ring-white/20 transition-all"
-                aria-label="Account menu"
-              >
-                <Image
-                  width={40}
-                  height={40}
-                  className="w-10 h-10 rounded-full object-cover"
+            ) : null}
+
+            <button
+              type="button"
+              onClick={() => setOpenSignOut((v) => !v)}
+              className="ml-0.5 shrink-0 rounded-full ring-2 ring-transparent transition hover:ring-white/25 focus-visible:outline-none focus-visible:ring-white/40"
+              aria-label="Account menu"
+            >
+              {user.avatar ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  width={32}
+                  height={32}
+                  className="h-8 w-8 rounded-full object-cover"
                   src={user.avatar}
-                  alt={user.name || "User"}
+                  alt=""
                 />
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setOpenSignOut((v) => !v)}
-                className="w-10 h-10 shrink-0 ml-1 flex items-center justify-center bg-gray-600 rounded-full text-white hover:bg-gray-500 transition-colors"
-                aria-label="Account menu"
-              >
-                {user.name ? user.name[0].toUpperCase() : "U"}
-              </button>
-            )}
+              ) : (
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/15 text-xs font-semibold text-white">
+                  {user.name ? user.name[0].toUpperCase() : "U"}
+                </span>
+              )}
+            </button>
           </>
         ) : (
-          <Link href="/login" className="font-semibold shrink-0 hover:text-red-300 transition-colors">
+          <Link
+            href="/login"
+            className="inline-flex h-9 items-center rounded-lg bg-white/10 px-3 text-sm font-semibold text-white transition-colors hover:bg-white/15"
+          >
             Login
           </Link>
         )}
       </div>
 
-      {user && <SignOut openSettings={openSignOut} setOpenSettings={setOpenSignOut} />}
+      {user ? (
+        <SignOut openSettings={openSignOut} setOpenSettings={setOpenSignOut} />
+      ) : null}
     </nav>
   );
 }

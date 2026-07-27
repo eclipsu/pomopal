@@ -3,32 +3,88 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { UserPlus, Mail, Lock, User } from "lucide-react";
+import { UserPlus, Mail, Lock, User, AtSign } from "lucide-react";
 
 import Button from "@/components/Button";
 import Input from "@/components/Input";
 import ProfilePictureUploader from "@/components/ProfilePictureUploader";
 import { useUser } from "@/hooks/useUser";
+import axiosClient from "@/utils/axios";
+
+function toFirstNameUsername(name) {
+  return (name || "")
+    .trim()
+    .split(/\s+/)[0]
+    .toLowerCase()
+    .replace(/[^a-z]/g, "")
+    .slice(0, 32);
+}
 
 export default function Register() {
-  const { register } = useUser();
+  const { register, refetch } = useUser();
   const router = useRouter();
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   const [formData, setFormData] = useState({
     name: "",
+    username: "",
     email: "",
     password: "",
     confirmPassword: "",
     profilePic: null,
   });
+  const [usernameTouched, setUsernameTouched] = useState(false);
 
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [generalError, setGeneralError] = useState("");
+  const [availability, setAvailability] = useState({
+    email: null,
+    username: null,
+  });
+
+  const checkAvailability = async (field, value) => {
+    if (!value?.trim()) {
+      setAvailability((prev) => ({ ...prev, [field]: null }));
+      return;
+    }
+    try {
+      const res = await axiosClient.get(`/user/check-${field}`, {
+        params: { [field]: value.trim() },
+      });
+      setAvailability((prev) => ({
+        ...prev,
+        [field]: res.data.available ? "available" : "taken",
+      }));
+      if (!res.data.available) {
+        setErrors((prev) => ({
+          ...prev,
+          [field]:
+            field === "email"
+              ? "Email already registered."
+              : "Username taken.",
+        }));
+      }
+    } catch {
+      setAvailability((prev) => ({ ...prev, [field]: null }));
+    }
+  };
 
   const handleChange = (field, value) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    setFormData((prev) => {
+      const next = { ...prev, [field]: value };
+      if (field === "name" && !usernameTouched) {
+        next.username = toFirstNameUsername(value);
+      }
+      if (field === "username") {
+        next.username = String(value).toLowerCase().replace(/[^a-z]/g, "").slice(0, 32);
+      }
+      return next;
+    });
+    if (field === "username") setUsernameTouched(true);
+    if (field === "email" || field === "username") {
+      setAvailability((prev) => ({ ...prev, [field]: null }));
+    }
     setErrors((prev) => ({ ...prev, [field]: "" }));
     setGeneralError("");
   };
@@ -38,6 +94,10 @@ export default function Register() {
 
     if (!formData.name.trim() || formData.name.length < 2)
       newErrors.name = "Full name must be at least 2 characters.";
+
+    if (!/^[a-z]{3,32}$/.test(formData.username))
+      newErrors.username =
+        "Username must be your first name in lowercase letters (3–32).";
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email)) newErrors.email = "Please enter a valid email address.";
@@ -50,6 +110,11 @@ export default function Register() {
     if (formData.password !== formData.confirmPassword)
       newErrors.confirmPassword = "Passwords do not match.";
 
+    if (availability.email === "taken")
+      newErrors.email = "Email already registered.";
+    if (availability.username === "taken")
+      newErrors.username = "Username taken.";
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -61,10 +126,26 @@ export default function Register() {
     setGeneralError("");
 
     try {
-      const result = await register(formData.email, formData.password, formData.name, timezone);
+      const result = await register(
+        formData.email,
+        formData.password,
+        formData.name,
+        timezone,
+        formData.username,
+      );
       if (!result.success) {
         setGeneralError(result.message || "Something went wrong.");
         return;
+      }
+      if (formData.profilePic instanceof File) {
+        try {
+          const body = new FormData();
+          body.append("image", formData.profilePic);
+          await axiosClient.post("/user/avatar", body);
+          await refetch();
+        } catch (uploadErr) {
+          console.error("Avatar upload failed:", uploadErr);
+        }
       }
       router.push("/");
     } catch (error) {
@@ -97,7 +178,7 @@ export default function Register() {
           {/* ✅ Profile Picture */}
           <div className="flex justify-center mb-6">
             <ProfilePictureUploader
-              value={formData.profilePic}
+              value={null}
               onChange={(file) => handleChange("profilePic", file)}
             />
           </div>
@@ -120,6 +201,32 @@ export default function Register() {
               {errors.name && <p className="text-red-400 text-xs">{errors.name}</p>}
             </div>
 
+            {/* Username */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-300">Username</label>
+              <div className="relative">
+                <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Input
+                  type="text"
+                  placeholder="ram"
+                  value={formData.username}
+                  onChange={(e) => handleChange("username", e.target.value)}
+                  onBlur={() => checkAvailability("username", formData.username)}
+                  className="pl-11 bg-white/10 text-white placeholder:text-gray-500 h-12"
+                  required
+                  minLength={3}
+                  maxLength={32}
+                />
+              </div>
+              <p className="text-xs text-gray-500">
+                First name only, lowercase letters
+              </p>
+              {errors.username && <p className="text-red-400 text-xs">{errors.username}</p>}
+              {!errors.username && availability.username === "available" ? (
+                <p className="text-green-400 text-xs">Username available</p>
+              ) : null}
+            </div>
+
             {/* Email */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-300">Email Address</label>
@@ -130,11 +237,15 @@ export default function Register() {
                   placeholder="ram@bahadur.com"
                   value={formData.email}
                   onChange={(e) => handleChange("email", e.target.value)}
+                  onBlur={() => checkAvailability("email", formData.email)}
                   className="pl-11 bg-white/10 text-white placeholder:text-gray-500 h-12"
                   required
                 />
               </div>
               {errors.email && <p className="text-red-400 text-xs">{errors.email}</p>}
+              {!errors.email && availability.email === "available" ? (
+                <p className="text-green-400 text-xs">Email available</p>
+              ) : null}
             </div>
 
             {/* Password */}

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import axiosClient from "@/utils/axios";
 
 const TOGGLES = [
+  { key: "profile_public", label: "Public profile (/username)" },
   { key: "show_online_status", label: "Show online status" },
   { key: "show_current_activity", label: "Show last active" },
   { key: "show_daily_stats", label: "Show daily stats" },
