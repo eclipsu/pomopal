@@ -198,14 +198,20 @@ export function resolveSpaceSoundIds(appearance, prefs) {
       ? prefs.background.selection.id
       : null;
 
-  const ringSoundId =
-    typeof appearance?.ringSoundId === "string"
-      ? appearance.ringSoundId
-      : ringFromPrefs;
-  const focusSoundId =
-    typeof appearance?.focusSoundId === "string"
-      ? appearance.focusSoundId
-      : focusFromPrefs;
+  // Prefer explicit space IDs. Only inherit live prefs when the appearance
+  // omitted the keys entirely (e.g. seeding a brand-new space).
+  const ringSoundId = Object.prototype.hasOwnProperty.call(
+    appearance || {},
+    "ringSoundId",
+  )
+    ? appearance.ringSoundId || null
+    : ringFromPrefs;
+  const focusSoundId = Object.prototype.hasOwnProperty.call(
+    appearance || {},
+    "focusSoundId",
+  )
+    ? appearance.focusSoundId || null
+    : focusFromPrefs;
 
   return {
     ringSoundId: ringSoundId || null,
@@ -215,10 +221,13 @@ export function resolveSpaceSoundIds(appearance, prefs) {
 
 /** Map Zustand appearance → API layout payload */
 export function appearanceToLayout(appearance, prefs) {
-  const { ringSoundId, focusSoundId } = resolveSpaceSoundIds(
-    appearance,
-    prefs,
-  );
+  const { ringSoundId, focusSoundId } =
+    prefs == null
+      ? {
+          ringSoundId: appearance?.ringSoundId ?? null,
+          focusSoundId: appearance?.focusSoundId ?? null,
+        }
+      : resolveSpaceSoundIds(appearance, prefs);
   return {
     backgroundType: appearance.backgroundType,
     backgroundColor: appearance.backgroundColor,
@@ -280,9 +289,10 @@ export function applyLayoutSounds(
       selection: {
         kind: "library",
         id: layout.ringSoundId,
-        name: "Space alarm",
+        name: layout.ringSoundName || "Space alarm",
         source: "s3",
-        streamUrl: librarySoundStreamUrl(layout.ringSoundId),
+        streamUrl:
+          layout.ringStreamUrl || librarySoundStreamUrl(layout.ringSoundId),
       },
     });
   } else if (clearMissing) {
@@ -295,9 +305,10 @@ export function applyLayoutSounds(
       selection: {
         kind: "library",
         id: layout.focusSoundId,
-        name: "Space focus",
+        name: layout.focusSoundName || "Space focus",
         source: "s3",
-        streamUrl: librarySoundStreamUrl(layout.focusSoundId),
+        streamUrl:
+          layout.focusStreamUrl || librarySoundStreamUrl(layout.focusSoundId),
       },
     });
   } else if (clearMissing) {
@@ -308,6 +319,7 @@ export function applyLayoutSounds(
 /**
  * Apply a server-baked space snapshot (preferred over live library lookups).
  * Font face URL + sound stream paths are already resolved at bake time.
+ * Falls back to layout.*SoundId when bake failed to resolve a library row.
  */
 export function applyBakedSpace(
   baked,
@@ -315,40 +327,34 @@ export function applyBakedSpace(
 ) {
   if (!baked?.layout) return null;
 
-  applyAppearance(layoutToAppearancePatch(baked.layout, title));
+  const layout = baked.layout;
+  applyAppearance(layoutToAppearancePatch(layout, title));
 
-  if (baked.ring?.id) {
-    updateRing({
-      selection: {
-        kind: "library",
-        id: baked.ring.id,
-        name: baked.ring.name || "Space alarm",
-        source: "s3",
-        streamUrl: baked.ring.streamPath
-          ? absoluteApiUrl(baked.ring.streamPath)
-          : librarySoundStreamUrl(baked.ring.id),
-      },
-    });
-  } else {
-    updateRing({ selection: null });
-  }
+  const ringId = baked.ring?.id || layout.ringSoundId || null;
+  const focusId = baked.focus?.id || layout.focusSoundId || null;
 
-  if (baked.focus?.id) {
-    updateBackground({
-      enabled: true,
-      selection: {
-        kind: "library",
-        id: baked.focus.id,
-        name: baked.focus.name || "Space focus",
-        source: "s3",
-        streamUrl: baked.focus.streamPath
-          ? absoluteApiUrl(baked.focus.streamPath)
-          : librarySoundStreamUrl(baked.focus.id),
-      },
-    });
-  } else {
-    updateBackground({ enabled: false, selection: null });
-  }
+  applyLayoutSounds(
+    {
+      ringSoundId: ringId,
+      focusSoundId: focusId,
+      ringSoundName: baked.ring?.name,
+      focusSoundName: baked.focus?.name,
+      ringStreamUrl: baked.ring?.streamPath
+        ? absoluteApiUrl(baked.ring.streamPath)
+        : null,
+      focusStreamUrl: baked.focus?.streamPath
+        ? absoluteApiUrl(baked.focus.streamPath)
+        : null,
+    },
+    { updateBackground, updateRing },
+    { clearMissing: true },
+  );
+
+  // Ensure store IDs match what we actually applied (bake may fill gaps).
+  applyAppearance({
+    ringSoundId: ringId,
+    focusSoundId: focusId,
+  });
 
   return baked.font
     ? {

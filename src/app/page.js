@@ -685,22 +685,19 @@ function HomeContent() {
     }
   }, [customFonts]);
 
-  // Restore focus/alarm sounds from the last-used space after prefs load.
+  // Keep live prefs in sync with the active space's default sounds.
+  // Re-run whenever the space sound IDs change (e.g. after opening a shared link).
   const focusSoundId = useSpaceStore((s) => s.focusSoundId);
   const ringSoundId = useSpaceStore((s) => s.ringSoundId);
-  const restoredSoundsRef = useRef(false);
   useEffect(() => {
-    if (!soundPrefsLoaded || restoredSoundsRef.current) return;
-    if (!focusSoundId && !ringSoundId) {
-      restoredSoundsRef.current = true;
-      return;
-    }
+    if (!soundPrefsLoaded) return;
+    // Don't wipe personal prefs when the active space has no sound defaults.
+    if (!focusSoundId && !ringSoundId) return;
     applyLayoutSounds(
       { focusSoundId, ringSoundId },
       { updateBackground, updateRing },
       { clearMissing: false },
     );
-    restoredSoundsRef.current = true;
   }, [
     soundPrefsLoaded,
     focusSoundId,

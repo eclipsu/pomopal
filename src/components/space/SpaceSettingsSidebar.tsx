@@ -617,6 +617,7 @@ function SoundsPanel() {
     };
   const ringSoundId = useSpaceStore((s) => s.ringSoundId);
   const focusSoundId = useSpaceStore((s) => s.focusSoundId);
+  const spaceSlug = useSpaceStore((s) => s.spaceSlug);
   const setRingSoundId = useSpaceStore((s) => s.setRingSoundId);
   const setFocusSoundId = useSpaceStore((s) => s.setFocusSoundId);
   const { data: backgroundSounds = [], isLoading: loadingBackground } =
@@ -636,20 +637,28 @@ function SoundsPanel() {
 
   const bgSelection = prefs.background.selection;
   const ringSelection = prefs.ring.selection;
+  // When a space is active, Defaults reflect the space snapshot — not personal prefs.
+  // Falling back to live prefs here made creators think a sound was "on the space"
+  // when it was only in their local settings, so visitors got the wrong alarm/focus.
+  const spaceActive = Boolean(spaceSlug);
 
   const backgroundValue = focusSoundId
     ? `library:${focusSoundId}`
-    : bgSelection?.kind === "library"
-      ? `library:${bgSelection.id}`
-      : bgSelection?.kind === "youtube"
-        ? `youtube:${bgSelection.videoId}`
-        : "none";
+    : spaceActive
+      ? "none"
+      : bgSelection?.kind === "library"
+        ? `library:${bgSelection.id}`
+        : bgSelection?.kind === "youtube"
+          ? `youtube:${bgSelection.videoId}`
+          : "none";
 
   const ringValue = ringSoundId
     ? `library:${ringSoundId}`
-    : ringSelection?.kind === "library"
-      ? `library:${ringSelection.id}`
-      : "default";
+    : spaceActive
+      ? "default"
+      : ringSelection?.kind === "library"
+        ? `library:${ringSelection.id}`
+        : "default";
 
   const ringOptions = [
     { value: "default", label: "Default alarm" },
@@ -987,13 +996,17 @@ function SpaceToolbar({ tagsInput, setTagsInput }: { tagsInput: string; setTagsI
       .map((t) => t.trim().toLowerCase())
       .filter(Boolean)
       .slice(0, 12);
-    const soundIds = resolveSpaceSoundIds(appearance, prefs);
-    // Persist what the Defaults dropdowns show (store or live prefs).
+    // Persist the Defaults dropdowns exactly — do not silently inherit personal
+    // Sound Settings when store IDs are null (that made visitors hear the wrong thing).
+    const soundIds = {
+      ringSoundId: appearance.ringSoundId ?? null,
+      focusSoundId: appearance.focusSoundId ?? null,
+    };
     setRingSoundId(soundIds.ringSoundId);
     setFocusSoundId(soundIds.focusSoundId);
     const layout = appearanceToLayout(
       { ...appearance, ...soundIds },
-      prefs,
+      null,
     );
     // visibility is only allowed on create — updates use the Publish endpoint
     const payload = appearance.spaceId
@@ -1077,10 +1090,7 @@ function SpaceToolbar({ tagsInput, setTagsInput }: { tagsInput: string; setTagsI
     resetAppearance();
     setTagsInput("");
     // Seed space defaults from whatever is currently selected in prefs.
-    const seeded = resolveSpaceSoundIds(
-      { ringSoundId: null, focusSoundId: null },
-      prefs,
-    );
+    const seeded = resolveSpaceSoundIds({}, prefs);
     setRingSoundId(seeded.ringSoundId);
     setFocusSoundId(seeded.focusSoundId);
     toast.info("New space — customize, then Save this");
