@@ -32,6 +32,7 @@ export function SpaceCard({
   const cover = space.cover_image_url;
   const bg = space.layout?.backgroundColor || "#111827";
   const href = spacePath(space);
+  const tags = space.tags ?? [];
 
   return (
     <Link
@@ -87,11 +88,11 @@ export function SpaceCard({
             {space.fork_count ?? 0}
           </span>
         </div>
-        {space.tags?.length > 0 && (
+        {tags.length > 0 && (
           <div className="hidden min-w-0 truncate sm:block">
             <span className="rounded-md bg-white/5 px-1.5 py-0.5 text-[10px] text-white/40">
-              {space.tags[0]}
-              {space.tags.length > 1 ? ` +${space.tags.length - 1}` : ""}
+              {tags[0]}
+              {tags.length > 1 ? ` +${tags.length - 1}` : ""}
             </span>
           </div>
         )}

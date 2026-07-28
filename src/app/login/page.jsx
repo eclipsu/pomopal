@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { UserPlus, Mail, Lock, AtSign } from "lucide-react";
 import Button from "@/components/Button";
@@ -10,6 +10,23 @@ import { getApiBaseUrl } from "@/utils/apiBase";
 import axiosClient from "@/utils/axios";
 
 export default function Login() {
+  return (
+    <Suspense
+      fallback={
+        <div
+          className="flex min-h-screen items-center justify-center p-4"
+          style={{ backgroundColor: "#1a2332" }}
+        >
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/20 border-t-white" />
+        </div>
+      }
+    >
+      <LoginContent />
+    </Suspense>
+  );
+}
+
+function LoginContent() {
   const { login, refetch, user, loading: userLoading } = useUser();
   const router = useRouter();
   const searchParams = useSearchParams();
