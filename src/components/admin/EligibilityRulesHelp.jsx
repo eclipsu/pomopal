@@ -39,6 +39,7 @@ export default function EligibilityRulesHelp() {
 
       <p className="text-xs">
         Title/body variables:{" "}
+        <code className="text-gray-300">{"{{username}}"}</code>,{" "}
         <code className="text-gray-300">{"{{streak}}"}</code>,{" "}
         <code className="text-gray-300">{"{{daysAway}}"}</code>,{" "}
         <code className="text-gray-300">{"{{today}}"}</code>

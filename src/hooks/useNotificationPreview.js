@@ -5,6 +5,7 @@ const DEFAULT_CONTEXT = () => ({
   streak: 7,
   daysAway: 5,
   today: new Date().toISOString().slice(0, 10),
+  username: "username",
 });
 
 export function buildLocalPreview({
@@ -78,6 +79,7 @@ export function useLocalNotificationPreview(options) {
       context?.streak,
       context?.daysAway,
       context?.today,
+      context?.username,
     ],
   );
 }

@@ -1,14 +1,13 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { X, UserPlus, Users, Trophy } from "lucide-react";
 import { FriendsProvider, useFriends } from "@/contexts/FriendsContext";
 import { usePresence } from "@/contexts/PresenceContext";
 import SendInviteModal from "./SendInviteModal";
-import FriendProfilePanel from "./FriendProfilePanel";
 import { formatPresenceSubtitle } from "@/utils/formatLastActive";
 import axiosClient from "@/utils/axios";
-import { Flame } from "lucide-react";
 
 const STATUS_DOT = {
   online: "bg-green-400",
@@ -68,13 +67,14 @@ function FriendRow({ friend, presence, onUnfriend, onClick }) {
   return (
     <div
       onClick={onClick}
-      className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-white/5 group transition-colors cursor-pointer"
+      className={`flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-white/5 group transition-colors ${
+        onClick ? "cursor-pointer" : ""
+      }`}
     >
       <Avatar name={friend.name} avatarUrl={friend.avatar_url} status={status} />
       <div className="flex-1 min-w-0">
         <p
-          onClick={onClick}
-          className={`text-sm font-medium truncate cursor-pointer hover:underline ${status === "offline" ? "text-gray-400" : "text-white"}`}
+          className={`text-sm font-medium truncate ${status === "offline" ? "text-gray-400" : "text-white"} ${onClick ? "hover:underline" : ""}`}
         >
           {friend.name}
         </p>
@@ -248,6 +248,7 @@ function PendingRequests({ received, sent, onAccept, onCancel }) {
 }
 
 function FriendsSidebarInner({ open, onClose }) {
+  const router = useRouter();
   const {
     friends,
     pendingReceived,
@@ -266,7 +267,6 @@ function FriendsSidebarInner({ open, onClose }) {
   const subscribedRef = useRef(new Set());
   const [showInvite, setShowInvite] = useState(false);
   const [tab, setTab] = useState("friends");
-  const [selectedFriend, setSelectedFriend] = useState(null);
 
   useEffect(() => {
     if (open) refreshAll();
@@ -301,6 +301,15 @@ function FriendsSidebarInner({ open, onClose }) {
       subscribedRef.current.clear();
     };
   }, [unsubscribeFrom]);
+
+  const openFriendProfile = useCallback(
+    (friend) => {
+      if (!friend?.username) return;
+      router.push(`/${friend.username}`);
+      onClose?.();
+    },
+    [router, onClose],
+  );
 
   const byStatus = (s) =>
     friends.filter((f) => (presenceMap[f.id]?.status ?? f.status ?? "offline") === s);
@@ -413,7 +422,7 @@ function FriendsSidebarInner({ open, onClose }) {
                           friend={f}
                           presence={presenceMap[f.id]}
                           onUnfriend={unfriend}
-                          onClick={() => setSelectedFriend(f)}
+                          onClick={f.username ? () => openFriendProfile(f) : undefined}
                         />
                       ))}
                     </div>
@@ -423,14 +432,6 @@ function FriendsSidebarInner({ open, onClose }) {
         )}
 
       </div>
-
-      {selectedFriend && (
-        <FriendProfilePanel
-          friendId={selectedFriend.id}
-          presence={presenceMap[selectedFriend.id]}
-          onClose={() => setSelectedFriend(null)}
-        />
-      )}
 
       {open && <div className="fixed inset-0 z-30 bg-black/40 md:hidden" onClick={onClose} />}
       <SendInviteModal open={showInvite} onClose={() => setShowInvite(false)} />

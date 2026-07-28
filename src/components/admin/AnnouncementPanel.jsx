@@ -96,6 +96,8 @@ export default function AnnouncementPanel({ templates = [] }) {
         </h2>
         <p className="text-sm text-gray-400 mt-1">
           Preview how the notification looks in-app and in email before broadcasting.
+          Use <code className="text-gray-300">{"{{username}}"}</code> to personalize
+          each recipient&apos;s copy.
         </p>
       </div>
 

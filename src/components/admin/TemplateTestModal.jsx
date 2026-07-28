@@ -12,6 +12,7 @@ const SAMPLE_CONTEXT = {
   streak: 7,
   daysAway: 5,
   today: new Date().toISOString().slice(0, 10),
+  username: "username",
 };
 
 export default function TemplateTestModal({ template, onClose }) {
