@@ -9,7 +9,7 @@ import {
 } from "@/lib/seo";
 
 /** ISR — regenerate public profiles at most every 12 hours. */
-export const revalidate = 12 * 60 * 60;
+export const revalidate = 43200;
 
 function formatFocusMinutes(minutes) {
   if (minutes == null) return null;
