@@ -2,9 +2,10 @@
 
 import { useStreak } from "@/hooks/useStreak";
 import { useNotifications } from "@/hooks/useNotifications";
+import { streakAtRiskMessage } from "@/lib/streakStatus";
 
 export default function StreakAtRiskBanner({ onStartFocus }) {
-  const { status, streak } = useStreak();
+  const { status, streak, graceDaysRemaining } = useStreak();
   const { notifications } = useNotifications({ enabled: status === "at_risk" });
 
   if (status !== "at_risk" || streak <= 0) return null;
@@ -14,8 +15,7 @@ export default function StreakAtRiskBanner({ onStartFocus }) {
   );
 
   const message =
-    nudge?.body ??
-    `Your ${streak}-day streak ends if you skip today. One pomodoro keeps it alive.`;
+    nudge?.body ?? streakAtRiskMessage(streak, graceDaysRemaining);
 
   return (
     <div className="mx-auto w-11/12 max-w-lg mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">

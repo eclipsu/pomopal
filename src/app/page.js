@@ -6,6 +6,7 @@ import Timer from "@/components/Timer";
 import Footer from "@/components/Footer";
 import Alarm from "@/components/Alarm";
 import BackgroundAudio from "@/components/BackgroundAudio";
+import SessionNamesPanel from "@/components/SessionNamesPanel";
 
 const ModelSettings = dynamic(() => import("@/components/ModelSettings"), { ssr: false });
 const ModelStatistics = dynamic(() => import("@/components/ModelStatistics"), { ssr: false });
@@ -159,6 +160,8 @@ function HomeContent() {
   const [recoveredSession, setRecoveredSession] = useState(null);
   const [showSwitchDialog, setShowSwitchDialog] = useState(false);
   const [pendingSelected, setPendingSelected] = useState(null);
+  const [sessionName, setSessionName] = useState("Untitled Session");
+  const [namedSessions, setNamedSessions] = useState([]);
   const [autoStartBreaks, setAutoStartBreaks] = useState(false);
   const [alarmPlaying, setAlarmPlaying] = useState(false);
   const [hideChromeWhileFocusing, setHideChromeWhileFocusingState] = useState(
@@ -260,6 +263,97 @@ function HomeContent() {
     }),
     [soundPrefs],
   );
+
+  const rememberNamedSession = useCallback((session) => {
+    if (!session?.id || session.mode !== 0) return;
+    setNamedSessions((prev) => {
+      if (prev.some((s) => s.id === session.id)) return prev;
+      return [
+        {
+          id: session.id,
+          session_name: session.session_name || "Untitled Session",
+          started_at: session.started_at || new Date().toISOString(),
+        },
+        ...prev,
+      ];
+    });
+  }, []);
+
+  const startFreshSession = useCallback(
+    async (mode, sessionName = null) => {
+      const minutes = getModeDefaultMinutes(mode);
+      const created = await createSession(
+        mode,
+        minutes,
+        user?.id,
+        buildSessionContext(mode, minutes),
+        sessionName,
+      );
+      if (!created?.id) {
+        if (user?.id) {
+          toast.error(
+            "Could not start focus session — log in again at http://localhost:3000 and use Pomodoro mode.",
+          );
+        }
+        return false;
+      }
+      begin(Date.now(), minutes * 60);
+      touchActive?.();
+      if (mode === 0) {
+        rememberNamedSession({
+          id: created.id,
+          session_name: created.session_name,
+          mode,
+        });
+      }
+      return true;
+    },
+    [
+      begin,
+      buildSessionContext,
+      createSession,
+      getModeDefaultMinutes,
+      rememberNamedSession,
+      touchActive,
+      user?.id,
+    ],
+  );
+
+  useEffect(() => {
+    if (!user?.id) {
+      setNamedSessions([]);
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await axiosClient.get("/sessions", {
+          params: { limit: 30 },
+        });
+        if (cancelled) return;
+        const today = new Date().toDateString();
+        const rows = (Array.isArray(res.data) ? res.data : [])
+          .filter((s) => s?.type === "pomodoro")
+          .filter((s) => {
+            if (!s.started_at) return false;
+            return new Date(s.started_at).toDateString() === today;
+          })
+          .map((s) => ({
+            id: s.id,
+            session_name: s.session_name || "Untitled Session",
+            started_at: s.started_at,
+          }));
+        setNamedSessions(rows);
+      } catch (err) {
+        console.error("Failed to load sessions:", err?.response?.data ?? err);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
 
   useEffect(() => {
     const state = {
@@ -419,21 +513,11 @@ function HomeContent() {
       return;
     }
 
-    const minutes = getModeDefaultMinutes();
-    const newId = await createSession(
+    // Fresh start — pomodoro uses the inline name field
+    await startFreshSession(
       selected,
-      minutes,
-      user?.id,
-      buildSessionContext(selected, minutes),
+      selected === 0 ? sessionName : null,
     );
-    if (newId) {
-      begin(Date.now(), minutes * 60);
-      touchActive?.();
-    } else if (user?.id) {
-      toast.error(
-        "Could not start focus session — log in again at http://localhost:3000 and use Pomodoro mode.",
-      );
-    }
   };
 
   const handleReset = async () => {
@@ -463,17 +547,7 @@ function HomeContent() {
     setSelected(idx);
     setPendingSelected(null);
     setShowSwitchDialog(false);
-    const minutes = getModeDefaultMinutes(idx);
-    const newId = await createSession(
-      idx,
-      minutes,
-      user?.id,
-      buildSessionContext(idx, minutes),
-    );
-    if (newId) {
-      begin(Date.now(), minutes * 60);
-      touchActive?.();
-    }
+    await startFreshSession(idx, idx === 0 ? sessionName : null);
   };
 
   const cancelSwitch = () => {
@@ -581,15 +655,23 @@ function HomeContent() {
           : next === 1
             ? snapDefaults.shortBreak
             : snapDefaults.longBreak;
-      const newId = await createSession(
+      const created = await createSession(
         next,
         minutes,
         snapUser?.id,
         buildSessionContext(next, minutes),
+        next === 0 ? sessionName : null,
       );
-      if (!homeMountedRef.current || !newId) return;
+      if (!homeMountedRef.current || !created?.id) return;
       begin(Date.now(), minutes * 60);
       touchActive?.();
+      if (next === 0) {
+        rememberNamedSession({
+          id: created.id,
+          session_name: created.session_name,
+          mode: next,
+        });
+      }
     })();
   }, [finished]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -756,7 +838,11 @@ function HomeContent() {
               isTimesUp={alarmPlaying}
               boxStyle={timerBoxStyle}
               textStyle={timerTextStyle}
+              sessionName={sessionName}
+              onSessionNameChange={setSessionName}
+              sessionNameDisabled={Boolean(sessionId) || ticking}
             />
+            <SessionNamesPanel sessions={namedSessions} />
           </div>
 
           <div

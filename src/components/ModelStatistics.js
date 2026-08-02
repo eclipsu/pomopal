@@ -1,20 +1,30 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
+import Link from "next/link";
 import { FiX } from "react-icons/fi";
 import { GrFormPreviousLink, GrFormNextLink } from "react-icons/gr";
 import Box from "@mui/material/Box";
 import { BarChart } from "@mui/x-charts/BarChart";
-import { Clock, Flame, Trophy } from "lucide-react";
+import { BarChart3, Clock, Flame, LayoutList, Trophy } from "lucide-react";
 import { useUser } from "@/hooks/useUser";
 import { useStreak } from "@/hooks/useStreak";
 import { useWeeklyAnalytics } from "@/hooks/useWeeklyAnalytics";
 import { useAllTimeFocus } from "@/hooks/useAllTimeFocus";
+import { useSessionNameBreakdown } from "@/hooks/useSessionNameBreakdown";
+import { useGlobalLeaderboard } from "@/hooks/useGlobalLeaderboard";
+import { usePrivacy } from "@/hooks/usePrivacy";
 import { getWeekRange, datesInRange, todayYmdInTz } from "@/lib/weekDates";
 import { STYLES } from "@/components/StreakIndicator";
 
 const ACCENT = "#6366f1";
 const BASE = "#cbd5e1";
+const TABS = [
+  { id: "summary", label: "Summary", icon: BarChart3 },
+  { id: "sessions", label: "Sessions", icon: LayoutList },
+  { id: "leaderboard", label: "Leaderboard", icon: Trophy },
+];
+const MEDAL = { 1: "🥇", 2: "🥈", 3: "🥉" };
 
 const StatCard = ({ icon: Icon, value, label, styles = null, compactValue = false }) => (
   <div className="bg-gray-50 rounded-xl p-3 flex flex-col items-center justify-center w-[7.25rem] h-[7.25rem] shrink-0 border border-gray-200">
@@ -39,9 +49,20 @@ function formatMinutes(minutes) {
   return `${minutes}m`;
 }
 
+function formatShortDate(ymd) {
+  if (!ymd) return "—";
+  const [y, m, d] = String(ymd).slice(0, 10).split("-").map(Number);
+  if (!y || !m || !d) return "—";
+  return new Date(y, m - 1, d).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "2-digit",
+  });
+}
 
 function ModelStatistics({ setOpenSettings, openSettings }) {
   const { user } = useUser();
+  const [tab, setTab] = useState("summary");
   const [weekOffset, setWeekOffset] = useState(0);
   const xLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -62,12 +83,41 @@ function ModelStatistics({ setOpenSettings, openSettings }) {
     refetch: refetchAllTime,
   } = useAllTimeFocus({ enabled: openSettings });
 
+  const {
+    data: namedSessions = [],
+    refetch: refetchNamed,
+  } = useSessionNameBreakdown({ enabled: openSettings && tab === "sessions" });
+
+  const {
+    data: globalBoard = [],
+    isLoading: globalLoading,
+    isError: globalError,
+    refetch: refetchGlobal,
+  } = useGlobalLeaderboard({
+    enabled: openSettings && tab === "leaderboard",
+  });
+
+  const { data: privacy } = usePrivacy({
+    enabled: openSettings && tab === "leaderboard",
+  });
+  const hiddenFromLeaderboard = privacy?.show_on_leaderboard === false;
+
   useEffect(() => {
-    if (openSettings) {
-      refetchWeek();
-      refetchAllTime();
-    }
-  }, [openSettings, from, to, refetchWeek, refetchAllTime]);
+    if (!openSettings) return;
+    refetchWeek();
+    refetchAllTime();
+    if (tab === "sessions") refetchNamed();
+    if (tab === "leaderboard") refetchGlobal();
+  }, [
+    openSettings,
+    tab,
+    from,
+    to,
+    refetchWeek,
+    refetchAllTime,
+    refetchNamed,
+    refetchGlobal,
+  ]);
 
   const safeDatesInRange = (fromVal, toVal) => {
     try {
@@ -172,7 +222,7 @@ function ModelStatistics({ setOpenSettings, openSettings }) {
   return (
     <div className="absolute inset-0 z-50 bg-black bg-opacity-30">
       <div
-        className="p-5 rounded-md max-w-xl bg-white absolute z-50 sm:w-86 w-11/12 left-1/2 top-1/2"
+        className="p-5 rounded-md max-w-xl max-h-[90dvh] overflow-y-auto bg-white absolute z-50 sm:w-86 w-11/12 left-1/2 top-1/2"
         style={{ transform: "translate(-50%, -50%)" }}
       >
         <div className="text-gray-400 flex justify-between items-center">
@@ -195,79 +245,233 @@ function ModelStatistics({ setOpenSettings, openSettings }) {
           />
         </div>
 
+        <div className="flex gap-1 bg-gray-100 rounded-lg p-1 mt-4">
+          {TABS.map((t) => {
+            const Icon = t.icon;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setTab(t.id)}
+                className={`flex-1 inline-flex items-center justify-center gap-1.5 text-xs font-semibold py-1.5 rounded-md transition-colors ${
+                  tab === t.id
+                    ? "bg-white text-indigo-600 shadow-sm"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                <Icon size={14} strokeWidth={2.25} aria-hidden />
+                <span>{t.label}</span>
+              </button>
+            );
+          })}
+        </div>
+
         <div className="h-px w-full bg-gray-200 my-5" />
 
-        <div className="flex gap-4">
-          <StatCard icon={Flame} value={streak} label="day streak" styles={STYLES[status]} />
-          <StatCard icon={Trophy} value={longestStreak} label="longest streak" styles="text-yellow-500 fill-yellow-500" />
-          <StatCard icon={Clock} value={allTimeDisplay} label="all time" compactValue />
-        </div>
+        {tab === "summary" && (
+          <>
+            <div className="flex gap-4">
+              <StatCard icon={Flame} value={streak} label="day streak" styles={STYLES[status]} />
+              <StatCard icon={Trophy} value={longestStreak} label="longest streak" styles="text-yellow-500 fill-yellow-500" />
+              <StatCard icon={Clock} value={allTimeDisplay} label="all time" compactValue />
+            </div>
 
-        <div className="my-6">
-          <h2 className="text-gray-600 text-lg font-semibold mb-2">Study Hours (Weekly)</h2>
-          <div className="h-px w-full bg-gray-300"></div>
-        </div>
+            <div className="my-6">
+              <h2 className="text-gray-600 text-lg font-semibold mb-2">Study Hours (Weekly)</h2>
+              <div className="h-px w-full bg-gray-300"></div>
+            </div>
 
-        <div className="flex items-center justify-between mb-2">
-          <button
-            onClick={() => setWeekOffset((w) => w - 1)}
-            className="px-3 py-1 border rounded hover:bg-gray-100 disabled:opacity-40"
-            disabled={isAtCreationWeek}
-          >
-            <GrFormPreviousLink />
-          </button>
-          <span className="text-sm text-gray-600">
-            {weekOffset === 0 ? "This Week" : `${Math.abs(weekOffset)} week(s) ago`}
-          </span>
-          <button
-            disabled={weekOffset === 0}
-            onClick={() => setWeekOffset((w) => w + 1)}
-            className="px-3 py-1 border rounded hover:bg-gray-100 disabled:opacity-40"
-          >
-            <GrFormNextLink />
-          </button>
-        </div>
+            <div className="flex items-center justify-between mb-2">
+              <button
+                onClick={() => setWeekOffset((w) => w - 1)}
+                className="px-3 py-1 border rounded hover:bg-gray-100 disabled:opacity-40"
+                disabled={isAtCreationWeek}
+              >
+                <GrFormPreviousLink />
+              </button>
+              <span className="text-sm text-gray-600">
+                {weekOffset === 0 ? "This Week" : `${Math.abs(weekOffset)} week(s) ago`}
+              </span>
+              <button
+                disabled={weekOffset === 0}
+                onClick={() => setWeekOffset((w) => w + 1)}
+                className="px-3 py-1 border rounded hover:bg-gray-100 disabled:opacity-40"
+              >
+                <GrFormNextLink />
+              </button>
+            </div>
 
-        <Box sx={{ width: "100%", height: 300, position: "relative" }}>
-          <BarChart
-            series={[
-              {
-                data: chartData,
-                label: useHours ? "Hours studied" : "Minutes studied",
-                id: "study",
-                valueFormatter: seriesValueFormatter,
-              },
-            ]}
-            xAxis={[
-              {
-                data: xLabels,
-                colorMap,
-                valueFormatter: xAxisValueFormatter,
-              },
-            ]}
-            yAxis={[
-              {
-                width: 50,
-                tickMinStep: useHours ? 0.5 : 1,
-                valueFormatter: (v) => (useHours ? `${v}h` : `${v}m`),
-              },
-            ]}
-          />
-        </Box>
+            <Box sx={{ width: "100%", height: 300, position: "relative" }}>
+              <BarChart
+                series={[
+                  {
+                    data: chartData,
+                    label: useHours ? "Hours studied" : "Minutes studied",
+                    id: "study",
+                    valueFormatter: seriesValueFormatter,
+                  },
+                ]}
+                xAxis={[
+                  {
+                    data: xLabels,
+                    colorMap,
+                    valueFormatter: xAxisValueFormatter,
+                  },
+                ]}
+                yAxis={[
+                  {
+                    width: 50,
+                    tickMinStep: useHours ? 0.5 : 1,
+                    valueFormatter: (v) => (useHours ? `${v}h` : `${v}m`),
+                  },
+                ]}
+              />
+            </Box>
 
-        {loading && <p className="text-sm text-gray-400 mt-2">Loading analytics…</p>}
-        {error && (
-          <p className="text-sm text-red-500 mt-2">
-            Failed to load analytics
-            <button type="button" className="underline" onClick={() => refetchWeek()}>
-              Retry
-            </button>
-          </p>
+            {loading && <p className="text-sm text-gray-400 mt-2">Loading analytics…</p>}
+            {error && (
+              <p className="text-sm text-red-500 mt-2">
+                Failed to load analytics
+                <button type="button" className="underline" onClick={() => refetchWeek()}>
+                  Retry
+                </button>
+              </p>
+            )}
+            {!loading && !error && weekFocusedMinutes === 0 && weekOffset === 0 && (
+              <p className="text-sm text-gray-400 mt-2">
+                No focus logged this week yet — finish a pomodoro while signed in.
+              </p>
+            )}
+          </>
         )}
-        {!loading && !error && weekFocusedMinutes === 0 && weekOffset === 0 && (
-          <p className="text-sm text-gray-400 mt-2">
-            No focus logged this week yet — finish a pomodoro while signed in.
-          </p>
+
+        {tab === "sessions" && (
+          <div>
+            {namedSessions.length === 0 ? (
+              <p className="text-sm text-gray-400 mt-4 text-center">
+                No named sessions yet — name a pomodoro before you start.
+              </p>
+            ) : (
+              <table className="w-full text-xs mt-1">
+                <thead>
+                  <tr className="text-gray-400 text-[10px] uppercase tracking-wider border-b border-gray-200">
+                    <th className="text-left font-medium pb-2 pr-2">Name</th>
+                    <th className="text-right font-medium pb-2 px-1">Minutes</th>
+                    <th className="text-right font-medium pb-2 px-1">Date</th>
+                    <th className="text-right font-medium pb-2 pl-1">Sessions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {namedSessions.map((row) => (
+                    <tr
+                      key={row.session_name_hash}
+                      className="border-b border-gray-100 last:border-0"
+                    >
+                      <td className="py-2.5 pr-2 text-gray-700 truncate max-w-[9rem]">
+                        {row.session_name}
+                      </td>
+                      <td className="py-2.5 px-1 text-right tabular-nums text-gray-600">
+                        {row.total_minutes}
+                      </td>
+                      <td className="py-2.5 px-1 text-right tabular-nums text-gray-500">
+                        {formatShortDate(row.date)}
+                      </td>
+                      <td className="py-2.5 pl-1 text-right tabular-nums text-gray-500">
+                        {row.session_count}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
+
+        {tab === "leaderboard" && (
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.16em] text-gray-400 mb-3">
+              All Time · Top 10
+            </p>
+            {hiddenFromLeaderboard && (
+              <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-[11px] text-amber-700">
+                You&apos;re hidden from this board. Turn on{" "}
+                <span className="font-semibold">Appear on leaderboard</span> in
+                Settings → Privacy to join.
+              </p>
+            )}
+            {globalLoading && (
+              <p className="text-sm text-gray-400">Loading…</p>
+            )}
+            {globalError && !globalLoading && (
+              <p className="text-sm text-red-500 text-center py-6">
+                Couldn&apos;t load leaderboard.{" "}
+                <button
+                  type="button"
+                  className="underline"
+                  onClick={() => refetchGlobal()}
+                >
+                  Retry
+                </button>
+              </p>
+            )}
+            {!globalLoading && !globalError && globalBoard.length === 0 && (
+              <p className="text-sm text-gray-400 text-center py-6">
+                No focus logged yet.
+              </p>
+            )}
+            {!globalError &&
+              globalBoard.map((entry) => {
+              const isSelf = entry.user_id === user?.id;
+              return (
+                <div
+                  key={entry.user_id}
+                  className={`flex items-center gap-3 py-2 border-b border-gray-100 last:border-0 ${
+                    isSelf ? "bg-indigo-50/60 -mx-2 px-2 rounded-md" : ""
+                  }`}
+                >
+                  <span className="w-6 text-center text-sm shrink-0">
+                    {MEDAL[entry.rank] ?? (
+                      <span className="text-gray-400 text-xs">{entry.rank}</span>
+                    )}
+                  </span>
+                  <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-xs font-medium text-gray-500 overflow-hidden shrink-0">
+                    {entry.avatar_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={entry.avatar_url}
+                        alt={entry.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      entry.name?.[0]?.toUpperCase()
+                    )}
+                  </div>
+                  {entry.username ? (
+                    <Link
+                      href={`/${entry.username}`}
+                      onClick={() => setOpenSettings(false)}
+                      className="flex-1 truncate text-sm text-gray-700 hover:text-indigo-600 hover:underline"
+                    >
+                      {entry.name}
+                      {isSelf ? (
+                        <span className="text-indigo-400 text-[10px] ml-1.5 no-underline">you</span>
+                      ) : null}
+                    </Link>
+                  ) : (
+                    <span className="flex-1 truncate text-sm text-gray-700">
+                      {entry.name}
+                      {isSelf ? (
+                        <span className="text-indigo-400 text-[10px] ml-1.5">you</span>
+                      ) : null}
+                    </span>
+                  )}
+                  <span className="text-xs tabular-nums text-gray-500 shrink-0">
+                    {formatMinutes(entry.focus_minutes)}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
     </div>

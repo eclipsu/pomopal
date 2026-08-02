@@ -16,6 +16,8 @@ export function useMarkFocusActivity() {
     queryClient.invalidateQueries({ queryKey: ["streak"] });
     queryClient.invalidateQueries({ queryKey: ["analytics", "calendar"] });
     queryClient.invalidateQueries({ queryKey: ["analytics", "all-time"] });
+    queryClient.invalidateQueries({ queryKey: ["analytics", "session-names"] });
+    queryClient.invalidateQueries({ queryKey: ["leaderboard", "global", "alltime"] });
     queryClient.invalidateQueries({ queryKey: ["notifications"] });
   }, [queryClient]);
 }

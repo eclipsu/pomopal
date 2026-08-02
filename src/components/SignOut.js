@@ -7,7 +7,6 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useUser } from "@/hooks/useUser";
 import Button from "./Button";
-import AvatarSettings from "./AvatarSettings";
 import axiosClient from "../utils/axios";
 
 function SignOut({ setOpenSettings, openSettings }) {
@@ -82,8 +81,6 @@ function SignOut({ setOpenSettings, openSettings }) {
         </div>
 
         <div className="my-5 h-1 w-full bg-gray-400" />
-
-        <AvatarSettings compact />
 
         {profileHref ? (
           <Link

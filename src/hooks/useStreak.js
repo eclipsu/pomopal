@@ -28,6 +28,8 @@ export function useStreak(options = {}) {
     ...query,
     streak: query.data?.current_streak ?? 0,
     longestStreak: query.data?.longest_streak ?? 0,
+    lastActiveDate: query.data?.last_active_date ?? null,
+    graceDaysRemaining: query.data?.grace_days_remaining ?? null,
     status,
   };
 }

@@ -14,10 +14,14 @@ export default function PomodoroTimer({
   muteAlarm,
   boxStyle,
   textStyle,
+  sessionName = "Untitled Session",
+  onSessionNameChange,
+  sessionNameDisabled = false,
 }) {
   const options = ["Pomodoro", "Short Break", "Long Break"];
   const mins = String(getTime()).padStart(2, "0");
   const secs = String(seconds).padStart(2, "0");
+  const showNameInput = selected === 0;
 
   return (
     <div
@@ -50,6 +54,35 @@ export default function PomodoroTimer({
               {option}
             </button>
           ))}
+        </div>
+
+        <div
+          className={`group/name w-full max-w-[12rem] transition-all duration-500 ease-in-out sm:max-w-[14rem] ${
+            showNameInput && !ticking
+              ? "mt-2 max-h-8 translate-y-0 opacity-100"
+              : "pointer-events-none mt-0 max-h-0 -translate-y-1 overflow-hidden opacity-0"
+          }`}
+          aria-hidden={!showNameInput || ticking}
+        >
+          <input
+            type="text"
+            value={sessionName === "Untitled Session" ? "" : sessionName}
+            maxLength={80}
+            disabled={sessionNameDisabled || !showNameInput || ticking}
+            tabIndex={showNameInput && !ticking && !sessionNameDisabled ? 0 : -1}
+            placeholder="Untitled Session"
+            aria-label="Session name"
+            onChange={(e) =>
+              onSessionNameChange?.(e.target.value || "Untitled Session")
+            }
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !ticking && !sessionNameDisabled) {
+                e.preventDefault();
+                onPlayPause?.();
+              }
+            }}
+            className="h-7 w-full border-0 bg-transparent px-1 text-center text-[11px] tracking-wide text-white/55 placeholder:text-white/20 outline-none transition duration-200 hover:text-white/70 hover:placeholder:text-white/35 focus:text-white/85 focus:placeholder:text-white/40 disabled:cursor-default disabled:opacity-50"
+          />
         </div>
 
         <div

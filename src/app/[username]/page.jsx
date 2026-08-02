@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { cookies } from "next/headers";
 import { Flame, Trophy, Clock, User } from "lucide-react";
 import { SpaceCard, SpacesPageShell } from "@/components/space/SpaceCard";
 import { FocusActivityGraph } from "@/components/space/FocusActivityGraph";
@@ -8,6 +7,9 @@ import {
   privateProfileMetadata,
   profileShareMetadata,
 } from "@/lib/seo";
+
+/** ISR — regenerate public profiles at most every 12 hours. */
+export const revalidate = 12 * 60 * 60;
 
 function formatFocusMinutes(minutes) {
   if (minutes == null) return null;
@@ -32,22 +34,6 @@ function StatPill({ icon: Icon, label, value, iconClass }) {
   );
 }
 
-async function requestCookieHeader() {
-  try {
-    const jar = await cookies();
-    const all = jar.getAll();
-    if (!all.length) return { cookie: undefined, bearer: undefined };
-    const cookie = all.map((c) => `${c.name}=${c.value}`).join("; ");
-    const access = jar.get("access_token")?.value;
-    return {
-      cookie,
-      bearer: access || undefined,
-    };
-  } catch {
-    return { cookie: undefined, bearer: undefined };
-  }
-}
-
 export async function generateMetadata({ params }) {
   const resolved = typeof params?.then === "function" ? await params : params;
   const username = resolved?.username;
@@ -55,7 +41,9 @@ export async function generateMetadata({ params }) {
 
   try {
     // Unauthenticated — never leak friends-only profiles into OG caches.
-    const { ok, profile } = await fetchPublicProfile(username);
+    const { ok, profile } = await fetchPublicProfile(username, {
+      revalidate: 12 * 60 * 60,
+    });
     if (!ok || !profile) return privateProfileMetadata();
     if (!profile.profile_public) return privateProfileMetadata();
     return profileShareMetadata(profile, `/${profile.username}`);
@@ -83,8 +71,10 @@ export default async function UserProfilePage({ params }) {
   let profile = null;
   let error = null;
   try {
-    const { cookie, bearer } = await requestCookieHeader();
-    const result = await fetchPublicProfile(username, { cookie, bearer });
+    // Public fetch only — cookies() would force dynamic rendering every request.
+    const result = await fetchPublicProfile(username, {
+      revalidate: 12 * 60 * 60,
+    });
     if (!result.ok || !result.profile) {
       error = "Profile not found";
     } else {
@@ -105,6 +95,17 @@ export default async function UserProfilePage({ params }) {
     );
   }
 
+  if (!profile.profile_public) {
+    return (
+      <div className="flex min-h-dvh flex-col items-center justify-center gap-3 bg-[#070b14]">
+        <p className="text-white/70">This profile is friends only.</p>
+        <Link href="/spaces" className="text-blue-300 hover:text-blue-200">
+          Browse spaces
+        </Link>
+      </div>
+    );
+  }
+
   const streak = profile.streak;
   const current = streak?.current_streak ?? 0;
   const longest = streak?.longest_streak ?? 0;
@@ -117,11 +118,6 @@ export default async function UserProfilePage({ params }) {
       subtitle={
         <>
           <span className="text-white/60">@{profile.username}</span>
-          {!profile.profile_public && (
-            <span className="ml-2 rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[11px] text-amber-200">
-              Friends only
-            </span>
-          )}
         </>
       }
       action={
@@ -168,9 +164,11 @@ export default async function UserProfilePage({ params }) {
         </div>
       )}
 
-      <div className="mb-10">
-        <FocusActivityGraph activity={profile.focus_activity} />
-      </div>
+      {profile.focus_activity ? (
+        <div className="mb-10">
+          <FocusActivityGraph activity={profile.focus_activity} />
+        </div>
+      ) : null}
 
       <div className="mb-5 flex items-end justify-between gap-3">
         <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-blue-300/70">

@@ -142,10 +142,10 @@ export function spaceShareMetadata(space, path) {
   };
 }
 
-/** Server-side fetch of a profile. Pass auth for friends-only views. */
+/** Server-side fetch of a public profile (cacheable — no auth cookies). */
 export async function fetchPublicProfile(
   username,
-  { revalidate = 60, cookie, bearer } = {},
+  { revalidate = 12 * 60 * 60, cookie, bearer } = {},
 ) {
   if (!username) return { ok: false, status: 400, profile: null };
   const headers = {};

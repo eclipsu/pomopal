@@ -20,10 +20,12 @@ export default function EligibilityRulesHelp() {
           <code className="text-gray-300">minCompletedSessions</code> — daily nudge experience
         </li>
         <li>
-          <code className="text-gray-300">requiresEarlyNudge</code> — 9pm streak nudge only
+          <code className="text-gray-300">requiresEarlyNudge</code> — 9pm streak nudge
+          (any day in the 2-day grace)
         </li>
         <li>
-          <code className="text-gray-300">requiresLastChance</code> — 11pm streak nudge only
+          <code className="text-gray-300">requiresLastChance</code> — 11pm on the{" "}
+          <em>last</em> grace day only
         </li>
       </ul>
 
@@ -42,6 +44,7 @@ export default function EligibilityRulesHelp() {
         <code className="text-gray-300">{"{{username}}"}</code>,{" "}
         <code className="text-gray-300">{"{{streak}}"}</code>,{" "}
         <code className="text-gray-300">{"{{daysAway}}"}</code>,{" "}
+        <code className="text-gray-300">{"{{graceDaysRemaining}}"}</code>,{" "}
         <code className="text-gray-300">{"{{today}}"}</code>
       </p>
 
