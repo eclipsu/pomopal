@@ -41,6 +41,11 @@ import {
   readUiPreferences,
   writeUiPreferences,
 } from "@/lib/uiPreferences";
+import {
+  exitDocumentFullscreen,
+  getFullscreenElement,
+  requestElementFullscreen,
+} from "@/lib/fullscreen";
 
 import {
   Dialog,
@@ -167,9 +172,12 @@ function HomeContent() {
   const [hideChromeWhileFocusing, setHideChromeWhileFocusingState] = useState(
     false,
   );
+  const [hideFooter, setHideFooterState] = useState(false);
   const alarmRevokeRef = useRef(null);
   const alarmStopTimerRef = useRef(null);
   const homeMountedRef = useRef(true);
+  const mainShellRef = useRef(null);
+  const [pageFullscreen, setPageFullscreen] = useState(false);
 
   const pomodoroRef = useRef();
   const shortBreakRef = useRef();
@@ -179,6 +187,7 @@ function HomeContent() {
   useEffect(() => {
     const prefs = readUiPreferences();
     setHideChromeWhileFocusingState(Boolean(prefs.hideChromeWhileFocusing));
+    setHideFooterState(Boolean(prefs.hideFooter));
   }, []);
 
   const setHideChromeWhileFocusing = useCallback((enabled) => {
@@ -186,6 +195,14 @@ function HomeContent() {
     writeUiPreferences({
       ...readUiPreferences(),
       hideChromeWhileFocusing: enabled,
+    });
+  }, []);
+
+  const setHideFooter = useCallback((enabled) => {
+    setHideFooterState(enabled);
+    writeUiPreferences({
+      ...readUiPreferences(),
+      hideFooter: enabled,
     });
   }, []);
 
@@ -520,6 +537,9 @@ function HomeContent() {
     );
   };
 
+  const handleStartOrPauseRef = useRef(handleStartOrPause);
+  handleStartOrPauseRef.current = handleStartOrPause;
+
   const handleReset = async () => {
     if (sessionId) await updateSession(false, user?.id);
     reset();
@@ -734,6 +754,120 @@ function HomeContent() {
     sidebarOpen,
     toggleSidebar,
   } = spaceAppearance;
+
+  useEffect(() => {
+    const blocked =
+      openSettings ||
+      showStats ||
+      showFriends ||
+      showRecoverDialog ||
+      showSwitchDialog ||
+      sidebarOpen;
+
+    const onKeyDown = (e) => {
+      if (blocked) return;
+      if (e.key !== " " && e.key !== "Enter") return;
+
+      const target = e.target;
+      if (target instanceof HTMLElement) {
+        const tag = target.tagName.toLowerCase();
+        if (tag === "input" || tag === "textarea" || tag === "select") return;
+        if (target.isContentEditable) return;
+      }
+
+      e.preventDefault();
+      void handleStartOrPauseRef.current();
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [
+    openSettings,
+    showStats,
+    showFriends,
+    showRecoverDialog,
+    showSwitchDialog,
+    sidebarOpen,
+  ]);
+
+  const exitPageFullscreen = useCallback(async () => {
+    try {
+      if (getFullscreenElement()) {
+        await exitDocumentFullscreen();
+      }
+    } catch {
+      // ignore
+    }
+    setPageFullscreen(false);
+  }, []);
+
+  const togglePageFullscreen = useCallback(async () => {
+    const el = mainShellRef.current;
+    if (!el) return;
+
+    if (getFullscreenElement() === el || pageFullscreen) {
+      await exitPageFullscreen();
+      return;
+    }
+
+    try {
+      await requestElementFullscreen(el);
+      setPageFullscreen(true);
+    } catch {
+      setPageFullscreen(true);
+    }
+  }, [exitPageFullscreen, pageFullscreen]);
+
+  useEffect(() => {
+    const syncPageFullscreen = () => {
+      setPageFullscreen(getFullscreenElement() === mainShellRef.current);
+    };
+
+    document.addEventListener("fullscreenchange", syncPageFullscreen);
+    document.addEventListener("webkitfullscreenchange", syncPageFullscreen);
+    return () => {
+      document.removeEventListener("fullscreenchange", syncPageFullscreen);
+      document.removeEventListener("webkitfullscreenchange", syncPageFullscreen);
+    };
+  }, []);
+
+  useEffect(() => {
+    const blocked =
+      openSettings ||
+      showStats ||
+      showFriends ||
+      showRecoverDialog ||
+      showSwitchDialog ||
+      sidebarOpen;
+
+    const onKeyDown = (e) => {
+      if (blocked) return;
+      if (e.key !== "f" && e.key !== "F") return;
+      if (window.matchMedia("(max-width: 767px)").matches) return;
+
+      const target = e.target;
+      if (target instanceof HTMLElement) {
+        const tag = target.tagName.toLowerCase();
+        if (tag === "input" || tag === "textarea" || tag === "select") return;
+        if (target.isContentEditable) return;
+      }
+
+      e.preventDefault();
+      void togglePageFullscreen();
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [
+    openSettings,
+    showStats,
+    showFriends,
+    showRecoverDialog,
+    showSwitchDialog,
+    sidebarOpen,
+    togglePageFullscreen,
+  ]);
+
   const timerBoxStyle = useMemo(
     () => buildTimerBoxCss(spaceAppearance),
     [spaceAppearance],
@@ -789,25 +923,27 @@ function HomeContent() {
   ]);
 
   const hideNavFooter =
-    sidebarOpen || (ticking && hideChromeWhileFocusing);
+    sidebarOpen || (ticking && hideChromeWhileFocusing) || pageFullscreen;
+  const hideFooterBar = hideFooter || hideNavFooter;
   const hideSessionTabs = ticking && hideChromeWhileFocusing;
 
   return (
     <>
       <div
-        className="flex h-dvh overflow-x-hidden bg-gray-900"
+        ref={mainShellRef}
+        className="flex h-dvh overflow-x-hidden bg-gray-900 [&:fullscreen]:flex [&:fullscreen]:h-full [&:fullscreen]:w-full [&:fullscreen]:bg-gray-900 [&:-webkit-full-screen]:flex [&:-webkit-full-screen]:h-full [&:-webkit-full-screen]:w-full"
         style={pageBackgroundStyle}
       >
         <div
-          className={`relative flex h-full min-w-0 flex-1 flex-col overflow-x-hidden transition-all duration-200 ease-in-out ${
+          className={`relative flex h-full min-w-0 flex-1 flex-col overflow-visible transition-all duration-200 ease-in-out ${
             showFriends ? "md:mr-60" : ""
           }`}
         >
           <div
-            className={`relative z-10 mx-auto w-full max-w-2xl shrink-0 overflow-x-hidden transition-all duration-500 ease-in-out ${
+            className={`relative z-30 mx-auto w-full max-w-2xl shrink-0 transition-all duration-500 ease-in-out ${
               hideNavFooter
-                ? "pointer-events-none max-h-0 -translate-y-2 opacity-0"
-                : "max-h-40 translate-y-0 opacity-100"
+                ? "pointer-events-none max-h-0 -translate-y-2 overflow-hidden opacity-0"
+                : "max-h-40 translate-y-0 overflow-visible pb-1 opacity-100"
             }`}
             aria-hidden={hideNavFooter}
           >
@@ -818,6 +954,8 @@ function HomeContent() {
               setShowFriends={setShowFriends}
               onOpenSpaceSettings={toggleSidebar}
               spaceSettingsOpen={sidebarOpen}
+              pageFullscreen={pageFullscreen}
+              onTogglePageFullscreen={togglePageFullscreen}
             />
           </div>
 
@@ -841,17 +979,19 @@ function HomeContent() {
               sessionName={sessionName}
               onSessionNameChange={setSessionName}
               sessionNameDisabled={Boolean(sessionId) || ticking}
+              pageFullscreen={pageFullscreen}
+              onExitPageFullscreen={exitPageFullscreen}
             />
             <SessionNamesPanel sessions={namedSessions} />
           </div>
 
           <div
             className={`relative z-10 mx-auto w-full max-w-2xl shrink-0 overflow-hidden transition-all duration-500 ease-in-out ${
-              hideNavFooter
+              hideFooterBar
                 ? "pointer-events-none max-h-0 translate-y-2 opacity-0"
                 : "max-h-28 translate-y-0 opacity-100 sm:max-h-48"
             }`}
-            aria-hidden={hideNavFooter}
+            aria-hidden={hideFooterBar}
           >
             <Footer />
           </div>
@@ -886,6 +1026,8 @@ function HomeContent() {
         updateTimeDefaultValue={updateTimeDefaultValue}
         hideChromeWhileFocusing={hideChromeWhileFocusing}
         setHideChromeWhileFocusing={setHideChromeWhileFocusing}
+        hideFooter={hideFooter}
+        setHideFooter={setHideFooter}
       />
       <ModelStatistics openSettings={showStats} setOpenSettings={setShowStats} />
 

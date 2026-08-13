@@ -13,6 +13,7 @@ import TemplateTestModal from "@/components/admin/TemplateTestModal";
 import ReviveStreakPanel from "@/components/admin/ReviveStreakPanel";
 import AnnouncementPanel from "@/components/admin/AnnouncementPanel";
 import ImageLibraryPanel from "@/components/admin/ImageLibraryPanel";
+import BlogImagesPanel from "@/components/admin/BlogImagesPanel";
 import SoundsPanel from "@/components/admin/SoundsPanel";
 import FontsPanel from "@/components/admin/FontsPanel";
 import {
@@ -35,6 +36,7 @@ const NOTIFICATION_TYPES = [
 const TABS = [
   { id: "templates", label: "Templates" },
   { id: "images", label: "Images" },
+  { id: "blog", label: "Blog images" },
   { id: "sounds", label: "Sounds" },
   { id: "fonts", label: "Fonts" },
   { id: "revive", label: "Revive streak" },
@@ -158,7 +160,9 @@ function AdminContent() {
                 ? "Sounds"
                 : tab === "fonts"
                   ? "Fonts"
-                  : "Notifications"}
+                  : tab === "blog"
+                    ? "Blog images"
+                    : "Notifications"}
             </h1>
           </div>
           <div className="flex items-center gap-3">
@@ -201,6 +205,7 @@ function AdminContent() {
         {tab === "revive" && <ReviveStreakPanel templates={templates} />}
         {tab === "announcement" && <AnnouncementPanel templates={templates} />}
         {tab === "images" && <ImageLibraryPanel />}
+        {tab === "blog" && <BlogImagesPanel />}
         {tab === "sounds" && <SoundsPanel />}
         {tab === "fonts" && <FontsPanel />}
 

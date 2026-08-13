@@ -20,6 +20,8 @@ function ModelSettings({
   updateTimeDefaultValue,
   hideChromeWhileFocusing = true,
   setHideChromeWhileFocusing,
+  hideFooter = false,
+  setHideFooter,
 }) {
   const { user } = useUser();
   const [isLoading, setIsLoading] = useState(false);
@@ -194,6 +196,29 @@ function ModelSettings({
                 />
               </button>
             </label>
+            <label className="mt-3 flex items-center justify-between gap-4 cursor-pointer">
+              <span className="text-sm font-medium text-gray-700">
+                Hide footer
+              </span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={hideFooter}
+                onClick={() => setHideFooter?.(!hideFooter)}
+                className={`relative h-5 w-10 shrink-0 rounded-full transition-colors ${
+                  hideFooter ? "bg-blue-500" : "bg-gray-300"
+                }`}
+              >
+                <span
+                  className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                    hideFooter ? "translate-x-5" : "translate-x-0"
+                  }`}
+                />
+              </button>
+            </label>
+            <p className="mt-1 text-xs text-gray-400">
+              Keeps the footer hidden on the timer page until you turn this off.
+            </p>
           </div>
 
           <PrivacySettings />

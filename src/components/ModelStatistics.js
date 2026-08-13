@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { FiX } from "react-icons/fi";
 import { GrFormPreviousLink, GrFormNextLink } from "react-icons/gr";
@@ -24,19 +24,34 @@ const TABS = [
   { id: "sessions", label: "Sessions", icon: LayoutList },
   { id: "leaderboard", label: "Leaderboard", icon: Trophy },
 ];
+const LEADERBOARD_PERIODS = [
+  { id: "week", label: "Last 7 days" },
+  { id: "alltime", label: "All time" },
+];
 const MEDAL = { 1: "🥇", 2: "🥈", 3: "🥉" };
+const X_LABELS_FULL = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const X_LABELS_SHORT = ["S", "M", "T", "W", "T", "F", "S"];
 
-const StatCard = ({ icon: Icon, value, label, styles = null, compactValue = false }) => (
-  <div className="bg-gray-50 rounded-xl p-3 flex flex-col items-center justify-center w-[7.25rem] h-[7.25rem] shrink-0 border border-gray-200">
-    <Icon className={`text-gray-400 mb-1 ${styles ?? ""}`} size={22} strokeWidth={2} />
+const StatCard = ({
+  icon: Icon,
+  value,
+  label,
+  styles = null,
+  compactValue = false,
+  className = "",
+}) => (
+  <div
+    className={`bg-gray-50 rounded-xl p-2.5 sm:p-3 flex flex-col items-center justify-center w-full min-w-0 border border-gray-200 ${className}`}
+  >
+    <Icon className={`text-gray-400 mb-1 ${styles ?? ""}`} size={20} strokeWidth={2} />
     <div
       className={`text-gray-800 font-bold mb-0.5 font-mono tabular-nums text-center w-full leading-tight ${
-        compactValue ? "text-lg" : "text-2xl"
+        compactValue ? "text-base sm:text-lg" : "text-xl sm:text-2xl"
       }`}
     >
       {value}
     </div>
-    <div className="text-gray-500 text-[11px] text-center leading-tight">{label}</div>
+    <div className="text-gray-500 text-[10px] sm:text-[11px] text-center leading-tight">{label}</div>
   </div>
 );
 
@@ -63,8 +78,46 @@ function formatShortDate(ymd) {
 function ModelStatistics({ setOpenSettings, openSettings }) {
   const { user } = useUser();
   const [tab, setTab] = useState("summary");
+  const [leaderboardPeriod, setLeaderboardPeriod] = useState("week");
   const [weekOffset, setWeekOffset] = useState(0);
-  const xLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const [viewport, setViewport] = useState({
+    isMobile: false,
+    isLandscapePhone: false,
+    width: 1024,
+    height: 768,
+  });
+
+  const updateViewport = useCallback(() => {
+    if (typeof window === "undefined") return;
+    setViewport({
+      isMobile: window.matchMedia("(max-width: 640px)").matches,
+      isLandscapePhone: window.matchMedia(
+        "(max-width: 900px) and (orientation: landscape)",
+      ).matches,
+      width: window.innerWidth,
+      height: window.innerHeight,
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!openSettings) return undefined;
+
+    updateViewport();
+    window.addEventListener("resize", updateViewport);
+    window.addEventListener("orientationchange", updateViewport);
+
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      window.removeEventListener("resize", updateViewport);
+      window.removeEventListener("orientationchange", updateViewport);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [openSettings, updateViewport]);
+
+  const xLabels =
+    viewport.isMobile || viewport.isLandscapePhone ? X_LABELS_SHORT : X_LABELS_FULL;
 
   const { from, to } = useMemo(() => getWeekRange(weekOffset), [weekOffset]);
 
@@ -88,14 +141,29 @@ function ModelStatistics({ setOpenSettings, openSettings }) {
     refetch: refetchNamed,
   } = useSessionNameBreakdown({ enabled: openSettings && tab === "sessions" });
 
+  const leaderboardEnabled = openSettings && tab === "leaderboard";
+
   const {
-    data: globalBoard = [],
-    isLoading: globalLoading,
-    isError: globalError,
-    refetch: refetchGlobal,
-  } = useGlobalLeaderboard({
-    enabled: openSettings && tab === "leaderboard",
-  });
+    data: weekBoard = [],
+    isLoading: weekLoading,
+    isError: weekError,
+    refetch: refetchWeekBoard,
+  } = useGlobalLeaderboard("week", { enabled: leaderboardEnabled });
+
+  const {
+    data: allTimeBoard = [],
+    isLoading: allTimeBoardLoading,
+    isError: allTimeBoardError,
+    refetch: refetchAllTimeBoard,
+  } = useGlobalLeaderboard("alltime", { enabled: leaderboardEnabled });
+
+  const globalBoard = leaderboardPeriod === "week" ? weekBoard : allTimeBoard;
+  const globalLoading =
+    leaderboardPeriod === "week" ? weekLoading : allTimeBoardLoading;
+  const globalError =
+    leaderboardPeriod === "week" ? weekError : allTimeBoardError;
+  const refetchGlobal =
+    leaderboardPeriod === "week" ? refetchWeekBoard : refetchAllTimeBoard;
 
   const { data: privacy } = usePrivacy({
     enabled: openSettings && tab === "leaderboard",
@@ -107,7 +175,10 @@ function ModelStatistics({ setOpenSettings, openSettings }) {
     refetchWeek();
     refetchAllTime();
     if (tab === "sessions") refetchNamed();
-    if (tab === "leaderboard") refetchGlobal();
+    if (tab === "leaderboard") {
+      refetchWeekBoard();
+      refetchAllTimeBoard();
+    }
   }, [
     openSettings,
     tab,
@@ -116,7 +187,8 @@ function ModelStatistics({ setOpenSettings, openSettings }) {
     refetchWeek,
     refetchAllTime,
     refetchNamed,
-    refetchGlobal,
+    refetchWeekBoard,
+    refetchAllTimeBoard,
   ]);
 
   const safeDatesInRange = (fromVal, toVal) => {
@@ -205,6 +277,29 @@ function ModelStatistics({ setOpenSettings, openSettings }) {
     [safeWeeklyMinutes],
   );
 
+  const chartHeight = useMemo(() => {
+    if (viewport.isLandscapePhone) {
+      return Math.max(160, viewport.height - 220);
+    }
+    if (viewport.isMobile) {
+      return 220;
+    }
+    return 300;
+  }, [viewport]);
+
+  const chartMargin = useMemo(
+    () => ({
+      left: viewport.isMobile ? 28 : 46,
+      right: 4,
+      top: 12,
+      bottom: viewport.isMobile ? 24 : 32,
+    }),
+    [viewport.isMobile],
+  );
+
+  const summaryLandscapeLayout =
+    tab === "summary" && viewport.isLandscapePhone;
+
   const isAtCreationWeek = useMemo(() => {
     if (!user?.created_at) return false;
     const { from: weekFrom } = getWeekRange(weekOffset, user?.time_zone);
@@ -219,33 +314,86 @@ function ModelStatistics({ setOpenSettings, openSettings }) {
 
   if (!openSettings) return null;
 
+  const contentClass =
+    "min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain";
+
+  const renderWeeklyChart = (className = "") => (
+    <Box
+      className={className}
+      sx={{
+        width: "100%",
+        maxWidth: "100%",
+        height: chartHeight,
+        minHeight: 160,
+        position: "relative",
+        flexShrink: 0,
+        overflow: "hidden",
+      }}
+    >
+      <BarChart
+        margin={chartMargin}
+        series={[
+          {
+            data: chartData,
+            label: useHours ? "Hours studied" : "Minutes studied",
+            id: "study",
+            valueFormatter: seriesValueFormatter,
+          },
+        ]}
+        xAxis={[
+          {
+            data: xLabels,
+            colorMap,
+            tickLabelStyle: {
+              fontSize: viewport.isMobile ? 10 : 12,
+            },
+            valueFormatter: xAxisValueFormatter,
+          },
+        ]}
+        yAxis={[
+          {
+            width: viewport.isMobile ? 28 : 46,
+            tickMinStep: useHours ? 0.5 : 1,
+            tickLabelStyle: {
+              fontSize: viewport.isMobile ? 10 : 12,
+            },
+            valueFormatter: (v) => (useHours ? `${v}h` : `${v}m`),
+          },
+        ]}
+      />
+    </Box>
+  );
+
   return (
-    <div className="absolute inset-0 z-50 bg-black bg-opacity-30">
-      <div
-        className="p-5 rounded-md max-w-xl max-h-[90dvh] overflow-y-auto bg-white absolute z-50 sm:w-86 w-11/12 left-1/2 top-1/2"
-        style={{ transform: "translate(-50%, -50%)" }}
-      >
-        <div className="text-gray-400 flex justify-between items-center">
+    <div className="absolute inset-0 z-50 overflow-x-hidden bg-black/30">
+      <div className="absolute left-1/2 top-1/2 z-50 flex max-h-[92dvh] w-[calc(100%-1rem)] max-w-xl -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-md bg-white p-3 sm:max-h-[90dvh] sm:w-[min(92vw,36rem)] sm:p-5 landscape:max-h-[96dvh] landscape:p-3">
+        <div className="flex shrink-0 items-center justify-between gap-2">
           {user?.avatar ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               width={40}
               height={40}
-              className="w-10 h-10 rounded-full object-cover"
+              className="h-9 w-9 shrink-0 rounded-full object-cover sm:h-10 sm:w-10"
               src={user.avatar}
               alt={user.name}
             />
-          ) : null}
-          <h1 className="uppercase font-bold tracking-wider text-gray-800">
-            {user?.name || "User"}'s Statistics
+          ) : (
+            <span className="w-9 shrink-0" aria-hidden />
+          )}
+          <h1 className="min-w-0 flex-1 truncate text-center text-sm font-bold uppercase tracking-wider text-gray-800 sm:text-base">
+            {user?.name || "User"}&apos;s Statistics
           </h1>
-          <FiX
-            className="text-2xl cursor-pointer text-gray-600"
+          <button
+            type="button"
+            aria-label="Close statistics"
             onClick={() => setOpenSettings(false)}
-          />
+            className="rounded-md p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700"
+          >
+            <FiX size={22} />
+          </button>
         </div>
 
-        <div className="flex gap-1 bg-gray-100 rounded-lg p-1 mt-4">
+        <div className="mt-3 flex shrink-0 gap-1 rounded-lg bg-gray-100 p-1 sm:mt-4">
           {TABS.map((t) => {
             const Icon = t.icon;
             return (
@@ -253,7 +401,7 @@ function ModelStatistics({ setOpenSettings, openSettings }) {
                 key={t.id}
                 type="button"
                 onClick={() => setTab(t.id)}
-                className={`flex-1 inline-flex items-center justify-center gap-1.5 text-xs font-semibold py-1.5 rounded-md transition-colors ${
+                className={`flex-1 inline-flex items-center justify-center gap-1 text-[11px] font-semibold py-1.5 rounded-md transition-colors sm:gap-1.5 sm:text-xs ${
                   tab === t.id
                     ? "bg-white text-indigo-600 shadow-sm"
                     : "text-gray-500 hover:text-gray-700"
@@ -266,72 +414,91 @@ function ModelStatistics({ setOpenSettings, openSettings }) {
           })}
         </div>
 
-        <div className="h-px w-full bg-gray-200 my-5" />
+        <div className="my-3 h-px w-full shrink-0 bg-gray-200 sm:my-5" />
 
+        <div className={contentClass}>
         {tab === "summary" && (
           <>
-            <div className="flex gap-4">
-              <StatCard icon={Flame} value={streak} label="day streak" styles={STYLES[status]} />
-              <StatCard icon={Trophy} value={longestStreak} label="longest streak" styles="text-yellow-500 fill-yellow-500" />
-              <StatCard icon={Clock} value={allTimeDisplay} label="all time" compactValue />
-            </div>
+            {summaryLandscapeLayout ? (
+              <div className="flex min-h-0 flex-1 gap-3">
+                <div className="flex w-[9.5rem] shrink-0 flex-col gap-2 sm:w-[10.5rem]">
+                  <div className="grid grid-cols-1 gap-2">
+                    <StatCard icon={Flame} value={streak} label="day streak" styles={STYLES[status]} />
+                    <StatCard icon={Trophy} value={longestStreak} label="longest streak" styles="text-yellow-500 fill-yellow-500" />
+                    <StatCard icon={Clock} value={allTimeDisplay} label="all time" compactValue />
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg border border-gray-200 px-1 py-1">
+                    <button
+                      onClick={() => setWeekOffset((w) => w - 1)}
+                      className="rounded px-2 py-1 hover:bg-gray-100 disabled:opacity-40"
+                      disabled={isAtCreationWeek}
+                      aria-label="Previous week"
+                    >
+                      <GrFormPreviousLink />
+                    </button>
+                    <span className="text-[10px] text-gray-600">
+                      {weekOffset === 0 ? "This Week" : `${Math.abs(weekOffset)}w ago`}
+                    </span>
+                    <button
+                      disabled={weekOffset === 0}
+                      onClick={() => setWeekOffset((w) => w + 1)}
+                      className="rounded px-2 py-1 hover:bg-gray-100 disabled:opacity-40"
+                      aria-label="Next week"
+                    >
+                      <GrFormNextLink />
+                    </button>
+                  </div>
+                </div>
+                <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+                  <h2 className="mb-2 text-sm font-semibold text-gray-600">Study Hours (Weekly)</h2>
+                  {renderWeeklyChart("min-h-0 flex-1")}
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-3 gap-2 sm:gap-4">
+                  <StatCard icon={Flame} value={streak} label="day streak" styles={STYLES[status]} />
+                  <StatCard icon={Trophy} value={longestStreak} label="longest streak" styles="text-yellow-500 fill-yellow-500" />
+                  <StatCard icon={Clock} value={allTimeDisplay} label="all time" compactValue />
+                </div>
 
-            <div className="my-6">
-              <h2 className="text-gray-600 text-lg font-semibold mb-2">Study Hours (Weekly)</h2>
-              <div className="h-px w-full bg-gray-300"></div>
-            </div>
+                <div className="my-4 sm:my-6">
+                  <h2 className="text-base font-semibold text-gray-600 mb-2 sm:text-lg">Study Hours (Weekly)</h2>
+                  <div className="h-px w-full bg-gray-300" />
+                </div>
 
-            <div className="flex items-center justify-between mb-2">
-              <button
-                onClick={() => setWeekOffset((w) => w - 1)}
-                className="px-3 py-1 border rounded hover:bg-gray-100 disabled:opacity-40"
-                disabled={isAtCreationWeek}
-              >
-                <GrFormPreviousLink />
-              </button>
-              <span className="text-sm text-gray-600">
-                {weekOffset === 0 ? "This Week" : `${Math.abs(weekOffset)} week(s) ago`}
-              </span>
-              <button
-                disabled={weekOffset === 0}
-                onClick={() => setWeekOffset((w) => w + 1)}
-                className="px-3 py-1 border rounded hover:bg-gray-100 disabled:opacity-40"
-              >
-                <GrFormNextLink />
-              </button>
-            </div>
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <button
+                    onClick={() => setWeekOffset((w) => w - 1)}
+                    className="rounded border px-2 py-1 hover:bg-gray-100 disabled:opacity-40 sm:px-3"
+                    disabled={isAtCreationWeek}
+                    aria-label="Previous week"
+                  >
+                    <GrFormPreviousLink />
+                  </button>
+                  <span className="text-xs text-gray-600 sm:text-sm">
+                    {weekOffset === 0 ? "This Week" : `${Math.abs(weekOffset)} week(s) ago`}
+                  </span>
+                  <button
+                    disabled={weekOffset === 0}
+                    onClick={() => setWeekOffset((w) => w + 1)}
+                    className="rounded border px-2 py-1 hover:bg-gray-100 disabled:opacity-40 sm:px-3"
+                    aria-label="Next week"
+                  >
+                    <GrFormNextLink />
+                  </button>
+                </div>
 
-            <Box sx={{ width: "100%", height: 300, position: "relative" }}>
-              <BarChart
-                series={[
-                  {
-                    data: chartData,
-                    label: useHours ? "Hours studied" : "Minutes studied",
-                    id: "study",
-                    valueFormatter: seriesValueFormatter,
-                  },
-                ]}
-                xAxis={[
-                  {
-                    data: xLabels,
-                    colorMap,
-                    valueFormatter: xAxisValueFormatter,
-                  },
-                ]}
-                yAxis={[
-                  {
-                    width: 50,
-                    tickMinStep: useHours ? 0.5 : 1,
-                    valueFormatter: (v) => (useHours ? `${v}h` : `${v}m`),
-                  },
-                ]}
-              />
-            </Box>
+                <div className="min-w-0 w-full">
+                  {renderWeeklyChart()}
+                </div>
+              </>
+            )}
 
             {loading && <p className="text-sm text-gray-400 mt-2">Loading analytics…</p>}
             {error && (
               <p className="text-sm text-red-500 mt-2">
-                Failed to load analytics
+                Failed to load analytics{" "}
                 <button type="button" className="underline" onClick={() => refetchWeek()}>
                   Retry
                 </button>
@@ -346,19 +513,39 @@ function ModelStatistics({ setOpenSettings, openSettings }) {
         )}
 
         {tab === "sessions" && (
-          <div>
+          <div className="min-w-0">
             {namedSessions.length === 0 ? (
               <p className="text-sm text-gray-400 mt-4 text-center">
                 No named sessions yet — name a pomodoro before you start.
               </p>
+            ) : viewport.isMobile ? (
+              <ul className="mt-1 space-y-2">
+                {namedSessions.map((row) => (
+                  <li
+                    key={row.session_name_hash}
+                    className="rounded-lg border border-gray-200 bg-gray-50/80 px-3 py-2.5"
+                  >
+                    <p className="truncate text-sm font-medium text-gray-700">
+                      {row.session_name}
+                    </p>
+                    <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-gray-500">
+                      <span className="tabular-nums">{row.total_minutes} min</span>
+                      <span className="tabular-nums">{formatShortDate(row.date)}</span>
+                      <span className="tabular-nums">
+                        {row.session_count} session{row.session_count === 1 ? "" : "s"}
+                      </span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
             ) : (
-              <table className="w-full text-xs mt-1">
+              <table className="w-full table-fixed text-xs mt-1">
                 <thead>
                   <tr className="text-gray-400 text-[10px] uppercase tracking-wider border-b border-gray-200">
-                    <th className="text-left font-medium pb-2 pr-2">Name</th>
-                    <th className="text-right font-medium pb-2 px-1">Minutes</th>
-                    <th className="text-right font-medium pb-2 px-1">Date</th>
-                    <th className="text-right font-medium pb-2 pl-1">Sessions</th>
+                    <th className="w-[44%] text-left font-medium pb-2 pr-2">Name</th>
+                    <th className="w-[18%] text-right font-medium pb-2 px-1">Min</th>
+                    <th className="w-[22%] text-right font-medium pb-2 px-1">Date</th>
+                    <th className="w-[16%] text-right font-medium pb-2 pl-1">#</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -367,7 +554,7 @@ function ModelStatistics({ setOpenSettings, openSettings }) {
                       key={row.session_name_hash}
                       className="border-b border-gray-100 last:border-0"
                     >
-                      <td className="py-2.5 pr-2 text-gray-700 truncate max-w-[9rem]">
+                      <td className="py-2.5 pr-2 text-gray-700 truncate">
                         {row.session_name}
                       </td>
                       <td className="py-2.5 px-1 text-right tabular-nums text-gray-600">
@@ -389,8 +576,24 @@ function ModelStatistics({ setOpenSettings, openSettings }) {
 
         {tab === "leaderboard" && (
           <div>
+            <div className="flex gap-1 bg-gray-100 rounded-lg p-1 mb-3">
+              {LEADERBOARD_PERIODS.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => setLeaderboardPeriod(p.id)}
+                  className={`flex-1 text-xs font-semibold py-1.5 rounded-md transition-colors ${
+                    leaderboardPeriod === p.id
+                      ? "bg-white text-indigo-600 shadow-sm"
+                      : "text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
             <p className="text-[10px] uppercase tracking-[0.16em] text-gray-400 mb-3">
-              All Time · Top 10
+              {leaderboardPeriod === "week" ? "Last 7 Days" : "All Time"} · Top 5
             </p>
             {hiddenFromLeaderboard && (
               <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-[11px] text-amber-700">
@@ -473,6 +676,7 @@ function ModelStatistics({ setOpenSettings, openSettings }) {
             })}
           </div>
         )}
+        </div>
       </div>
     </div>
   );

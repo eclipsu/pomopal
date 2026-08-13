@@ -1,0 +1,41 @@
+---
+title: Welcome to the Pomopal Engineering Blog
+description: How we ship product notes, architecture decisions, and analytics from MDX files in the repo.
+date: "2026-08-07"
+tags:
+  - engineering
+  - mdx
+coverImage: blog/welcome-cover.webp
+coverImageAlt: Soft diagram of MDX files feeding the Pomopal blog
+---
+
+Pomopal’s engineering blog is powered by **MDX files** checked into the repo — no CMS required.
+
+## How a post works
+
+1. Drop an `.mdx` file in `content/posts/`
+2. Fill in YAML frontmatter (`title`, `description`, `date`, `tags`, `coverImage`)
+3. Write Markdown (and optional JSX) below the frontmatter
+4. The App Router picks it up at `/blog/<filename-without-extension>`
+
+Cover and in-post images accept a full CDN URL **or** an S3 key. Keys resolve against `NEXT_PUBLIC_S3_BASE_URL` (defaults to the public Pomopal bucket):
+
+```yaml
+coverImage: blog/welcome-cover.webp
+# or
+coverImage: https://pomopal.s3.us-east-2.amazonaws.com/blog/welcome-cover.webp
+```
+
+Inline images in the body use the same resolver:
+
+![Architecture sketch for MDX → static blog pages](blog/welcome-inline.webp)
+
+## Why MDX
+
+We get version-controlled drafts, PR review on content, and the ability to embed small React components when a post needs interactivity — without leaving the git workflow.
+
+```js
+// content/posts/my-post.mdx → /blog/my-post
+```
+
+More notes coming soon.

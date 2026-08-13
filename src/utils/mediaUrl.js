@@ -1,6 +1,6 @@
 import { getApiBaseUrl } from "./apiBase";
 
-const S3_PUBLIC_BASE = (
+export const S3_PUBLIC_BASE = (
   process.env.NEXT_PUBLIC_S3_BASE_URL || "https://pomopal.s3.us-east-2.amazonaws.com"
 ).replace(/\/$/, "");
 
@@ -54,4 +54,27 @@ export function mediaUrl(path) {
 
   const normalized = path.startsWith("/") ? path : `/${path}`;
   return `${getApiBaseUrl()}${normalized}`;
+}
+
+/**
+ * Resolve blog cover / in-post image paths for <img> / next/image.
+ * Accepts:
+ * - full https:// URL (CDN or S3) → returned as-is
+ * - site-relative `/...` (public/) → returned as-is
+ * - S3 object key e.g. `blog/welcome-cover.webp` → `{S3_PUBLIC_BASE}/{key}`
+ */
+export function blogAssetUrl(path) {
+  if (!path || typeof path !== "string") return null;
+  const trimmed = path.trim();
+  if (!trimmed) return null;
+
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    return trimmed;
+  }
+
+  if (trimmed.startsWith("/")) {
+    return trimmed;
+  }
+
+  return `${S3_PUBLIC_BASE}/${trimmed.replace(/^\/+/, "")}`;
 }

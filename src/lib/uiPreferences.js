@@ -3,6 +3,8 @@ const STORAGE_KEY = "pomopalUiSettings";
 export const DEFAULT_UI_PREFERENCES = {
   /** Fade nav, footer, and mode tabs while the timer is running */
   hideChromeWhileFocusing: false,
+  /** Permanently hide the footer on the timer page */
+  hideFooter: false,
 };
 
 export function readUiPreferences() {

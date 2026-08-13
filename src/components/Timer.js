@@ -1,4 +1,4 @@
-import { Pause, Play, RotateCcw } from "lucide-react";
+import { Minimize2, Pause, Play, RotateCcw } from "lucide-react";
 
 export default function PomodoroTimer({
   selected,
@@ -17,6 +17,8 @@ export default function PomodoroTimer({
   sessionName = "Untitled Session",
   onSessionNameChange,
   sessionNameDisabled = false,
+  pageFullscreen = false,
+  onExitPageFullscreen,
 }) {
   const options = ["Pomodoro", "Short Break", "Long Break"];
   const mins = String(getTime()).padStart(2, "0");
@@ -27,6 +29,16 @@ export default function PomodoroTimer({
     <div
       className="pointer-events-auto absolute inset-0 z-[1] flex min-h-0 items-center justify-center overflow-hidden px-3 py-2 sm:px-4"
     >
+      {pageFullscreen ? (
+        <button
+          type="button"
+          onClick={onExitPageFullscreen}
+          aria-label="Exit fullscreen"
+          className="absolute right-3 top-3 z-10 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-white/10 text-white transition-colors hover:bg-white/20 sm:right-4 sm:top-4 md:hidden"
+        >
+          <Minimize2 className="h-5 w-5" strokeWidth={1.75} />
+        </button>
+      ) : null}
       <div
         className="flex max-h-full w-full max-w-lg flex-col items-center justify-center overflow-hidden text-white"
         style={{ ...boxStyle, maxHeight: "100%" }}

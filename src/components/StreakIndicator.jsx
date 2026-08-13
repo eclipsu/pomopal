@@ -20,7 +20,7 @@ export default function StreakIndicator({ className = "" }) {
         title="Loading streak…"
         aria-hidden
       >
-        <Flame className="h-6 w-6 text-gray-600 animate-pulse" strokeWidth={1.75} />
+        <Flame className="h-7 w-7 text-gray-600 animate-pulse md:h-6 md:w-6" strokeWidth={1.75} />
       </span>
     );
   }
@@ -36,10 +36,10 @@ export default function StreakIndicator({ className = "" }) {
       title={`${countLabel} — ${label}`}
       aria-label={countLabel}
     >
-      <Flame className={`h-6 w-6 transition-colors ${STYLES[status]}`} strokeWidth={2} />
+      <Flame className={`h-7 w-7 transition-colors md:h-6 md:w-6 ${STYLES[status]}`} strokeWidth={2} />
       {streak > 0 && (
         <span
-          className={`text-xs font-semibold tabular-nums ${
+          className={`text-sm font-semibold tabular-nums md:text-xs ${
             status === "active"
               ? "text-orange-400"
               : status === "at_risk"

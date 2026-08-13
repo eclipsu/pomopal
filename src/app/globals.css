@@ -89,3 +89,83 @@ body {
     @apply bg-gray-900 text-foreground font-sans overflow-x-hidden min-h-dvh;
   }
 }
+
+/* Blog post hero — soft CSS-only entrance */
+@keyframes blog-hero-fade {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.blog-hero-fade {
+  animation: blog-hero-fade 0.45s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blog-hero-fade {
+    animation: none;
+  }
+}
+
+/* Shiki / rehype-pretty-code — soft panels, not Discord embeds */
+.blog-prose [data-rehype-pretty-code-figure] {
+  margin: 1.5rem 0;
+}
+
+.blog-prose [data-rehype-pretty-code-figure] pre {
+  margin: 0;
+  overflow-x: auto;
+  border-radius: 1rem;
+  border: 1px solid rgba(96, 165, 250, 0.15);
+  background: rgba(59, 130, 246, 0.08);
+  padding: 1.25rem 1.5rem;
+  line-height: 1.65;
+}
+
+.blog-prose [data-rehype-pretty-code-figure] code {
+  font-size: 0.9em;
+  counter-reset: line;
+}
+
+.blog-prose [data-rehype-pretty-code-title] {
+  margin-bottom: -0.25rem;
+  border-radius: 1rem 1rem 0 0;
+  border: 1px solid rgba(96, 165, 250, 0.15);
+  border-bottom: 0;
+  background: rgba(59, 130, 246, 0.12);
+  padding: 0.55rem 1.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(147, 197, 253, 0.9);
+}
+
+.blog-prose [data-rehype-pretty-code-title] + pre {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.blog-prose [data-line] {
+  padding-left: 0.15rem;
+  padding-right: 0.15rem;
+}
+
+.blog-prose code[data-line-numbers] {
+  display: grid;
+}
+
+.blog-prose code[data-line-numbers] > [data-line]::before {
+  content: counter(line);
+  counter-increment: line;
+  display: inline-block;
+  width: 1.5rem;
+  margin-right: 1rem;
+  text-align: right;
+  color: rgba(255, 255, 255, 0.25);
+}
