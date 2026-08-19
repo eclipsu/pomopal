@@ -37,7 +37,7 @@ export default function RecordPostView({ slug }) {
   if (count == null) return null;
 
   return (
-    <span className="text-sm text-white/45">
+    <span className="text-sm text-[#999999]">
       {count.toLocaleString()} {count === 1 ? "view" : "views"}
     </span>
   );

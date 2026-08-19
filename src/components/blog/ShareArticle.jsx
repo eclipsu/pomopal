@@ -98,14 +98,14 @@ export default function ShareArticle({ url, title, description = "" }) {
 
   return (
     <section className="space-y-3">
-      <h2 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-white/45">
+      <h2 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#999999]">
         <Share2 className="h-3.5 w-3.5" aria-hidden />
         Share article
       </h2>
       <ul className="flex flex-wrap gap-2.5">
         {actions.map(({ id, label, Icon, href, onClick }) => {
           const className =
-            "inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-white/70 shadow-[0_1px_0_rgba(255,255,255,0.04)] transition hover:-translate-y-0.5 hover:border-blue-400/40 hover:bg-blue-500/10 hover:text-blue-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900";
+            "inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#eeeeee] text-[#555555] transition hover:border-[#1BA0D6] hover:text-[#1BA0D6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1BA0D6]";
 
           if (href) {
             return (

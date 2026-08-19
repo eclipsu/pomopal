@@ -4,68 +4,62 @@ import remarkGfm from "remark-gfm";
 import BlogImage from "@/components/blog/BlogImage";
 
 const prettyCodeOptions = {
-  theme: "github-dark-dimmed",
+  theme: "github-light",
   keepBackground: false,
   defaultLang: "txt",
 };
 
+const BODY =
+  "my-5 text-[15px] font-normal leading-[1.7] text-[#555555] sm:text-[15.5px]";
+
 const mdxComponents = {
   h1: (props) => (
     <h1
-      className="mt-10 mb-4 text-2xl font-bold tracking-tight text-white first:mt-0"
+      className="mb-8 mt-12 text-[1.75rem] font-bold leading-snug text-[#333333] first:mt-0 sm:text-[2rem]"
       {...props}
     />
   ),
   h2: (props) => (
     <h2
-      className="mt-10 mb-3 text-xl font-bold tracking-tight text-white"
+      className="mb-5 mt-11 text-[1.35rem] font-bold leading-snug text-[#333333] sm:text-[1.5rem]"
       {...props}
     />
   ),
   h3: (props) => (
     <h3
-      className="mt-8 mb-2 text-lg font-semibold tracking-tight text-white"
+      className="mb-4 mt-10 text-[1.2rem] font-bold leading-snug text-[#333333]"
       {...props}
     />
   ),
-  p: (props) => (
-    <p
-      className="my-4 text-base leading-relaxed text-white/70 sm:text-lg"
-      {...props}
-    />
-  ),
+  p: (props) => <p className={BODY} {...props} />,
   a: (props) => (
     <a
-      className="rounded-sm font-medium text-blue-400 underline-offset-2 transition-colors hover:text-blue-300 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
+      className="font-normal text-[#1BA0D6] no-underline hover:underline"
       {...props}
     />
   ),
   ul: (props) => (
-    <ul
-      className="my-4 list-disc space-y-2 pl-5 text-base leading-relaxed text-white/70 sm:text-lg"
-      {...props}
-    />
+    <ul className={`${BODY} list-disc space-y-2 pl-5`} {...props} />
   ),
   ol: (props) => (
-    <ol
-      className="my-4 list-decimal space-y-2 pl-5 text-base leading-relaxed text-white/70 sm:text-lg"
-      {...props}
-    />
+    <ol className={`${BODY} list-decimal space-y-2 pl-5`} {...props} />
   ),
-  li: (props) => <li className="pl-1 marker:text-white/40" {...props} />,
-  strong: (props) => <strong className="font-semibold text-white" {...props} />,
-  em: (props) => <em className="italic text-white/80" {...props} />,
-  hr: (props) => <hr className="my-10 border-white/10" {...props} />,
+  li: (props) => <li className="pl-1 marker:text-[#999999]" {...props} />,
+  strong: (props) => (
+    <strong className="font-normal text-[#1BA0D6]" {...props} />
+  ),
+  em: (props) => <em className="italic text-[#555555]" {...props} />,
+  hr: (props) => <hr className="my-12 border-[#eeeeee]" {...props} />,
   blockquote: (props) => (
     <blockquote
-      className="my-6 rounded-r-xl border-l-[3px] border-blue-500/70 bg-blue-500/[0.07] py-3 pl-4 pr-4 text-white/65 italic leading-relaxed"
+      className="my-8 border-l-[3px] border-[#1BA0D6] pl-5 text-[17px] leading-[1.7] text-[#555555] sm:text-[18px]"
       {...props}
     />
   ),
-  // Chess.com-inspired soft panel; Pomopal dark/blue palette (not Discord embed).
   pre: ({ children, ...props }) => (
     <pre
-      className="blog-code-block my-6 overflow-x-auto rounded-2xl border border-blue-400/15 bg-blue-500/[0.08] p-5 text-[0.925rem] leading-relaxed text-white/85 sm:p-6"
+      className="blog-code-block my-8 overflow-x-auto rounded-lg border border-[#eeeeee] bg-[#fafafa] p-5 font-mono text-[0.9rem] leading-relaxed text-[#333333] sm:p-6"
+      style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}
       {...props}
     >
       {children}
@@ -75,14 +69,23 @@ const mdxComponents = {
     const isBlock = Boolean(className);
     if (isBlock) {
       return (
-        <code className={`${className ?? ""} font-mono text-[0.9em]`} {...props}>
+        <code
+          className={`${className ?? ""} text-[0.9em]`}
+          style={{
+            fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+          }}
+          {...props}
+        >
           {children}
         </code>
       );
     }
     return (
       <code
-        className="rounded-md bg-blue-500/15 px-1.5 py-0.5 font-mono text-[0.9em] text-blue-300"
+        className="rounded bg-[#f4f4f4] px-1.5 py-0.5 text-[0.9em] text-[#333333]"
+        style={{
+          fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+        }}
         {...props}
       >
         {children}
@@ -90,50 +93,46 @@ const mdxComponents = {
     );
   },
   table: ({ children, ...props }) => (
-    <div className="my-8 overflow-x-auto rounded-2xl border border-white/10 bg-white/[0.03]">
-      <table className="w-full min-w-[28rem] border-collapse text-left text-sm sm:text-base" {...props}>
+    <div className="my-8 overflow-x-auto">
+      <table
+        className="w-full min-w-[28rem] border-collapse text-left text-[16px] text-[#555555]"
+        {...props}
+      >
         {children}
       </table>
     </div>
   ),
   thead: ({ children, ...props }) => (
-    <thead className="bg-blue-500/10 text-white" {...props}>
+    <thead className="border-b border-[#eeeeee] text-[#333333]" {...props}>
       {children}
     </thead>
   ),
   tbody: ({ children, ...props }) => (
-    <tbody className="divide-y divide-white/10 text-white/70" {...props}>
+    <tbody className="divide-y divide-[#f0f0f0]" {...props}>
       {children}
     </tbody>
   ),
-  tr: ({ children, ...props }) => (
-    <tr className="transition-colors hover:bg-white/[0.03]" {...props}>
-      {children}
-    </tr>
-  ),
+  tr: ({ children, ...props }) => <tr {...props}>{children}</tr>,
   th: ({ children, ...props }) => (
-    <th
-      className="px-4 py-3 text-xs font-semibold uppercase tracking-[0.08em] text-white/80 sm:px-5"
-      {...props}
-    >
+    <th className="py-3 pr-6 text-left text-sm font-normal text-[#333333]" {...props}>
       {children}
     </th>
   ),
   td: ({ children, ...props }) => (
-    <td className="px-4 py-3 align-top leading-relaxed sm:px-5" {...props}>
+    <td className="py-3 pr-6 align-top leading-relaxed" {...props}>
       {children}
     </td>
   ),
   img: ({ src, alt = "", ...props }) => {
     if (!src) return null;
     return (
-      <span className="my-6 block overflow-hidden rounded-2xl border border-white/10">
+      <span className="my-8 block">
         <BlogImage
           src={src}
           alt={alt}
           width={1200}
           height={675}
-          className="h-auto w-full object-cover"
+          className="h-auto w-full"
           sizes="(max-width: 768px) 92vw, 672px"
           {...props}
         />

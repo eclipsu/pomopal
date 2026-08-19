@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import Footer from "@/components/Footer";
+import BlogNavbar from "@/components/blog/BlogNavbar";
 import BlogImage from "@/components/blog/BlogImage";
 import MdxContent from "@/components/blog/MdxContent";
 import RecordPostView from "@/components/blog/RecordPostView";
@@ -9,8 +9,6 @@ import { getAllPosts, getPostBySlug } from "@/lib/posts";
 import { absoluteUrl } from "@/lib/seo";
 import { blogAssetUrl } from "@/utils/mediaUrl";
 
-// SSG — bake HTML at build time. Do NOT add revalidate (that's ISR)
-// or cookies/headers/fetch-to-view-API here (that forces SSR/dynamic).
 export const dynamic = "force-static";
 export const dynamicParams = false;
 
@@ -70,65 +68,56 @@ export default async function PostPage({ params }) {
   const shareUrl = absoluteUrl(`/blog/${slug}`);
 
   return (
-    <div className="flex min-h-dvh flex-col bg-gray-900 text-white">
-      <header className="mx-auto w-11/12 max-w-2xl pt-8">
-        <Link
-          href="/blog"
-          className="rounded-sm text-sm text-white/60 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
-        >
-          ← Back to Blog
-        </Link>
-      </header>
+    <div className="flex min-h-dvh flex-col bg-white text-neutral-900">
+      <BlogNavbar />
 
-      <article className="mx-auto w-11/12 max-w-2xl flex-1 py-10">
-        <header className="blog-hero-fade space-y-4">
-          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
+      <article className="mx-auto w-11/12 max-w-[40rem] flex-1 py-12 sm:py-16">
+        <header className="blog-hero-fade">
+          <h1 className="text-[2.35rem] font-bold leading-[1.15] text-[#333333] sm:text-[2.85rem]">
             {meta.title}
           </h1>
           {meta.description && (
-            <p className="text-base leading-relaxed text-white/70 sm:text-lg">
+            <p className="mt-5 text-[15px] leading-[1.7] text-[#555555] sm:text-[15.5px]">
               {meta.description}
             </p>
           )}
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-1">
             {meta.date && (
-              <time dateTime={meta.date} className="text-sm text-white/45">
+              <time dateTime={meta.date} className="text-sm text-[#999999]">
                 {formatDate(meta.date)}
               </time>
             )}
             <RecordPostView slug={slug} />
           </div>
           {meta.coverImage && (
-            <div className="relative mt-6 aspect-[16/9] w-full overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02]">
+            <div className="relative mt-10 aspect-[16/9] w-full overflow-hidden bg-white">
               <BlogImage
                 src={meta.coverImage}
                 alt={meta.coverImageAlt || meta.title}
                 fill
                 priority
-                className="object-cover"
-                sizes="(max-width: 768px) 92vw, 672px"
+                className="object-contain"
+                sizes="(max-width: 768px) 92vw, 640px"
               />
             </div>
           )}
         </header>
 
-        <hr className="mb-10 mt-10 border-white/10" />
-
-        <div className="blog-prose">
+        <div className="blog-prose mt-10">
           <MdxContent source={content} />
         </div>
 
-        <footer className="mt-14 space-y-8 border-t border-white/10 pt-10">
+        <footer className="mt-16 space-y-8 border-t border-[#eeeeee] pt-10">
           {meta.tags?.length > 0 && (
             <section className="space-y-3">
-              <h2 className="text-xs font-semibold uppercase tracking-[0.16em] text-white/45">
+              <h2 className="text-xs font-semibold uppercase tracking-[0.16em] text-[#999999]">
                 Tags
               </h2>
               <ul className="flex flex-wrap gap-2">
                 {meta.tags.map((tag) => (
                   <li
                     key={tag}
-                    className="rounded-lg bg-blue-500/15 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.08em] text-blue-300"
+                    className="text-sm font-medium text-[#1BA0D6]"
                   >
                     {tag}
                   </li>
@@ -145,7 +134,7 @@ export default async function PostPage({ params }) {
         </footer>
       </article>
 
-      <Footer className="mt-auto" />
+      <Footer tone="light" className="mt-auto" />
     </div>
   );
 }

@@ -121,8 +121,8 @@ body {
   margin: 0;
   overflow-x: auto;
   border-radius: 1rem;
-  border: 1px solid rgba(96, 165, 250, 0.15);
-  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
   padding: 1.25rem 1.5rem;
   line-height: 1.65;
 }
@@ -135,15 +135,15 @@ body {
 .blog-prose [data-rehype-pretty-code-title] {
   margin-bottom: -0.25rem;
   border-radius: 1rem 1rem 0 0;
-  border: 1px solid rgba(96, 165, 250, 0.15);
+  border: 1px solid #e5e7eb;
   border-bottom: 0;
-  background: rgba(59, 130, 246, 0.12);
+  background: #f3f4f6;
   padding: 0.55rem 1.25rem;
   font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: rgba(147, 197, 253, 0.9);
+  color: #6b7280;
 }
 
 .blog-prose [data-rehype-pretty-code-title] + pre {

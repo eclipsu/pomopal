@@ -1,10 +1,25 @@
+import fs from "fs";
+import path from "path";
 import Image from "next/image";
 import { blogAssetUrl } from "@/utils/mediaUrl";
 
 /**
  * Blog image from coverImage frontmatter or MDX src.
- * Keys like `blog/foo.webp` resolve to the public S3/CDN base.
+ * Local `/blog/...` files are served from public/ (no Next image cache),
+ * with a mtime query so replacing a PNG shows up immediately.
  */
+function withFileBust(url) {
+  if (!url || !url.startsWith("/") || url.startsWith("//")) return url;
+  const clean = url.split("?")[0];
+  const file = path.join(process.cwd(), "public", clean);
+  try {
+    const t = Math.round(fs.statSync(file).mtimeMs);
+    return `${clean}?v=${t}`;
+  } catch {
+    return clean;
+  }
+}
+
 export default function BlogImage({
   src,
   alt = "",
@@ -15,10 +30,12 @@ export default function BlogImage({
   sizes,
   priority = false,
 }) {
-  const url = blogAssetUrl(src);
-  if (!url) return null;
+  const resolved = blogAssetUrl(src);
+  if (!resolved) return null;
 
-  const isRemote = url.startsWith("http://") || url.startsWith("https://");
+  const isRemote =
+    resolved.startsWith("http://") || resolved.startsWith("https://");
+  const url = isRemote ? resolved : withFileBust(resolved);
 
   if (fill) {
     return (
@@ -29,7 +46,7 @@ export default function BlogImage({
         className={className}
         sizes={sizes}
         priority={priority}
-        unoptimized={isRemote}
+        unoptimized
       />
     );
   }
@@ -43,7 +60,7 @@ export default function BlogImage({
       className={className}
       sizes={sizes}
       priority={priority}
-      unoptimized={isRemote}
+      unoptimized
     />
   );
 }

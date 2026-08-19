@@ -1,0 +1,101 @@
+---
+title: Did changing the music change the week?
+description: We held the person fixed. Eighteen people who turned a focus sound on logged 4.2 hours in the week before that session and 5.6 in the week after. Most streaks held.
+date: "2026-08-19"
+tags:
+  - research
+  - product
+  - engineering
+  - learning
+coverImage: /blog/sounds-mpl.png
+coverImageAlt: Pomopal banner. Did changing the music change the week? Line chart of focus hours for the seven days before and after someone turned a sound on.
+---
+
+Daily practice is the whole game in learning products. Pomopal is a timer that tries to make showing up the easy part.
+
+A week ago we shipped background sounds and end bells. Partly because we were tired of opening another tab just for white noise, and partly because a lot of our users were asking for it. If the environment fights the learner, the content doesn't get a fair chance. Language apps run into this constantly. So do we.
+
+The question is whether the room actually changed the week. Not the next twenty-five minutes. The week. Streaks live or die on whether you come back tomorrow, and total time over a span of days is the number worth checking before celebrating a feature.
+
+## In a nutshell
+
+We don't A/B the sound library yet. What we can do is hold the person fixed.
+
+We found everyone whose first pomodoro with a library background was a change from silence, then compared the seven local days before that session to the seven days after. Same 18 people. No mixing heavy users who leave sound off with people who clicked a track once.
+
+| | Week before | Week after |
+|---|---|---|
+| Focus hours | 4.2 | 5.6 |
+| Mean streak (days) | 3.4 | 5.8 |
+| Sessions finished | 61% | 69% |
+| Streak held or grew | | 13 of 18 |
+
+The first day with a sound on is a bump. The rest of the week stays above the baseline. Five people still broke their streak, so this isn't a clean win.
+
+![Same 18 people. Hours, streak, and finish rate in the seven days before vs after they turned a sound on.](/blog/sounds-mpl.png)
+
+## Why we don't just rank the library
+
+Slicing every post-ship pomodoro by track name produces a loud story that's easy to misread.
+
+High-volume finishers often leave the background off, and their sessions still complete. A naive table then says silence "wins" finish rate, while fireplace lofi "wins" depth because a handful of people sat in it for a long time. That's the same trap as scoring a notification template on learners who would have practiced anyway.
+
+Duolingo's notification work had to compare templates only among the same kind of learner. Our version of that constraint is the switcher window: one person, one first-on moment, a week on either side.
+
+## How we mark the switch
+
+A session row that only says "25 minutes, completed" can't answer this. When a pomodoro starts we freeze the timer and both sounds, id, kind, volume, onto `session_context`. Analysis joins on id, not the display name, because names get renamed in the library.
+
+Day 0 is that user's first pomodoro where `background_sound` resolves to a library track. Hours on a day are pomodoro minutes in their timezone, divided by 60. Streak follows the product rule: a focus day increments, with a short grace before it resets.
+
+```ts
+interface SessionContextSnapshot {
+  timer_mode_index: number;
+  timer_mode_label: "pomodoro" | "short_break" | "long_break";
+  timer_planned_minutes: number;
+  background_sound: SessionSoundSnapshot;
+  ring_sound: SessionSoundSnapshot;
+}
+```
+
+## The week
+
+Mean hours per person, aligned to the switch. Orange is after.
+
+![Focus hours per person for seven days before and after the first session with a background sound](/blog/sounds-week.png)
+
+Two things stand out.
+
+Novelty. Day 0 is the longest day in the window. Brand-new audio is motivating, the same way brand-new reminder copy is. The first sitting shouldn't be mistaken for the steady state.
+
+The week still moved. Days +1 through +6 sit above the pre-switch baseline. Day +7 looks like a weekend. Net: 4.2 hours in the week before, 5.6 in the week after.
+
+This isn't a randomized experiment. People who turn a sound on are already trying to focus. The claim is narrower, and more useful: after they changed the music, the week they actually lived got longer.
+
+## Streaks
+
+Pomopal only increments a streak when you show up. If sounds padded one session and the person vanished, the streak would die in this window.
+
+Thirteen of eighteen held or grew (3.4 days at the switch, 5.8 a week later). Five broke. The breakers are the point of measuring streak at all. Weekly hours can rise because two people doubled down while everyone else drifted. Streak asks whether the habit survived for the typical switcher.
+
+That's the edtech question. Time spent is easy to celebrate. A streak is what a learner can sustain.
+
+## Where the extra week went
+
+Once someone is in the after week, the hours aren't spread evenly across the library.
+
+![Share of hours in the week after the switch, by background](/blog/sounds-bg.png)
+
+White noise is still the track people were stealing from YouTube. It takes 38% of after-week hours. Fireplace lofi is the other long room (24%): people sit, they don't always finish the timer. Caution is 3%, a few short sits, not a week. We keep it in the picker. We don't make it the default.
+
+End bells are a quieter story. Most switchers never left the default. The custom bells that actually show up are xp, elevator, and discrete (the last one for rooms that can't take a loud ping). Church is in the library. It's not a finding.
+
+## What we are taking from it
+
+Optional is working: most sessions still stay silent, and the people who opt in mostly keep the first track they pick.
+
+For the product: white noise should stay easy to find. Fireplace lofi is a real room, not a novelty clip. Discrete shouldn't get buried under louder bells. We won't rank a 3% track as a winner.
+
+For how we measure the next environment feature, Spaces, bells, whatever we ship, the switcher week is the cut. Same people. Total time over seven days. Whether the streak held. If those don't move, a prettier picker didn't help the learner.
+
+Audio itself isn't magic. Removing friction around attention is product work, and we only get to say so because we snapshot the room when the block starts.
