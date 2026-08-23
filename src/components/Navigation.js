@@ -8,6 +8,7 @@ import {
   Maximize2,
   Menu,
   Minimize2,
+  Newspaper,
   Paintbrush,
   Settings,
   Shield,
@@ -155,6 +156,14 @@ function Navigation({
               <LayoutGrid className="h-[18px] w-[18px]" strokeWidth={1.75} />
               <span>Spaces</span>
             </Link>
+            <Link
+              href="/blog"
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-sm font-medium text-white/75 transition-colors hover:bg-white/10 hover:text-white"
+              title="Blog"
+            >
+              <Newspaper className="h-[18px] w-[18px]" strokeWidth={1.75} />
+              <span>Blog</span>
+            </Link>
 
             <div className="flex items-center gap-0.5 rounded-xl bg-white/[0.06] p-0.5 ring-1 ring-white/10">
               <NavIconButton
@@ -231,12 +240,21 @@ function Navigation({
           {avatarButton}
         </div>
       ) : (
-        <Link
-          href="/login"
-          className="ml-auto inline-flex h-9 shrink-0 items-center rounded-lg bg-white/10 px-3 text-sm font-semibold text-white transition-colors hover:bg-white/15"
-        >
-          Login
-        </Link>
+        <div className="ml-auto flex shrink-0 items-center gap-2">
+          <Link
+            href="/blog"
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-sm font-medium text-white/75 transition-colors hover:bg-white/10 hover:text-white"
+          >
+            <Newspaper className="h-[18px] w-[18px]" strokeWidth={1.75} />
+            <span>Blog</span>
+          </Link>
+          <Link
+            href="/login"
+            className="inline-flex h-9 shrink-0 items-center rounded-lg bg-white/10 px-3 text-sm font-semibold text-white transition-colors hover:bg-white/15"
+          >
+            Login
+          </Link>
+        </div>
       )}
 
       {user && menuOpen ? (
@@ -250,6 +268,12 @@ function Navigation({
               label="Spaces"
               href="/spaces"
               icon={LayoutGrid}
+              onClick={closeMenu}
+            />
+            <MobileMenuItem
+              label="Blog"
+              href="/blog"
+              icon={Newspaper}
               onClick={closeMenu}
             />
             <MobileMenuItem

@@ -23,7 +23,7 @@ function formatDate(dateStr) {
 }
 
 export default function BlogIndex() {
-  const posts = getAllPosts();
+  const posts = getAllPosts().filter((post) => post.title);
 
   return (
     <div className="relative flex min-h-dvh flex-col bg-white text-neutral-900">
