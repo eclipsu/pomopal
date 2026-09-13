@@ -40,6 +40,17 @@ axiosClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+    const url = String(originalRequest?.url || "");
+
+    // Auth bootstrap / credential endpoints handle their own failures.
+    if (
+      url.includes("/auth/refresh") ||
+      url.includes("/auth/login") ||
+      url.includes("/auth/session") ||
+      url.includes("/auth/logout")
+    ) {
+      return Promise.reject(error);
+    }
 
     if (error.response?.status !== 401 || originalRequest._retry) {
       return Promise.reject(error);
@@ -63,8 +74,8 @@ axiosClient.interceptors.response.use(
       return axiosClient(originalRequest);
     } catch (refreshError) {
       processQueue(refreshError, null);
-
-      window.location.href = "/login";
+      // Let callers (UserProvider) clear the session. Don't yank the timer
+      // page to /login on a failed bootstrap refresh.
       return Promise.reject(refreshError);
     } finally {
       isRefreshing = false;

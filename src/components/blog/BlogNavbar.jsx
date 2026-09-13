@@ -13,7 +13,8 @@ const links = [
 
 export default function BlogNavbar() {
   const pathname = usePathname();
-  const { user } = useUser();
+  const { user, loading: authLoading, sessionLikely } = useUser();
+  const showLoggedInShell = Boolean(user) || authLoading || sessionLikely;
 
   return (
     <nav className="sticky top-0 z-30 border-b border-[#eeeeee] bg-white/95 backdrop-blur-md">
@@ -67,6 +68,11 @@ export default function BlogNavbar() {
               (user.name?.[0] || "U").toUpperCase()
             )}
           </Link>
+        ) : showLoggedInShell ? (
+          <span
+            className="ml-auto inline-flex h-8 w-8 animate-pulse rounded-full bg-[#f4f4f4]"
+            aria-label="Restoring session"
+          />
         ) : (
           <Link
             href="/login"

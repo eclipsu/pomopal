@@ -79,10 +79,11 @@ function Navigation({
   pageFullscreen = false,
   onTogglePageFullscreen,
 }) {
-  const { user } = useUser();
+  const { user, loading: authLoading, sessionLikely } = useUser();
   const [openSignOut, setOpenSignOut] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const navRef = useRef(null);
+  const showLoggedInShell = Boolean(user) || authLoading || sessionLikely;
 
   useEffect(() => {
     if (!menuOpen) return undefined;
@@ -238,6 +239,27 @@ function Navigation({
 
           <StreakIndicator className="shrink-0" />
           {avatarButton}
+        </div>
+      ) : showLoggedInShell ? (
+        <div className="ml-auto flex shrink-0 items-center gap-2">
+          <Link
+            href="/spaces"
+            className="hidden h-9 items-center gap-1.5 rounded-lg px-2.5 text-sm font-medium text-white/75 transition-colors hover:bg-white/10 hover:text-white md:inline-flex"
+          >
+            <LayoutGrid className="h-[18px] w-[18px]" strokeWidth={1.75} />
+            <span>Spaces</span>
+          </Link>
+          <Link
+            href="/blog"
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-sm font-medium text-white/75 transition-colors hover:bg-white/10 hover:text-white"
+          >
+            <Newspaper className="h-[18px] w-[18px]" strokeWidth={1.75} />
+            <span>Blog</span>
+          </Link>
+          <span
+            className="inline-flex h-9 w-9 animate-pulse rounded-full bg-white/10"
+            aria-label="Restoring session"
+          />
         </div>
       ) : (
         <div className="ml-auto flex shrink-0 items-center gap-2">

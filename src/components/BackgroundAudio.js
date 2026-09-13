@@ -3,7 +3,13 @@
 import { useEffect, useRef } from "react";
 import { createTrackObjectUrl, resolveAudioTrack } from "@/lib/audioCache";
 import { getSelectionStreamUrl } from "@/lib/librarySoundSelection";
-import { bgAudioState, bgError, bgLog, bgWarn } from "@/lib/backgroundAudioLog";
+import {
+  bgAudioDebugEnabled,
+  bgAudioState,
+  bgError,
+  bgLog,
+  bgWarn,
+} from "@/lib/backgroundAudioLog";
 
 const FADE_IN_MS = 1200;
 const FADE_OUT_MS = 2000;
@@ -38,7 +44,10 @@ function waitForCanPlay(audio, label, signal) {
       signal?.removeEventListener("abort", onAbort);
     };
     const onReady = (evt) => {
-      bgLog(`waitForCanPlay:ready (${label})`, { event: evt.type, readyState: audio.readyState });
+      bgLog(`waitForCanPlay:ready (${label})`, {
+        event: evt.type,
+        readyState: audio.readyState,
+      });
       cleanup();
       resolve();
     };
@@ -54,6 +63,8 @@ function waitForCanPlay(audio, label, signal) {
 }
 
 function attachDebugListeners(audio, label) {
+  if (!bgAudioDebugEnabled()) return () => {};
+
   const events = [
     "loadstart",
     "loadedmetadata",
@@ -71,7 +82,7 @@ function attachDebugListeners(audio, label) {
   ];
 
   const handlers = events.map((eventName) => {
-    const handler = (evt) => {
+    const handler = () => {
       if (eventName === "timeupdate") {
         const t = Math.floor(audio.currentTime);
         if (t % 30 !== 0 || audio.currentTime < 1) return;
@@ -114,7 +125,10 @@ export default function BackgroundAudio({
   const fadeResolveRef = useRef(null);
   const loopHandlerRef = useRef(null);
   const debugCleanupRef = useRef(null);
+  const loadedSelectionRef = useRef("");
+  const shouldPlayRef = useRef(shouldPlay);
   const selectionId = selectionKey(selection);
+  shouldPlayRef.current = shouldPlay;
 
   useEffect(() => {
     bgLog("props", {
@@ -230,6 +244,7 @@ export default function BackgroundAudio({
     const audio = audioRef.current;
     const pendingRevoke = objectUrlRef.current;
     objectUrlRef.current = null;
+    loadedSelectionRef.current = "";
 
     if (audio) {
       audio.pause();
@@ -245,6 +260,11 @@ export default function BackgroundAudio({
       URL.revokeObjectURL(pendingRevoke);
     }
   };
+
+  useEffect(() => {
+    return () => clearAudio("unmount");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     targetVolumeRef.current = clampVolume(volume);
@@ -268,11 +288,42 @@ export default function BackgroundAudio({
   useEffect(() => {
     let cancelled = false;
     const abort = new AbortController();
-    bgLog("effect:load-track", { enabled, selectionId, selection });
+    bgLog("effect:load-track", {
+      enabled,
+      selectionId,
+      shouldPlay,
+      alreadyLoaded: loadedSelectionRef.current === selectionId,
+    });
 
-    if (!enabled || !selection) {
+    if (!enabled || !selection || !selectionId) {
       clearAudio("disabled-or-no-selection");
       return undefined;
+    }
+
+    // Drop previous media when the selection changes (even while idle).
+    if (
+      loadedSelectionRef.current &&
+      loadedSelectionRef.current !== selectionId
+    ) {
+      clearAudio("selection-changed");
+    }
+
+    // Don't pull a stream while the timer is idle. Resume loads on first play.
+    if (!shouldPlay) {
+      return () => {
+        cancelled = true;
+        abort.abort();
+      };
+    }
+
+    if (
+      loadedSelectionRef.current === selectionId &&
+      audioRef.current?.getAttribute("src")
+    ) {
+      return () => {
+        cancelled = true;
+        abort.abort();
+      };
     }
 
     const streamUrl = getSelectionStreamUrl(selection);
@@ -281,7 +332,6 @@ export default function BackgroundAudio({
       try {
         let url;
         if (streamUrl) {
-          // Progressive streaming — play straight from the backend Range proxy.
           bgLog("load-track:stream url", { streamUrl });
           clearAudio("before-new-stream");
           url = streamUrl;
@@ -324,6 +374,8 @@ export default function BackgroundAudio({
 
         audio.loop = true;
         audio.preload = "auto";
+        // Start muted so a concurrent playback effect cannot fade from volume 1.
+        audio.volume = 0;
         audio.src = url;
         audio.load();
         attachLoopHandler();
@@ -334,14 +386,17 @@ export default function BackgroundAudio({
           return;
         }
 
+        loadedSelectionRef.current = selectionId;
         bgAudioState(audio, "after initial canplay");
         audio.volume = 0;
 
-        if (shouldPlay) {
+        if (shouldPlayRef.current) {
           bgLog("load-track:auto-play + fade in");
           await audio.play().catch((err) => bgWarn("load-track:play failed", err));
-          if (!cancelled) {
-            await fadeTo(targetVolumeRef.current, FADE_IN_MS, { reason: "initial-load" });
+          if (!cancelled && shouldPlayRef.current) {
+            await fadeTo(targetVolumeRef.current, FADE_IN_MS, {
+              reason: "initial-load",
+            });
           }
         } else {
           bgLog("load-track:loaded but shouldPlay=false, staying paused");
@@ -355,9 +410,10 @@ export default function BackgroundAudio({
       bgLog("effect:load-track cleanup", { selectionId });
       cancelled = true;
       abort.abort();
-      clearAudio("load-effect-unmount");
+      // Keep loaded media on pause so resume is instant. clearAudio runs on
+      // selection change, disable, or unmount instead.
     };
-  }, [enabled, selectionId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [enabled, selectionId, shouldPlay]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -377,7 +433,10 @@ export default function BackgroundAudio({
     (async () => {
       if (previewActive) {
         bgLog("playback:preview active → fade out + pause");
-        await fadeTo(0, FADE_OUT_MS, { pauseAtEnd: true, reason: "preview-active" });
+        await fadeTo(0, FADE_OUT_MS, {
+          pauseAtEnd: true,
+          reason: "preview-active",
+        });
         return;
       }
 
@@ -401,6 +460,9 @@ export default function BackgroundAudio({
         } else {
           bgLog("playback:already playing but fade in progress, skip volume set");
         }
+      } else if (audio.paused && audio.volume < 0.01) {
+        // Already stopped — don't start a 2s fade against idle media.
+        bgLog("playback:already stopped, skip fade");
       } else {
         bgLog("playback:stop → fade out + pause", { shouldPlay, enabled });
         await fadeTo(0, FADE_OUT_MS, { pauseAtEnd: true, reason: "stop" });
@@ -415,5 +477,5 @@ export default function BackgroundAudio({
     };
   }, [shouldPlay, enabled, previewActive]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return <audio ref={audioRef} preload="auto" />;
+  return <audio ref={audioRef} preload="none" />;
 }
