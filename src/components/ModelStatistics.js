@@ -77,7 +77,8 @@ function formatShortDate(ymd) {
 
 function ModelStatistics({ setOpenSettings, openSettings }) {
   const { user } = useUser();
-  const [tab, setTab] = useState("summary");
+  const guest = !user;
+  const [tab, setTab] = useState(guest ? "leaderboard" : "summary");
   const [leaderboardPeriod, setLeaderboardPeriod] = useState("week");
   const [weekOffset, setWeekOffset] = useState(0);
   const [viewport, setViewport] = useState({
@@ -86,6 +87,14 @@ function ModelStatistics({ setOpenSettings, openSettings }) {
     width: 1024,
     height: 768,
   });
+
+  useEffect(() => {
+    if (guest) setTab("leaderboard");
+  }, [guest]);
+
+  const visibleTabs = guest
+    ? TABS.filter((t) => t.id === "leaderboard")
+    : TABS;
 
   const updateViewport = useCallback(() => {
     if (typeof window === "undefined") return;
@@ -121,25 +130,31 @@ function ModelStatistics({ setOpenSettings, openSettings }) {
 
   const { from, to } = useMemo(() => getWeekRange(weekOffset), [weekOffset]);
 
-  const { streak, longestStreak, status } = useStreak({ enabled: openSettings });
+  const { streak, longestStreak, status } = useStreak({
+    enabled: openSettings && !guest,
+  });
 
   const {
     data: calendarData,
     isLoading: loading,
     isError: error,
     refetch: refetchWeek,
-  } = useWeeklyAnalytics(from, to, weekOffset, { enabled: openSettings });
+  } = useWeeklyAnalytics(from, to, weekOffset, {
+    enabled: openSettings && !guest,
+  });
 
   const {
     data: allTimeMinutes = 0,
     isLoading: allTimeLoading,
     refetch: refetchAllTime,
-  } = useAllTimeFocus({ enabled: openSettings });
+  } = useAllTimeFocus({ enabled: openSettings && !guest });
 
   const {
     data: namedSessions = [],
     refetch: refetchNamed,
-  } = useSessionNameBreakdown({ enabled: openSettings && tab === "sessions" });
+  } = useSessionNameBreakdown({
+    enabled: openSettings && !guest && tab === "sessions",
+  });
 
   const leaderboardEnabled = openSettings && tab === "leaderboard";
 
@@ -166,21 +181,24 @@ function ModelStatistics({ setOpenSettings, openSettings }) {
     leaderboardPeriod === "week" ? refetchWeekBoard : refetchAllTimeBoard;
 
   const { data: privacy } = usePrivacy({
-    enabled: openSettings && tab === "leaderboard",
+    enabled: openSettings && !guest && tab === "leaderboard",
   });
   const hiddenFromLeaderboard = privacy?.show_on_leaderboard === false;
 
   useEffect(() => {
     if (!openSettings) return;
-    refetchWeek();
-    refetchAllTime();
-    if (tab === "sessions") refetchNamed();
+    if (!guest) {
+      refetchWeek();
+      refetchAllTime();
+      if (tab === "sessions") refetchNamed();
+    }
     if (tab === "leaderboard") {
       refetchWeekBoard();
       refetchAllTimeBoard();
     }
   }, [
     openSettings,
+    guest,
     tab,
     from,
     to,
@@ -381,7 +399,7 @@ function ModelStatistics({ setOpenSettings, openSettings }) {
             <span className="w-9 shrink-0" aria-hidden />
           )}
           <h1 className="min-w-0 flex-1 truncate text-center text-sm font-bold uppercase tracking-wider text-gray-800 sm:text-base">
-            {user?.name || "User"}&apos;s Statistics
+            {guest ? "Leaderboard" : `${user?.name || "User"}'s Statistics`}
           </h1>
           <button
             type="button"
@@ -394,7 +412,7 @@ function ModelStatistics({ setOpenSettings, openSettings }) {
         </div>
 
         <div className="mt-3 flex shrink-0 gap-1 rounded-lg bg-gray-100 p-1 sm:mt-4">
-          {TABS.map((t) => {
+          {visibleTabs.map((t) => {
             const Icon = t.icon;
             return (
               <button

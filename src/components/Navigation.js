@@ -12,6 +12,7 @@ import {
   Paintbrush,
   Settings,
   Shield,
+  Trophy,
   Users,
   X,
 } from "lucide-react";
@@ -249,6 +250,13 @@ function Navigation({
             <LayoutGrid className="h-[18px] w-[18px]" strokeWidth={1.75} />
             <span>Spaces</span>
           </Link>
+          <NavIconButton
+            label="Leaderboard"
+            onClick={() => setShowStats((v) => !v)}
+            className="hidden md:inline-flex"
+          >
+            <Trophy className="h-[18px] w-[18px]" strokeWidth={1.75} />
+          </NavIconButton>
           <Link
             href="/blog"
             className="inline-flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-sm font-medium text-white/75 transition-colors hover:bg-white/10 hover:text-white"
@@ -264,11 +272,25 @@ function Navigation({
       ) : (
         <div className="ml-auto flex shrink-0 items-center gap-2">
           <Link
+            href="/spaces"
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-sm font-medium text-white/75 transition-colors hover:bg-white/10 hover:text-white"
+            title="Spaces"
+          >
+            <LayoutGrid className="h-[18px] w-[18px]" strokeWidth={1.75} />
+            <span className="hidden sm:inline">Spaces</span>
+          </Link>
+          <NavIconButton
+            label="Leaderboard"
+            onClick={() => setShowStats((v) => !v)}
+          >
+            <Trophy className="h-[18px] w-[18px]" strokeWidth={1.75} />
+          </NavIconButton>
+          <Link
             href="/blog"
             className="inline-flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-sm font-medium text-white/75 transition-colors hover:bg-white/10 hover:text-white"
           >
             <Newspaper className="h-[18px] w-[18px]" strokeWidth={1.75} />
-            <span>Blog</span>
+            <span className="hidden sm:inline">Blog</span>
           </Link>
           <Link
             href="/login"

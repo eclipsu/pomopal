@@ -22,6 +22,20 @@ type SpaceCardSpace = {
   } | null;
 };
 
+/** Prefer a Giphy still frame so gallery covers don't keep animating. */
+function stillCoverUrl(url: string | null | undefined) {
+  if (!url || typeof url !== "string") return url;
+  if (!/giphy\.com/i.test(url)) return url;
+  if (/_s\.(gif|webp)(\?|$)/i.test(url) || /\/giphy_s\./i.test(url)) return url;
+  if (/\/giphy\.(gif|webp)(\?|$)/i.test(url)) {
+    return url.replace(/\/giphy\.(gif|webp)(\?|$)/i, "/giphy_s.$1$2");
+  }
+  if (/\/(\d+)(w?)\.(gif|webp)(\?|$)/i.test(url)) {
+    return url.replace(/\/(\d+)(w?)\.(gif|webp)(\?|$)/i, "/$1$2_s.$3$4");
+  }
+  return url;
+}
+
 export function SpaceCard({
   space,
   showCreator = true,
@@ -29,7 +43,7 @@ export function SpaceCard({
   space: SpaceCardSpace;
   showCreator?: boolean;
 }) {
-  const cover = space.cover_image_url;
+  const cover = stillCoverUrl(space.cover_image_url);
   const bg = space.layout?.backgroundColor || "#111827";
   const href = spacePath(space);
   const tags = space.tags ?? [];

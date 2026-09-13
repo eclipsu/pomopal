@@ -311,6 +311,21 @@ function isAllowedFit(fit: string): fit is BackgroundFit {
   return BACKGROUND_FITS.some((entry) => entry.value === fit);
 }
 
+/** Prefer a Giphy still frame so space backgrounds don't keep animating. */
+function giphyStillUrl(url: string | null | undefined): string | null {
+  if (!url || typeof url !== "string") return null;
+  if (!/giphy\.com/i.test(url)) return url;
+  if (/_s\.(gif|webp)(\?|$)/i.test(url) || /\/giphy_s\./i.test(url)) return url;
+  if (/\/giphy\.(gif|webp)(\?|$)/i.test(url)) {
+    return url.replace(/\/giphy\.(gif|webp)(\?|$)/i, "/giphy_s.$1$2");
+  }
+  // e.g. .../200.gif or .../200w.webp → .../200_s.gif
+  if (/\/(\d+)(w?)\.(gif|webp)(\?|$)/i.test(url)) {
+    return url.replace(/\/(\d+)(w?)\.(gif|webp)(\?|$)/i, "/$1$2_s.$3$4");
+  }
+  return url;
+}
+
 function fitCss(fit: BackgroundFit): Pick<
   CSSProperties,
   "backgroundSize" | "backgroundRepeat" | "backgroundPosition"
@@ -351,6 +366,7 @@ export function buildBackgroundCss(
     | "backgroundColor"
     | "backgroundImageUrl"
     | "backgroundGifUrl"
+    | "backgroundGifPreviewUrl"
     | "backgroundFit"
   >,
 ): CSSProperties {
@@ -368,12 +384,17 @@ export function buildBackgroundCss(
       ...fitCss(fit),
     };
   }
-  if (appearance.backgroundType === "gif" && appearance.backgroundGifUrl) {
-    return {
-      backgroundColor: appearance.backgroundColor,
-      backgroundImage: `url(${appearance.backgroundGifUrl})`,
-      ...fitCss(fit),
-    };
+  if (appearance.backgroundType === "gif") {
+    const raw =
+      appearance.backgroundGifPreviewUrl || appearance.backgroundGifUrl;
+    const still = giphyStillUrl(raw);
+    if (still) {
+      return {
+        backgroundColor: appearance.backgroundColor,
+        backgroundImage: `url(${still})`,
+        ...fitCss(fit),
+      };
+    }
   }
   return { backgroundColor: appearance.backgroundColor || DEFAULT_COLOR };
 }
@@ -495,10 +516,12 @@ export const useSpaceStore = create<SpaceState>((set, get) => ({
     const url = isHttpsUrl(gif.url);
     const previewUrl = isHttpsUrl(gif.previewUrl);
     if (!url) return;
+    const stillUrl = giphyStillUrl(url) || url;
+    const stillPreview = giphyStillUrl(previewUrl) || stillUrl;
     set({
       backgroundType: "gif",
-      backgroundGifUrl: url,
-      backgroundGifPreviewUrl: previewUrl,
+      backgroundGifUrl: stillUrl,
+      backgroundGifPreviewUrl: stillPreview,
       backgroundGifId: String(gif.id).slice(0, 64),
     });
   },
