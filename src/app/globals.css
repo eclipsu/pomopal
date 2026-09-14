@@ -169,3 +169,47 @@ body {
   text-align: right;
   color: rgba(255, 255, 255, 0.25);
 }
+
+/* Duolingo-ish toast cards */
+.Toastify__toast-container--top-center {
+  top: 1rem;
+  width: min(92vw, 22rem);
+  padding: 0;
+}
+
+.pomopal-toast.Toastify__toast {
+  min-height: 0;
+  margin-bottom: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-radius: 1rem;
+  border: 2px solid #e5e5e5;
+  border-bottom-width: 4px;
+  background: #ffffff;
+  box-shadow: 0 10px 28px -14px rgba(0, 0, 0, 0.35);
+  font-family: inherit;
+  color: #3c3c3c;
+}
+
+.pomopal-toast.Toastify__toast--success {
+  border-color: #89e219;
+  background: #f7fcf0;
+}
+
+.pomopal-toast.Toastify__toast--error {
+  border-color: #ff4b4b;
+  background: #fff0f0;
+}
+
+.pomopal-toast.Toastify__toast--info {
+  border-color: #84d8ff;
+  background: #f0fbff;
+}
+
+.pomopal-toast-body {
+  margin: 0;
+  padding: 0;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  line-height: 1.35;
+  color: #3c3c3c;
+}

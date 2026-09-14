@@ -20,6 +20,7 @@ import SignOut from "./SignOut";
 import PomopalIcon from "./PomopalIcon";
 import { useUser } from "@/hooks/useUser";
 import StreakIndicator from "@/components/StreakIndicator";
+import NotificationBell from "@/components/NotificationBell";
 
 function NavIconButton({
   label,
@@ -239,6 +240,7 @@ function Navigation({
           </NavIconButton>
 
           <StreakIndicator className="shrink-0" />
+          <NotificationBell />
           {avatarButton}
         </div>
       ) : showLoggedInShell ? (

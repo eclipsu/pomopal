@@ -10,6 +10,7 @@ import Button from "@/components/Button";
 import TemplateForm from "@/components/admin/TemplateForm";
 import TemplateImage from "@/components/admin/TemplateImage";
 import TemplateTestModal from "@/components/admin/TemplateTestModal";
+import TestSendPanel from "@/components/admin/TestSendPanel";
 import ReviveStreakPanel from "@/components/admin/ReviveStreakPanel";
 import AnnouncementPanel from "@/components/admin/AnnouncementPanel";
 import ImageLibraryPanel from "@/components/admin/ImageLibraryPanel";
@@ -25,8 +26,8 @@ import {
 
 const NOTIFICATION_TYPES = [
   { value: "", label: "All categories" },
+  { value: "streak_update", label: "Streak update" },
   { value: "announcement", label: "Announcement" },
-  { value: "streak_at_risk", label: "Streak at risk" },
   { value: "streak_milestone", label: "Streak milestone" },
   { value: "daily_nudge", label: "Daily nudge" },
   { value: "comeback", label: "Comeback" },
@@ -211,6 +212,8 @@ function AdminContent() {
 
         {tab === "templates" && (
           <>
+            <TestSendPanel templates={templates} />
+
             {(creating || editing) && (
               <section className="rounded-2xl border border-white/10 bg-white/5 p-6">
                 <h2 className="text-lg font-medium mb-4">

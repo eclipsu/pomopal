@@ -7,7 +7,7 @@ import Input from "@/components/Input";
 import { useAdminUsers, useTestSendNotification } from "@/hooks/useAdminTestSend";
 
 const NOTIFICATION_TYPES = [
-  { value: "streak_at_risk", label: "Streak at risk" },
+  { value: "streak_update", label: "Streak update" },
   { value: "streak_milestone", label: "Streak milestone" },
   { value: "daily_nudge", label: "Daily nudge" },
   { value: "comeback", label: "Comeback" },
@@ -18,7 +18,7 @@ const NOTIFICATION_TYPES = [
 export default function TestSendPanel({ templates = [] }) {
   const [userSearch, setUserSearch] = useState("");
   const [userId, setUserId] = useState("");
-  const [type, setType] = useState("daily_nudge");
+  const [type, setType] = useState("streak_update");
   const [templateId, setTemplateId] = useState("");
   const [sendEmail, setSendEmail] = useState(true);
   const [streak, setStreak] = useState("7");
