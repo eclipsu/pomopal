@@ -52,6 +52,10 @@ export default function EligibilityRulesHelp() {
           <code className="text-gray-300">requiresLastChance</code> — 11pm on the{" "}
           <em>last</em> grace day only
         </li>
+        <li>
+          <code className="text-gray-300">showProgress</code> — set by the
+          &quot;Include weekly progress&quot; checkbox (streak templates)
+        </li>
       </ul>
 
       <div className="text-xs space-y-2">

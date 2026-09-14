@@ -94,7 +94,7 @@ function DayCircle({ day }) {
   return <div className="h-9 w-9 rounded-full bg-[#e5e5e5]" />;
 }
 
-function StreakEmailPreview({ title, plainBody, imageUrl, type }) {
+function StreakEmailPreview({ title, plainBody, imageUrl, type, showProgress = true }) {
   const footer =
     type === "streak_milestone"
       ? "You're on fire — keep it going tomorrow!"
@@ -133,17 +133,21 @@ function StreakEmailPreview({ title, plainBody, imageUrl, type }) {
         Start a pomodoro
       </button>
 
-      <p className="mt-10 text-lg font-extrabold text-[#3c3c3c]">
-        Your weekly progress
-      </p>
-      <div className="mt-4 flex justify-center gap-2">
-        {SAMPLE_WEEK.map((day) => (
-          <div key={day.label} className="flex w-9 flex-col items-center gap-2">
-            <span className="text-[11px] font-bold text-[#afafaf]">{day.label}</span>
-            <DayCircle day={day} />
+      {showProgress ? (
+        <>
+          <p className="mt-10 text-lg font-extrabold text-[#3c3c3c]">
+            Your weekly progress
+          </p>
+          <div className="mt-4 flex justify-center gap-2">
+            {SAMPLE_WEEK.map((day) => (
+              <div key={day.label} className="flex w-9 flex-col items-center gap-2">
+                <span className="text-[11px] font-bold text-[#afafaf]">{day.label}</span>
+                <DayCircle day={day} />
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        </>
+      ) : null}
 
       <p className="mt-6 text-sm text-[#afafaf]">{footer}</p>
     </div>
@@ -186,6 +190,7 @@ export default function NotificationPreview({
   body,
   imageUrl,
   type = "announcement",
+  showProgress = true,
   emptyMessage = "Fill in the message to see a preview",
 }) {
   const resolvedImage = imageUrl ? mediaUrl(imageUrl) : null;
@@ -213,6 +218,7 @@ export default function NotificationPreview({
             plainBody={plainBody}
             imageUrl={resolvedImage}
             type={type}
+            showProgress={showProgress}
           />
         ) : (
           <EmailPreview title={title} body={body} imageUrl={resolvedImage} />

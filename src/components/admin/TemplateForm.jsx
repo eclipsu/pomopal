@@ -31,8 +31,23 @@ const emptyForm = {
   title: "Keep your streak going?",
   body: "Your streak is on grace — one pomodoro today keeps it alive.",
   eligibility_rules: "{}",
+  showProgress: true,
   active: true,
 };
+
+function supportsWeeklyProgress(type) {
+  return (
+    type === "streak_update" ||
+    type === "streak_at_risk" ||
+    type === "streak_milestone"
+  );
+}
+
+function showProgressFromRules(rules, type) {
+  if (!supportsWeeklyProgress(type)) return false;
+  if (rules && typeof rules.showProgress === "boolean") return rules.showProgress;
+  return true;
+}
 
 function imageKeyFromValue(value) {
   if (!value) return null;
@@ -49,12 +64,16 @@ export default function TemplateForm({ initial, saving, onSubmit, onCancel }) {
 
   useEffect(() => {
     if (initial) {
+      const rules = initial.eligibility_rules ?? {};
+      const type = initial.type ?? "daily_nudge";
+      const { showProgress: _ignored, ...eligibilityOnly } = rules;
       setForm({
         name: initial.name ?? "",
-        type: initial.type ?? "daily_nudge",
+        type,
         title: initial.title ?? "",
         body: initial.body ?? "",
-        eligibility_rules: JSON.stringify(initial.eligibility_rules ?? {}, null, 2),
+        eligibility_rules: JSON.stringify(eligibilityOnly, null, 2),
+        showProgress: showProgressFromRules(rules, type),
         active: initial.active ?? true,
       });
       setSelectedImageKey(imageKeyFromValue(initial.image_url));
@@ -95,6 +114,13 @@ export default function TemplateForm({ initial, saving, onSubmit, onCancel }) {
     } catch {
       setSubmitError("Eligibility rules must be valid JSON");
       return;
+    }
+
+    if (supportsWeeklyProgress(form.type)) {
+      rules = { ...rules, showProgress: Boolean(form.showProgress) };
+    } else if (rules && "showProgress" in rules) {
+      const { showProgress: _drop, ...rest } = rules;
+      rules = rest;
     }
 
     let imageKey;
@@ -141,7 +167,16 @@ export default function TemplateForm({ initial, saving, onSubmit, onCancel }) {
           <label className="text-sm font-medium text-gray-300">Type</label>
           <select
             value={form.type}
-            onChange={(e) => update("type", e.target.value)}
+            onChange={(e) => {
+              const type = e.target.value;
+              setForm((prev) => ({
+                ...prev,
+                type,
+                showProgress: supportsWeeklyProgress(type)
+                  ? prev.showProgress ?? true
+                  : false,
+              }));
+            }}
             className="w-full h-10 rounded-md border border-white/20 bg-white/10 text-white px-3 text-sm"
           >
             {NOTIFICATION_TYPES.map((t) => (
@@ -152,6 +187,21 @@ export default function TemplateForm({ initial, saving, onSubmit, onCancel }) {
           </select>
         </div>
       </div>
+
+      {supportsWeeklyProgress(form.type) && (
+        <label className="flex items-center gap-2 text-sm text-gray-300">
+          <input
+            type="checkbox"
+            checked={form.showProgress}
+            onChange={(e) => update("showProgress", e.target.checked)}
+            className="rounded"
+          />
+          Include weekly progress
+          <span className="text-xs text-gray-500">
+            (day circles under the email CTA)
+          </span>
+        </label>
+      )}
 
       <div className="space-y-2">
         <label className="text-sm font-medium text-gray-300">Title</label>
@@ -212,6 +262,7 @@ export default function TemplateForm({ initial, saving, onSubmit, onCancel }) {
         body={previewBody}
         imageUrl={previewImageUrl}
         type={form.type}
+        showProgress={form.showProgress}
         emptyMessage="Add a title and body to preview this template"
       />
 
