@@ -17,7 +17,7 @@ const SAMPLE_CONTEXT = {
 };
 
 const NOTIFICATION_TYPES = [
-  { value: "streak_update", label: "Streak update (replaces at-risk)" },
+  { value: "streak_at_risk", label: "Streak at risk" },
   { value: "streak_milestone", label: "Streak milestone" },
   { value: "daily_nudge", label: "Daily nudge" },
   { value: "comeback", label: "Comeback" },
@@ -27,9 +27,9 @@ const NOTIFICATION_TYPES = [
 
 const emptyForm = {
   name: "",
-  type: "streak_update",
-  title: "Keep your streak going?",
-  body: "Your streak is on grace — one pomodoro today keeps it alive.",
+  type: "daily_nudge",
+  title: "",
+  body: "",
   eligibility_rules: "{}",
   active: true,
 };

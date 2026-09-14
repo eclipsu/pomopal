@@ -1,35 +1,18 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Bell, CheckCheck } from "lucide-react";
+import { Bell } from "lucide-react";
 import { useNotifications } from "@/hooks/useNotifications";
 import { formatLastActive } from "@/utils/formatLastActive";
 
-const TYPE_META = {
-  announcement: { emoji: "📢", bg: "bg-[#ddf4ff]", ring: "ring-[#84d8ff]" },
-  streak_update: { emoji: "🔥", bg: "bg-[#fff4e5]", ring: "ring-[#ff9600]" },
-  streak_at_risk: { emoji: "🔥", bg: "bg-[#fff4e5]", ring: "ring-[#ffc800]" },
-  streak_milestone: { emoji: "🏆", bg: "bg-[#ddf4ff]", ring: "ring-[#1cb0f6]" },
-  daily_nudge: { emoji: "⏱", bg: "bg-[#e5f8d0]", ring: "ring-[#89e219]" },
-  comeback: { emoji: "🍅", bg: "bg-[#ffdfe0]", ring: "ring-[#ff4b4b]" },
-  focus_complete: { emoji: "✅", bg: "bg-[#e5f8d0]", ring: "ring-[#58cc02]" },
+const TYPE_ICON = {
+  announcement: "📢",
+  streak_at_risk: "🔥",
+  streak_milestone: "🏆",
+  daily_nudge: "⏱",
+  comeback: "🍅",
+  focus_complete: "✅",
 };
-
-function TypeBadge({ type }) {
-  const meta = TYPE_META[type] ?? {
-    emoji: "🔔",
-    bg: "bg-[#f0f0f0]",
-    ring: "ring-[#e5e5e5]",
-  };
-  return (
-    <span
-      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-xl ring-2 ring-inset ${meta.bg} ${meta.ring}`}
-      aria-hidden
-    >
-      {meta.emoji}
-    </span>
-  );
-}
 
 function NotificationRow({ item, onRead }) {
   const unread = !item.read_at;
@@ -37,37 +20,22 @@ function NotificationRow({ item, onRead }) {
     <button
       type="button"
       onClick={() => onRead(item.id)}
-      className={`group flex w-full items-start gap-3 px-4 py-3.5 text-left transition-colors ${
-        unread
-          ? "bg-[#f7fcf0] hover:bg-[#eef9e0]"
-          : "bg-white hover:bg-[#f7f7f7]"
+      className={`w-full text-left px-3 py-2.5 hover:bg-white/5 transition-colors border-b border-gray-700/40 last:border-0 ${
+        unread ? "bg-white/[0.03]" : ""
       }`}
     >
-      <TypeBadge type={item.type} />
-      <div className="min-w-0 flex-1 pt-0.5">
-        <div className="flex items-start gap-2">
-          <p
-            className={`min-w-0 flex-1 text-[15px] leading-snug ${
-              unread
-                ? "font-bold text-[#3c3c3c]"
-                : "font-semibold text-[#777777]"
-            }`}
-          >
+      <div className="flex gap-2 items-start">
+        <span className="text-base shrink-0">{TYPE_ICON[item.type] ?? "🔔"}</span>
+        <div className="min-w-0 flex-1">
+          <p className={`text-sm truncate ${unread ? "text-white font-medium" : "text-gray-300"}`}>
             {item.title}
           </p>
-          {unread && (
-            <span
-              className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-[#58cc02]"
-              aria-label="Unread"
-            />
-          )}
+          <p className="text-xs text-gray-500 line-clamp-2 mt-0.5">{item.body}</p>
+          <p className="text-[10px] text-gray-600 mt-1">
+            {formatLastActive(item.created_at) ?? "recently"}
+          </p>
         </div>
-        <p className="mt-1 text-sm leading-relaxed text-[#777777] line-clamp-2">
-          {item.body}
-        </p>
-        <p className="mt-1.5 text-xs font-medium text-[#afafaf]">
-          {formatLastActive(item.created_at) ?? "just now"}
-        </p>
+        {unread && <span className="w-2 h-2 rounded-full bg-red-500 shrink-0 mt-1.5" />}
       </div>
     </button>
   );
@@ -80,7 +48,7 @@ export default function NotificationBell() {
     useNotifications();
 
   useEffect(() => {
-    if (!open) return undefined;
+    if (!open) return;
     refetch();
     const onDocClick = (e) => {
       if (panelRef.current && !panelRef.current.contains(e.target)) {
@@ -96,58 +64,40 @@ export default function NotificationBell() {
       <button
         type="button"
         aria-label="Notifications"
-        aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
-        className={`relative inline-flex h-9 w-9 items-center justify-center rounded-xl transition-colors ${
-          open
-            ? "bg-white/15 text-white"
-            : "text-white/70 hover:bg-white/10 hover:text-white"
-        }`}
+        className="relative text-2xl text-white hover:text-gray-300 transition-colors"
       >
-        <Bell className="h-[18px] w-[18px]" strokeWidth={1.75} />
+        <Bell className="w-6 h-6" />
         {unreadCount > 0 && (
-          <span className="absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#ff4b4b] px-1 text-[10px] font-bold text-white ring-2 ring-gray-900">
+          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-[10px] font-bold text-white flex items-center justify-center">
             {unreadCount > 99 ? "99+" : unreadCount}
           </span>
         )}
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-50 mt-2 flex w-[min(92vw,22rem)] max-h-[28rem] flex-col overflow-hidden rounded-2xl border-2 border-[#e5e5e5] border-b-4 border-b-[#e5e5e5] bg-white shadow-[0_12px_40px_-12px_rgba(0,0,0,0.35)]">
-          <div className="flex shrink-0 items-center justify-between gap-3 border-b-2 border-[#e5e5e5] px-4 py-3">
-            <p className="text-base font-extrabold tracking-tight text-[#3c3c3c]">
-              Notifications
-            </p>
+        <div
+          className="absolute right-0 top-full mt-2 w-80 max-h-96 overflow-hidden rounded-xl border border-gray-700/60 shadow-2xl z-50 flex flex-col"
+          style={{ backgroundColor: "#1a1d24" }}
+        >
+          <div className="flex items-center justify-between px-3 py-2 border-b border-gray-700/50 shrink-0">
+            <p className="text-sm font-semibold text-white">Notifications</p>
             {unreadCount > 0 && (
               <button
                 type="button"
                 onClick={() => markAllRead()}
-                className="inline-flex items-center gap-1 rounded-xl px-2 py-1 text-xs font-bold text-[#1cb0f6] transition-colors hover:bg-[#ddf4ff]"
+                className="text-xs text-red-400 hover:text-red-300"
               >
-                <CheckCheck className="h-3.5 w-3.5" strokeWidth={2.5} />
                 Mark all read
               </button>
             )}
           </div>
-
-          <div className="flex-1 divide-y divide-[#e5e5e5] overflow-y-auto">
+          <div className="overflow-y-auto flex-1">
             {isLoading && (
-              <p className="px-4 py-8 text-center text-sm font-medium text-[#afafaf]">
-                Loading…
-              </p>
+              <p className="text-sm text-gray-500 px-3 py-4 text-center">Loading…</p>
             )}
             {!isLoading && notifications.length === 0 && (
-              <div className="flex flex-col items-center px-6 py-10 text-center">
-                <span className="flex h-14 w-14 items-center justify-center rounded-3xl bg-[#e5f8d0] text-3xl ring-2 ring-inset ring-[#89e219]">
-                  🔔
-                </span>
-                <p className="mt-4 text-[15px] font-extrabold text-[#3c3c3c]">
-                  You&apos;re all caught up
-                </p>
-                <p className="mt-1 text-sm leading-relaxed text-[#777777]">
-                  Streaks, focus wins, and product updates will show up here.
-                </p>
-              </div>
+              <p className="text-sm text-gray-500 px-3 py-6 text-center">No notifications yet</p>
             )}
             {!isLoading &&
               notifications.map((item) => (

@@ -7,7 +7,6 @@ import { UserProvider } from "@/contexts/UserContext";
 import { PresenceProvider } from "@/contexts/PresenceContext";
 import { SoundPreferencesProvider } from "@/contexts/SoundPreferencesContext";
 import QueryProvider from "@/providers/QueryProvider";
-import AppToasts from "@/components/AppToasts";
 import { appBaseUrl } from "@/lib/seo";
 config.autoAddCss = false;
 
@@ -40,10 +39,7 @@ export default function RootLayout({ children }) {
         <QueryProvider>
           <UserProvider>
             <SoundPreferencesProvider>
-              <PresenceProvider>
-                {children}
-                <AppToasts />
-              </PresenceProvider>
+              <PresenceProvider>{children}</PresenceProvider>
             </SoundPreferencesProvider>
           </UserProvider>
         </QueryProvider>
