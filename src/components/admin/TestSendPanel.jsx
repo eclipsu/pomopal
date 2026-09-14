@@ -5,15 +5,9 @@ import { Send } from "lucide-react";
 import Button from "@/components/Button";
 import Input from "@/components/Input";
 import { useAdminUsers, useTestSendNotification } from "@/hooks/useAdminTestSend";
+import { NOTIFICATION_TYPE_OPTIONS } from "@/constants/notificationTypes";
 
-const NOTIFICATION_TYPES = [
-  { value: "streak_update", label: "Streak update" },
-  { value: "streak_milestone", label: "Streak milestone" },
-  { value: "daily_nudge", label: "Daily nudge" },
-  { value: "comeback", label: "Comeback" },
-  { value: "announcement", label: "Announcement" },
-  { value: "focus_complete", label: "Focus complete" },
-];
+const NOTIFICATION_TYPES = NOTIFICATION_TYPE_OPTIONS;
 
 export default function TestSendPanel({ templates = [] }) {
   const [userSearch, setUserSearch] = useState("");

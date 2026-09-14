@@ -641,11 +641,21 @@ function ModelStatistics({ setOpenSettings, openSettings }) {
               </p>
             )}
             {!globalError &&
-              globalBoard.map((entry) => {
+              globalBoard.map((entry, index) => {
               const isSelf = entry.user_id === user?.id;
+              const prev = globalBoard[index - 1];
+              const showGap =
+                index > 0 &&
+                prev &&
+                entry.rank > prev.rank + 1;
               return (
+                <div key={entry.user_id}>
+                  {showGap ? (
+                    <div className="py-1.5 text-center text-xs font-bold tracking-[0.25em] text-gray-300">
+                      ···
+                    </div>
+                  ) : null}
                 <div
-                  key={entry.user_id}
                   className={`flex items-center gap-3 py-2 border-b border-gray-100 last:border-0 ${
                     isSelf ? "bg-indigo-50/60 -mx-2 px-2 rounded-md" : ""
                   }`}
@@ -689,6 +699,7 @@ function ModelStatistics({ setOpenSettings, openSettings }) {
                   <span className="text-xs tabular-nums text-gray-500 shrink-0">
                     {formatMinutes(entry.focus_minutes)}
                   </span>
+                </div>
                 </div>
               );
             })}

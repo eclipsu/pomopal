@@ -23,15 +23,11 @@ import {
   useDeleteTemplate,
   useUpdateTemplate,
 } from "@/hooks/useAdminTemplates";
+import { NOTIFICATION_TYPE_OPTIONS } from "@/constants/notificationTypes";
 
 const NOTIFICATION_TYPES = [
   { value: "", label: "All categories" },
-  { value: "streak_update", label: "Streak update" },
-  { value: "announcement", label: "Announcement" },
-  { value: "streak_milestone", label: "Streak milestone" },
-  { value: "daily_nudge", label: "Daily nudge" },
-  { value: "comeback", label: "Comeback" },
-  { value: "focus_complete", label: "Focus complete" },
+  ...NOTIFICATION_TYPE_OPTIONS,
 ];
 
 const TABS = [

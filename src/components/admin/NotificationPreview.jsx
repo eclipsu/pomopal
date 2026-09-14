@@ -3,16 +3,6 @@
 import { mediaUrl } from "@/utils/mediaUrl";
 import { hasPreviewContent, stripHtml } from "@/utils/renderTemplate";
 
-const TYPE_META = {
-  announcement: { emoji: "📢", bg: "bg-[#ddf4ff]", ring: "ring-[#84d8ff]" },
-  streak_update: { emoji: "🔥", bg: "bg-[#fff4e5]", ring: "ring-[#ffc800]" },
-  streak_at_risk: { emoji: "🔥", bg: "bg-[#fff4e5]", ring: "ring-[#ffc800]" },
-  streak_milestone: { emoji: "🏆", bg: "bg-[#ddf4ff]", ring: "ring-[#1cb0f6]" },
-  daily_nudge: { emoji: "⏱", bg: "bg-[#e5f8d0]", ring: "ring-[#89e219]" },
-  comeback: { emoji: "🍅", bg: "bg-[#ffdfe0]", ring: "ring-[#ff4b4b]" },
-  focus_complete: { emoji: "✅", bg: "bg-[#e5f8d0]", ring: "ring-[#58cc02]" },
-};
-
 const SAMPLE_WEEK = [
   { label: "Sa", completed: true },
   { label: "Su", completed: true, highlight: true },
@@ -23,6 +13,22 @@ const SAMPLE_WEEK = [
   { label: "Fr", completed: false, today: true },
 ];
 
+const SAMPLE_BOARD = [
+  { rank: 1, name: "Maya", minutes: "5h 10m" },
+  { rank: 2, name: "Alex", minutes: "4h 25m" },
+  { rank: 3, name: "Sam", minutes: "4h" },
+  { rank: 4, name: "Jordan", minutes: "3h 18m" },
+  { rank: 5, name: "Riley", minutes: "2h 55m" },
+  { rank: 15, name: "You", minutes: "1h 35m", isYou: true, gapBefore: true },
+];
+
+function rankBadgeClass(rank) {
+  if (rank === 1) return "bg-[#ffc800] text-[#3c3c3c]";
+  if (rank === 2) return "bg-[#e5e5e5] text-[#3c3c3c]";
+  if (rank === 3) return "bg-[#ff9600] text-white";
+  return "bg-[#f0f0f0] text-[#777777]";
+}
+
 function NonDragImg({ src, alt = "", className = "" }) {
   return (
     <img
@@ -32,40 +38,6 @@ function NonDragImg({ src, alt = "", className = "" }) {
       onDragStart={(e) => e.preventDefault()}
       className={`select-none [-webkit-user-drag:none] pointer-events-none ${className}`}
     />
-  );
-}
-
-function InAppPreview({ title, plainBody, type }) {
-  const meta = TYPE_META[type] ?? {
-    emoji: "🔔",
-    bg: "bg-[#f0f0f0]",
-    ring: "ring-[#e5e5e5]",
-  };
-  return (
-    <div className="bg-[#f7fcf0] px-3 py-3.5">
-      <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.14em] text-[#afafaf]">
-        In-app
-      </p>
-      <div className="flex items-start gap-3">
-        <span
-          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-xl ring-2 ring-inset ${meta.bg} ${meta.ring}`}
-        >
-          {meta.emoji}
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start gap-2">
-            <p className="min-w-0 flex-1 text-[15px] font-bold leading-snug text-[#3c3c3c]">
-              {title || "Title"}
-            </p>
-            <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-[#58cc02]" />
-          </div>
-          <p className="mt-1 text-sm leading-relaxed text-[#777777] line-clamp-3 whitespace-pre-wrap">
-            {plainBody || "Body text"}
-          </p>
-          <p className="mt-1.5 text-xs font-medium text-[#afafaf]">just now</p>
-        </div>
-      </div>
-    </div>
   );
 }
 
@@ -154,6 +126,103 @@ function StreakEmailPreview({ title, plainBody, imageUrl, type, showProgress = t
   );
 }
 
+function LeaderboardEmailPreview({
+  title,
+  plainBody,
+  imageUrl,
+  type,
+  showLeaderboard = true,
+}) {
+  const footer =
+    type === "global_top"
+      ? "Defend your spot — the board resets every week."
+      : type === "rank_passed"
+        ? "One more pomodoro can flip the board again."
+        : "Climb the board with another pomodoro!";
+
+  return (
+    <div className="bg-white px-5 py-8 text-center">
+      <p className="mb-6 text-[10px] font-bold uppercase tracking-[0.14em] text-[#afafaf]">
+        Email · Leaderboard
+      </p>
+
+      <p className="text-[22px] font-extrabold tracking-tight text-[#e53e3e]">
+        pomopal
+      </p>
+
+      {imageUrl ? (
+        <NonDragImg
+          src={imageUrl}
+          className="mx-auto mt-5 max-h-28 w-auto object-contain"
+        />
+      ) : (
+        <p className="mt-5 text-5xl">👑</p>
+      )}
+
+      <h3 className="mt-6 text-[22px] font-extrabold leading-snug text-[#3c3c3c]">
+        {title || "Your week in focus"}
+      </h3>
+      {plainBody ? (
+        <p className="mt-2 text-sm leading-relaxed text-[#777777]">{plainBody}</p>
+      ) : null}
+
+      <button
+        type="button"
+        className="mt-6 rounded-2xl border-b-4 border-[#1899d6] bg-[#1cb0f6] px-7 py-3.5 text-[13px] font-extrabold uppercase tracking-wide text-white"
+      >
+        View leaderboard
+      </button>
+
+      {showLeaderboard ? (
+        <>
+          <p className="mt-10 text-lg font-extrabold text-[#3c3c3c]">
+            This week&apos;s leaderboard
+          </p>
+          <div className="mt-4 overflow-hidden rounded-2xl border-2 border-[#e5e5e5] text-left">
+            {SAMPLE_BOARD.map((row) => (
+              <div key={row.rank}>
+                {row.gapBefore ? (
+                  <div className="bg-[#fafafa] py-2 text-center text-sm font-extrabold tracking-[0.25em] text-[#afafaf]">
+                    ···
+                  </div>
+                ) : null}
+              <div
+                className={`flex items-center gap-3 border-b border-[#f0f0f0] px-3 py-2.5 last:border-0 ${
+                  row.isYou ? "bg-[#ddf4ff]" : "bg-white"
+                }`}
+              >
+                <span
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-extrabold ${rankBadgeClass(row.rank)}`}
+                >
+                  {row.rank}
+                </span>
+                <span
+                  className={`min-w-0 flex-1 truncate text-sm font-bold ${
+                    row.isYou ? "text-[#1cb0f6]" : "text-[#3c3c3c]"
+                  }`}
+                >
+                  {row.name}
+                  {row.isYou ? (
+                    <span className="ml-1.5 inline-block rounded-full bg-[#1cb0f6] px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-white">
+                      You
+                    </span>
+                  ) : null}
+                </span>
+                <span className="shrink-0 text-sm font-extrabold text-[#3c3c3c]">
+                  {row.minutes}
+                </span>
+              </div>
+              </div>
+            ))}
+          </div>
+        </>
+      ) : null}
+
+      <p className="mt-6 text-sm text-[#afafaf]">{footer}</p>
+    </div>
+  );
+}
+
 function EmailPreview({ title, body, imageUrl }) {
   return (
     <div className="bg-white px-6 py-8 text-center">
@@ -191,6 +260,7 @@ export default function NotificationPreview({
   imageUrl,
   type = "announcement",
   showProgress = true,
+  showLeaderboard = true,
   emptyMessage = "Fill in the message to see a preview",
 }) {
   const resolvedImage = imageUrl ? mediaUrl(imageUrl) : null;
@@ -200,6 +270,10 @@ export default function NotificationPreview({
     type === "streak_update" ||
     type === "streak_at_risk" ||
     type === "streak_milestone";
+  const isLeaderboard =
+    type === "weekly_rank" ||
+    type === "rank_passed" ||
+    type === "global_top";
 
   if (!show) {
     return (
@@ -210,8 +284,7 @@ export default function NotificationPreview({
   return (
     <div className="space-y-3">
       <p className="text-xs uppercase tracking-wide text-gray-500">Preview</p>
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <InAppPreview title={title} plainBody={plainBody} type={type} />
+      <div className="overflow-hidden rounded-xl border border-white/10">
         {isStreakUpdate ? (
           <StreakEmailPreview
             title={title}
@@ -219,6 +292,14 @@ export default function NotificationPreview({
             imageUrl={resolvedImage}
             type={type}
             showProgress={showProgress}
+          />
+        ) : isLeaderboard ? (
+          <LeaderboardEmailPreview
+            title={title}
+            plainBody={plainBody}
+            imageUrl={resolvedImage}
+            type={type}
+            showLeaderboard={showLeaderboard}
           />
         ) : (
           <EmailPreview title={title} body={body} imageUrl={resolvedImage} />

@@ -24,6 +24,30 @@ export default function EligibilityRulesHelp() {
           <span className="text-gray-300">Comeback</span> — 10am local after
           grace has ended and they&apos;ve been away
         </li>
+        <li>
+          <span className="text-gray-300">Focus complete</span> — after today&apos;s
+          1st / 3rd / 5th / 8th pomodoro (all users)
+        </li>
+        <li>
+          <span className="text-gray-300">Daily goal</span> — when they cross their
+          daily minute goal (default 25)
+        </li>
+        <li>
+          <span className="text-gray-300">Focus milestone</span> — lifetime minutes
+          hit 100 / 500 / 1k / 2.5k / 5k / 10k
+        </li>
+        <li>
+          <span className="text-gray-300">Weekly rank</span> — Monday 10am local
+          summary of last 7 days + global rank
+        </li>
+        <li>
+          <span className="text-gray-300">Rank passed</span> — you passed someone (or
+          they passed you) on the global week board
+        </li>
+        <li>
+          <span className="text-gray-300">Global top</span> — entered top 5 on the
+          global week leaderboard
+        </li>
       </ul>
 
       <h3 className="font-medium text-gray-200 pt-1">Who gets this template?</h3>
@@ -56,6 +80,11 @@ export default function EligibilityRulesHelp() {
           <code className="text-gray-300">showProgress</code> — set by the
           &quot;Include weekly progress&quot; checkbox (streak templates)
         </li>
+        <li>
+          <code className="text-gray-300">showLeaderboard</code> — set by the
+          &quot;Include leaderboard graphic&quot; checkbox (weekly rank / rank
+          passed / global top)
+        </li>
       </ul>
 
       <div className="text-xs space-y-2">
@@ -74,7 +103,33 @@ export default function EligibilityRulesHelp() {
         <code className="text-gray-300">{"{{streak}}"}</code>,{" "}
         <code className="text-gray-300">{"{{daysAway}}"}</code>,{" "}
         <code className="text-gray-300">{"{{graceDaysRemaining}}"}</code>,{" "}
-        <code className="text-gray-300">{"{{today}}"}</code>
+        <code className="text-gray-300">{"{{today}}"}</code>,{" "}
+        <code className="text-gray-300">{"{{minutes}}"}</code>,{" "}
+        <code className="text-gray-300">{"{{goal}}"}</code>,{" "}
+        <code className="text-gray-300">{"{{totalMinutes}}"}</code>,{" "}
+        <code className="text-gray-300">{"{{weekMinutes}}"}</code>,{" "}
+        <code className="text-gray-300">{"{{weekSessions}}"}</code>,{" "}
+        <code className="text-gray-300">{"{{rank}}"}</code>,{" "}
+        <code className="text-gray-300">{"{{rankLabel}}"}</code>{" "}
+        <span className="text-gray-500">(includes #)</span>,{" "}
+        <code className="text-gray-300">{"{{otherName}}"}</code>
+      </p>
+
+      <p className="text-xs text-gray-300 font-medium pt-1">If / else</p>
+      <pre className="bg-black/30 rounded p-2 overflow-x-auto text-gray-400 whitespace-pre-wrap text-xs">
+        {`{{#if streak > 7}}You're on a roll, {{username}}!{{else}}One day at a time.{{/if}}`}
+      </pre>
+      <pre className="bg-black/30 rounded p-2 overflow-x-auto text-gray-400 whitespace-pre-wrap text-xs">
+        {`{{#if streak > 30}}Legend{{else if streak > 7}}Solid{{else}}Starting out{{/if}}`}
+      </pre>
+      <p className="text-xs text-gray-300 font-medium pt-1">Randomize</p>
+      <pre className="bg-black/30 rounded p-2 overflow-x-auto text-gray-400 whitespace-pre-wrap text-xs">
+        {`{{randomize{You're crushing it!|Keep going!|One more!}}}`}
+      </pre>
+      <p className="text-xs text-gray-500">
+        Ops: <code className="text-gray-400">&gt; &gt;= &lt; &lt;= == !=</code>.
+        Also bare flags like{" "}
+        <code className="text-gray-400">{"{{#if isLastChance}}…{{/if}}"}</code>.
       </p>
 
       <p className="text-xs text-gray-500">

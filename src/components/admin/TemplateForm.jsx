@@ -8,22 +8,24 @@ import EligibilityRulesHelp from "@/components/admin/EligibilityRulesHelp";
 import RichTextEditor from "@/components/admin/RichTextEditor";
 import NotificationPreview from "@/components/admin/NotificationPreview";
 import { renderTemplate } from "@/utils/renderTemplate";
+import { NOTIFICATION_TYPE_OPTIONS } from "@/constants/notificationTypes";
 
 const SAMPLE_CONTEXT = {
   streak: 7,
   daysAway: 5,
   today: new Date().toISOString().slice(0, 10),
   username: "Rajeev",
+  minutes: 25,
+  goal: 25,
+  totalMinutes: 500,
+  weekMinutes: 120,
+  weekSessions: 6,
+  rank: 15,
+  rankLabel: "#15",
+  otherName: "Alex",
 };
 
-const NOTIFICATION_TYPES = [
-  { value: "streak_update", label: "Streak update (replaces at-risk)" },
-  { value: "streak_milestone", label: "Streak milestone" },
-  { value: "daily_nudge", label: "Daily nudge" },
-  { value: "comeback", label: "Comeback" },
-  { value: "announcement", label: "Announcement" },
-  { value: "focus_complete", label: "Focus complete" },
-];
+const NOTIFICATION_TYPES = NOTIFICATION_TYPE_OPTIONS;
 
 const emptyForm = {
   name: "",
@@ -32,6 +34,7 @@ const emptyForm = {
   body: "Your streak is on grace — one pomodoro today keeps it alive.",
   eligibility_rules: "{}",
   showProgress: true,
+  showLeaderboard: true,
   active: true,
 };
 
@@ -43,9 +46,25 @@ function supportsWeeklyProgress(type) {
   );
 }
 
+function supportsLeaderboardGraphic(type) {
+  return (
+    type === "weekly_rank" ||
+    type === "rank_passed" ||
+    type === "global_top"
+  );
+}
+
 function showProgressFromRules(rules, type) {
   if (!supportsWeeklyProgress(type)) return false;
   if (rules && typeof rules.showProgress === "boolean") return rules.showProgress;
+  return true;
+}
+
+function showLeaderboardFromRules(rules, type) {
+  if (!supportsLeaderboardGraphic(type)) return false;
+  if (rules && typeof rules.showLeaderboard === "boolean") {
+    return rules.showLeaderboard;
+  }
   return true;
 }
 
@@ -66,7 +85,8 @@ export default function TemplateForm({ initial, saving, onSubmit, onCancel }) {
     if (initial) {
       const rules = initial.eligibility_rules ?? {};
       const type = initial.type ?? "daily_nudge";
-      const { showProgress: _ignored, ...eligibilityOnly } = rules;
+      const { showProgress: _ignored, showLeaderboard: _ignoredBoard, ...eligibilityOnly } =
+        rules;
       setForm({
         name: initial.name ?? "",
         type,
@@ -74,6 +94,7 @@ export default function TemplateForm({ initial, saving, onSubmit, onCancel }) {
         body: initial.body ?? "",
         eligibility_rules: JSON.stringify(eligibilityOnly, null, 2),
         showProgress: showProgressFromRules(rules, type),
+        showLeaderboard: showLeaderboardFromRules(rules, type),
         active: initial.active ?? true,
       });
       setSelectedImageKey(imageKeyFromValue(initial.image_url));
@@ -120,6 +141,13 @@ export default function TemplateForm({ initial, saving, onSubmit, onCancel }) {
       rules = { ...rules, showProgress: Boolean(form.showProgress) };
     } else if (rules && "showProgress" in rules) {
       const { showProgress: _drop, ...rest } = rules;
+      rules = rest;
+    }
+
+    if (supportsLeaderboardGraphic(form.type)) {
+      rules = { ...rules, showLeaderboard: Boolean(form.showLeaderboard) };
+    } else if (rules && "showLeaderboard" in rules) {
+      const { showLeaderboard: _drop, ...rest } = rules;
       rules = rest;
     }
 
@@ -175,6 +203,9 @@ export default function TemplateForm({ initial, saving, onSubmit, onCancel }) {
                 showProgress: supportsWeeklyProgress(type)
                   ? prev.showProgress ?? true
                   : false,
+                showLeaderboard: supportsLeaderboardGraphic(type)
+                  ? prev.showLeaderboard ?? true
+                  : false,
               }));
             }}
             className="w-full h-10 rounded-md border border-white/20 bg-white/10 text-white px-3 text-sm"
@@ -203,6 +234,21 @@ export default function TemplateForm({ initial, saving, onSubmit, onCancel }) {
         </label>
       )}
 
+      {supportsLeaderboardGraphic(form.type) && (
+        <label className="flex items-center gap-2 text-sm text-gray-300">
+          <input
+            type="checkbox"
+            checked={form.showLeaderboard}
+            onChange={(e) => update("showLeaderboard", e.target.checked)}
+            className="rounded"
+          />
+          Include leaderboard graphic
+          <span className="text-xs text-gray-500">
+            (ranked list under the email CTA)
+          </span>
+        </label>
+      )}
+
       <div className="space-y-2">
         <label className="text-sm font-medium text-gray-300">Title</label>
         <Input
@@ -216,6 +262,28 @@ export default function TemplateForm({ initial, saving, onSubmit, onCancel }) {
       <div className="space-y-2">
         <label className="text-sm font-medium text-gray-300">Body</label>
         <RichTextEditor value={form.body} onChange={(html) => update("body", html)} />
+        <div className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs text-gray-400 space-y-1.5">
+          <p className="font-medium text-gray-300">If / else in title or body</p>
+          <code className="block whitespace-pre-wrap text-gray-400">
+            {`{{#if streak > 7}}You're on a roll, {{username}}!{{else}}One day at a time.{{/if}}`}
+          </code>
+          <code className="block whitespace-pre-wrap text-gray-400">
+            {`{{#if streak > 30}}Legend{{else if streak > 7}}Solid{{else}}Starting{{/if}}`}
+          </code>
+          <p className="font-medium text-gray-300 pt-1">Randomize</p>
+          <code className="block whitespace-pre-wrap text-gray-400">
+            {`{{randomize{You're crushing it!|Keep going!|One more pomodoro!}}}`}
+          </code>
+          <code className="block whitespace-pre-wrap text-gray-400">
+            {`{{#randomize}}Option A{{or}}Option B{{or}}Option C{{/randomize}}`}
+          </code>
+          <p>
+            Rank: prefer{" "}
+            <code className="text-gray-300">{"{{rankLabel}}"}</code> (e.g. #15)
+            or <code className="text-gray-300">{"{{rank}}"}</code> alone — avoid
+            a bare <code className="text-gray-300">#</code> with empty rank.
+          </p>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -263,6 +331,7 @@ export default function TemplateForm({ initial, saving, onSubmit, onCancel }) {
         imageUrl={previewImageUrl}
         type={form.type}
         showProgress={form.showProgress}
+        showLeaderboard={form.showLeaderboard}
         emptyMessage="Add a title and body to preview this template"
       />
 

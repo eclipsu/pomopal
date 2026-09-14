@@ -5,14 +5,11 @@ import { Bell } from "lucide-react";
 import { useNotifications } from "@/hooks/useNotifications";
 import { formatLastActive } from "@/utils/formatLastActive";
 
-const TYPE_ICON = {
-  announcement: "📢",
-  streak_at_risk: "🔥",
-  streak_milestone: "🏆",
-  daily_nudge: "⏱",
-  comeback: "🍅",
-  focus_complete: "✅",
-};
+import { NOTIFICATION_TYPE_META } from "@/constants/notificationTypes";
+
+const TYPE_ICON = Object.fromEntries(
+  Object.entries(NOTIFICATION_TYPE_META).map(([k, v]) => [k, v.emoji]),
+);
 
 function NotificationRow({ item, onRead }) {
   const unread = !item.read_at;
