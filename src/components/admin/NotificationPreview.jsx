@@ -3,76 +3,180 @@
 import { mediaUrl } from "@/utils/mediaUrl";
 import { hasPreviewContent, stripHtml } from "@/utils/renderTemplate";
 
-const TYPE_ICON = {
-  announcement: "📢",
-  streak_at_risk: "🔥",
-  streak_milestone: "🏆",
-  daily_nudge: "⏱",
-  comeback: "🍅",
-  focus_complete: "✅",
+const TYPE_META = {
+  announcement: { emoji: "📢", bg: "bg-[#ddf4ff]", ring: "ring-[#84d8ff]" },
+  streak_update: { emoji: "🔥", bg: "bg-[#fff4e5]", ring: "ring-[#ffc800]" },
+  streak_at_risk: { emoji: "🔥", bg: "bg-[#fff4e5]", ring: "ring-[#ffc800]" },
+  streak_milestone: { emoji: "🏆", bg: "bg-[#ddf4ff]", ring: "ring-[#1cb0f6]" },
+  daily_nudge: { emoji: "⏱", bg: "bg-[#e5f8d0]", ring: "ring-[#89e219]" },
+  comeback: { emoji: "🍅", bg: "bg-[#ffdfe0]", ring: "ring-[#ff4b4b]" },
+  focus_complete: { emoji: "✅", bg: "bg-[#e5f8d0]", ring: "ring-[#58cc02]" },
 };
 
-function InAppPreview({ title, plainBody, type }) {
+const SAMPLE_WEEK = [
+  { label: "Sa", completed: true },
+  { label: "Su", completed: true, highlight: true },
+  { label: "Mo", completed: true },
+  { label: "Tu", completed: true },
+  { label: "We", completed: true },
+  { label: "Th", completed: false },
+  { label: "Fr", completed: false, today: true },
+];
+
+function NonDragImg({ src, alt = "", className = "" }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-[#1a1d24] overflow-hidden">
-      <p className="text-[10px] uppercase tracking-wide text-gray-500 px-3 py-2 border-b border-white/5">
+    <img
+      src={src}
+      alt={alt}
+      draggable={false}
+      onDragStart={(e) => e.preventDefault()}
+      className={`select-none [-webkit-user-drag:none] pointer-events-none ${className}`}
+    />
+  );
+}
+
+function InAppPreview({ title, plainBody, type }) {
+  const meta = TYPE_META[type] ?? {
+    emoji: "🔔",
+    bg: "bg-[#f0f0f0]",
+    ring: "ring-[#e5e5e5]",
+  };
+  return (
+    <div className="bg-[#f7fcf0] px-3 py-3.5">
+      <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.14em] text-[#afafaf]">
         In-app
       </p>
-      <div className="px-3 py-3">
-        <div className="flex gap-2 items-start">
-          <span className="text-base shrink-0">{TYPE_ICON[type] ?? "🔔"}</span>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm text-white font-medium truncate">{title || "Title"}</p>
-            <p className="text-xs text-gray-500 line-clamp-3 mt-0.5 whitespace-pre-wrap">
-              {plainBody || "Body text"}
+      <div className="flex items-start gap-3">
+        <span
+          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-xl ring-2 ring-inset ${meta.bg} ${meta.ring}`}
+        >
+          {meta.emoji}
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start gap-2">
+            <p className="min-w-0 flex-1 text-[15px] font-bold leading-snug text-[#3c3c3c]">
+              {title || "Title"}
             </p>
-            <p className="text-[10px] text-gray-600 mt-1">just now</p>
+            <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-[#58cc02]" />
           </div>
-          <span className="w-2 h-2 rounded-full bg-red-500 shrink-0 mt-1.5" />
+          <p className="mt-1 text-sm leading-relaxed text-[#777777] line-clamp-3 whitespace-pre-wrap">
+            {plainBody || "Body text"}
+          </p>
+          <p className="mt-1.5 text-xs font-medium text-[#afafaf]">just now</p>
         </div>
       </div>
     </div>
   );
 }
 
+function DayCircle({ day }) {
+  if (day.completed && day.highlight) {
+    return (
+      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#ff9600] text-sm font-bold text-white">
+        ✓
+      </div>
+    );
+  }
+  if (day.completed) {
+    return (
+      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#1cb0f6] text-sm font-bold text-white">
+        ✓
+      </div>
+    );
+  }
+  if (day.today) {
+    return (
+      <div className="flex h-9 w-9 items-center justify-center rounded-full border-[3px] border-[#ff9600] bg-white text-sm font-bold text-[#ff9600]">
+        !
+      </div>
+    );
+  }
+  return <div className="h-9 w-9 rounded-full bg-[#e5e5e5]" />;
+}
+
+function StreakEmailPreview({ title, plainBody, imageUrl, type }) {
+  const footer =
+    type === "streak_milestone"
+      ? "You're on fire — keep it going tomorrow!"
+      : "Keep your streak alive with a pomodoro!";
+
+  return (
+    <div className="bg-white px-5 py-8 text-center">
+      <p className="mb-6 text-[10px] font-bold uppercase tracking-[0.14em] text-[#afafaf]">
+        Email · Streak update
+      </p>
+
+      <p className="text-[22px] font-extrabold tracking-tight text-[#e53e3e]">
+        pomopal
+      </p>
+
+      {imageUrl ? (
+        <NonDragImg
+          src={imageUrl}
+          className="mx-auto mt-5 max-h-28 w-auto object-contain"
+        />
+      ) : (
+        <p className="mt-5 text-5xl">🍅</p>
+      )}
+
+      <h3 className="mt-6 text-[22px] font-extrabold leading-snug text-[#3c3c3c]">
+        {title || "Keep your streak going?"}
+      </h3>
+      {plainBody ? (
+        <p className="mt-2 text-sm leading-relaxed text-[#777777]">{plainBody}</p>
+      ) : null}
+
+      <button
+        type="button"
+        className="mt-6 rounded-2xl border-b-4 border-[#1899d6] bg-[#1cb0f6] px-7 py-3.5 text-[13px] font-extrabold uppercase tracking-wide text-white"
+      >
+        Start a pomodoro
+      </button>
+
+      <p className="mt-10 text-lg font-extrabold text-[#3c3c3c]">
+        Your weekly progress
+      </p>
+      <div className="mt-4 flex justify-center gap-2">
+        {SAMPLE_WEEK.map((day) => (
+          <div key={day.label} className="flex w-9 flex-col items-center gap-2">
+            <span className="text-[11px] font-bold text-[#afafaf]">{day.label}</span>
+            <DayCircle day={day} />
+          </div>
+        ))}
+      </div>
+
+      <p className="mt-6 text-sm text-[#afafaf]">{footer}</p>
+    </div>
+  );
+}
+
 function EmailPreview({ title, body, imageUrl }) {
   return (
-    <div className="rounded-xl border border-white/10 overflow-hidden">
-      <p className="text-[10px] uppercase tracking-wide text-gray-500 px-3 py-2 border-b border-white/5 bg-white/5">
+    <div className="bg-white px-6 py-8 text-center">
+      <p className="mb-6 text-[10px] font-bold uppercase tracking-[0.14em] text-[#afafaf]">
         Email
       </p>
-      <div className="bg-[#f4f4f5] p-4">
-        <div className="mx-auto max-w-[320px] rounded-2xl bg-white overflow-hidden shadow-sm">
-          <div className="h-1 bg-[#e53e3e]" />
-          <div className="px-6 py-8 text-center">
-            <div className="mb-6">
-              <span className="text-4xl">🍅</span>
-              <p className="mt-2 text-[11px] font-semibold tracking-[0.2em] text-[#e53e3e] uppercase">
-                Pomopal
-              </p>
-            </div>
-            {imageUrl && (
-              <img
-                src={imageUrl}
-                alt=""
-                className="mx-auto mb-6 max-h-28 w-auto object-contain"
-              />
-            )}
-            <h3 className="text-lg font-bold text-gray-900 leading-tight">
-              {title || "Title"}
-            </h3>
-            <div
-              className="mt-3 text-sm text-gray-600 leading-relaxed text-center [&_a]:text-[#e53e3e] [&_ul]:list-disc [&_ul]:text-left [&_ul]:inline-block"
-              dangerouslySetInnerHTML={{
-                __html: body || "<p>Body text</p>",
-              }}
-            />
-          </div>
-          <div className="border-t border-gray-100 bg-gray-50 px-6 py-4 text-center text-[10px] text-gray-400 leading-relaxed">
-            You&apos;re getting this because you have notifications enabled on Pomopal.
-          </div>
-        </div>
+      <div className="mb-6">
+        <span className="text-4xl">🍅</span>
+        <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#e53e3e]">
+          Pomopal
+        </p>
       </div>
+      {imageUrl && (
+        <NonDragImg
+          src={imageUrl}
+          className="mx-auto mb-6 max-h-28 w-auto object-contain"
+        />
+      )}
+      <h3 className="text-lg font-bold leading-tight text-[#3c3c3c]">
+        {title || "Title"}
+      </h3>
+      <div
+        className="mt-3 text-center text-sm leading-relaxed text-[#777777] [&_a]:text-[#e53e3e] [&_ul]:inline-block [&_ul]:list-disc [&_ul]:text-left"
+        dangerouslySetInnerHTML={{
+          __html: body || "<p>Body text</p>",
+        }}
+      />
     </div>
   );
 }
@@ -87,21 +191,32 @@ export default function NotificationPreview({
   const resolvedImage = imageUrl ? mediaUrl(imageUrl) : null;
   const plainBody = stripHtml(body || "");
   const show = hasPreviewContent(title, body);
+  const isStreakUpdate =
+    type === "streak_update" ||
+    type === "streak_at_risk" ||
+    type === "streak_milestone";
 
   if (!show) {
     return (
-      <div className="rounded-xl border border-dashed border-white/15 p-8 text-center text-sm text-gray-500">
-        {emptyMessage}
-      </div>
+      <div className="p-8 text-center text-sm text-gray-500">{emptyMessage}</div>
     );
   }
 
   return (
     <div className="space-y-3">
       <p className="text-xs uppercase tracking-wide text-gray-500">Preview</p>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <InAppPreview title={title} plainBody={plainBody} type={type} />
-        <EmailPreview title={title} body={body} imageUrl={resolvedImage} />
+        {isStreakUpdate ? (
+          <StreakEmailPreview
+            title={title}
+            plainBody={plainBody}
+            imageUrl={resolvedImage}
+            type={type}
+          />
+        ) : (
+          <EmailPreview title={title} body={body} imageUrl={resolvedImage} />
+        )}
       </div>
     </div>
   );
