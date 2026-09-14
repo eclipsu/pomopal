@@ -227,6 +227,12 @@ function BackgroundPanel() {
   const setBackgroundImageName = useSpaceStore((s) => s.setBackgroundImageName);
   const setBackgroundImageUrl = useSpaceStore((s) => s.setBackgroundImageUrl);
   const setBackgroundFit = useSpaceStore((s) => s.setBackgroundFit);
+  const backgroundOverlayOpacity = useSpaceStore(
+    (s) => s.backgroundOverlayOpacity,
+  );
+  const setBackgroundOverlayOpacity = useSpaceStore(
+    (s) => s.setBackgroundOverlayOpacity,
+  );
   const setBackgroundGif = useSpaceStore((s) => s.setBackgroundGif);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -387,6 +393,35 @@ function BackgroundPanel() {
             Fill crops to cover · Fit shows full image · Stretch warps to
             screen · Tile repeats
           </p>
+        </ConfigCard>
+      )}
+
+      {showFit && (
+        <ConfigCard title="Overlay tint" icon={Sparkles}>
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between text-sm text-white/60">
+              <span>None</span>
+              <span className="font-medium text-white">
+                {backgroundOverlayOpacity}%
+              </span>
+              <span>Darker</span>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={80}
+              step={5}
+              value={backgroundOverlayOpacity}
+              onChange={(e) =>
+                setBackgroundOverlayOpacity(Number(e.target.value))
+              }
+              className="w-full accent-blue-500"
+              aria-label="Background overlay darkness"
+            />
+            <p className="text-xs text-white/40">
+              Darkens the background so timer text stands out more.
+            </p>
+          </div>
         </ConfigCard>
       )}
     </section>

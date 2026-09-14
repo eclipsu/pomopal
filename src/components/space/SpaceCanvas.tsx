@@ -19,9 +19,20 @@ export function SpaceCanvas({
   const box = buildTimerBoxCss(appearance);
   const text = buildTimerTextCss(appearance);
 
+  const overlayOpacity = appearance.backgroundOverlayOpacity ?? 0;
+
   return (
     <div className="relative h-full min-h-[28rem] w-full overflow-hidden" style={bg}>
-      <div className="pointer-events-none absolute inset-0" aria-hidden>
+      {overlayOpacity > 0 ? (
+        <div
+          className="pointer-events-none absolute inset-0 z-[1]"
+          style={{
+            backgroundColor: `rgba(0,0,0,${overlayOpacity / 100})`,
+          }}
+          aria-hidden
+        />
+      ) : null}
+      <div className="pointer-events-none absolute inset-0 z-[2]" aria-hidden>
         <div
           className="px-4 text-white flex flex-col justify-center items-center"
           style={box}

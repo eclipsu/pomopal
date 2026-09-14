@@ -11,6 +11,7 @@ const APPEARANCE_KEYS = [
   "backgroundGifUrl",
   "backgroundGifPreviewUrl",
   "backgroundGifId",
+  "backgroundOverlayOpacity",
   "timerFont",
   "timerFontSize",
   "timerColor",

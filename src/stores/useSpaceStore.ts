@@ -82,6 +82,8 @@ export interface SpaceAppearance {
   backgroundGifUrl: string | null;
   backgroundGifPreviewUrl: string | null;
   backgroundGifId: string | null;
+  /** 0–100: dark overlay on top of image/GIF backgrounds for text contrast */
+  backgroundOverlayOpacity: number;
   timerFont: TimerFontValue;
   timerFontSize: number;
   timerColor: string;
@@ -130,6 +132,7 @@ interface SpaceState extends SpaceAppearance {
   setBackgroundImageName: (name: string | null) => void;
   setBackgroundImageUrl: (url: string | null) => void;
   setBackgroundFit: (fit: BackgroundFit) => void;
+  setBackgroundOverlayOpacity: (opacity: number) => void;
   setBackgroundGif: (gif: {
     id: string;
     url: string;
@@ -409,6 +412,7 @@ const DEFAULT_APPEARANCE: SpaceAppearance = {
   backgroundGifUrl: null,
   backgroundGifPreviewUrl: null,
   backgroundGifId: null,
+  backgroundOverlayOpacity: 0,
   timerFont: "inherit",
   timerFontSize: 96,
   timerColor: DEFAULT_TIMER_COLOR,
@@ -501,6 +505,17 @@ export const useSpaceStore = create<SpaceState>((set, get) => ({
     if (!get().spaceCanEdit) return;
     if (!isAllowedFit(fit)) return;
     set({ backgroundFit: fit });
+  },
+
+  setBackgroundOverlayOpacity: (opacity) => {
+    if (!get().spaceCanEdit) return;
+    if (!Number.isFinite(opacity)) return;
+    set({
+      backgroundOverlayOpacity: Math.min(
+        80,
+        Math.max(0, Math.round(opacity)),
+      ),
+    });
   },
 
   setBackgroundGif: (gif) => {

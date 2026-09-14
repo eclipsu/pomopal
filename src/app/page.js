@@ -124,6 +124,12 @@ function useTimer() {
     setFinished(false);
   }, []);
 
+  const extend = useCallback((secondsToAdd) => {
+    if (!Number.isFinite(secondsToAdd) || secondsToAdd <= 0) return;
+    setDuration((d) => (d != null ? d + secondsToAdd : d));
+    setRemaining((r) => (r != null ? r + secondsToAdd : r));
+  }, []);
+
   const getElapsedSeconds = useCallback(() => {
     if (!startTime) return 0;
     const elapsed = Math.floor((Date.now() - startTime) / 1000);
@@ -147,7 +153,17 @@ function useTimer() {
     return () => clearInterval(id);
   }, [ticking, startTime, duration]);
 
-  return { ticking, remaining, duration, begin, pause, reset, finished, getElapsedSeconds };
+  return {
+    ticking,
+    remaining,
+    duration,
+    begin,
+    pause,
+    reset,
+    extend,
+    finished,
+    getElapsedSeconds,
+  };
 }
 
 export default function Home() {
@@ -213,6 +229,7 @@ function HomeContent() {
     begin,
     pause,
     reset,
+    extend,
     finished,
     getElapsedSeconds,
   } = useTimer();
@@ -547,6 +564,31 @@ function HomeContent() {
     stopAlarmPlayback();
   };
 
+  const handleAddMinutes = useCallback(
+    (mins) => {
+      if (remaining == null || remaining <= 0 || remaining > 300) return;
+      if (timerDuration == null) return;
+
+      const secondsToAdd = mins * 60;
+      extend(secondsToAdd);
+
+      const savedStr = localStorage.getItem("activeSession");
+      if (savedStr) {
+        try {
+          const parsed = JSON.parse(savedStr);
+          localStorage.setItem(
+            "activeSession",
+            JSON.stringify({
+              ...parsed,
+              duration: timerDuration + secondsToAdd,
+            }),
+          );
+        } catch {}
+      }
+    },
+    [remaining, timerDuration, extend],
+  );
+
   const handleSwitchRequest = async (idx) => {
     if (ticking) {
       setPendingSelected(idx);
@@ -880,6 +922,7 @@ function HomeContent() {
     () => buildBackgroundCss(spaceAppearance),
     [spaceAppearance],
   );
+  const backgroundOverlayOpacity = spaceAppearance.backgroundOverlayOpacity ?? 0;
 
   useEffect(() => {
     if (!Array.isArray(customFonts)) return;
@@ -931,11 +974,20 @@ function HomeContent() {
     <>
       <div
         ref={mainShellRef}
-        className="flex h-dvh overflow-x-hidden bg-gray-900 [&:fullscreen]:flex [&:fullscreen]:h-full [&:fullscreen]:w-full [&:fullscreen]:bg-gray-900 [&:-webkit-full-screen]:flex [&:-webkit-full-screen]:h-full [&:-webkit-full-screen]:w-full"
+        className="relative flex h-dvh overflow-x-hidden bg-gray-900 [&:fullscreen]:flex [&:fullscreen]:h-full [&:fullscreen]:w-full [&:fullscreen]:bg-gray-900 [&:-webkit-full-screen]:flex [&:-webkit-full-screen]:h-full [&:-webkit-full-screen]:w-full"
         style={pageBackgroundStyle}
       >
+        {backgroundOverlayOpacity > 0 ? (
+          <div
+            className="pointer-events-none absolute inset-0 z-0"
+            style={{
+              backgroundColor: `rgba(0,0,0,${backgroundOverlayOpacity / 100})`,
+            }}
+            aria-hidden
+          />
+        ) : null}
         <div
-          className={`relative flex h-full min-w-0 flex-1 flex-col overflow-visible transition-all duration-200 ease-in-out ${
+          className={`relative z-[1] flex h-full min-w-0 flex-1 flex-col overflow-visible transition-all duration-200 ease-in-out ${
             showFriends ? "md:mr-60" : ""
           }`}
         >
@@ -969,6 +1021,8 @@ function HomeContent() {
               hideSessionTabs={hideSessionTabs}
               onPlayPause={handleStartOrPause}
               onReset={handleReset}
+              remainingSeconds={remaining}
+              onAddMinutes={handleAddMinutes}
               canReset={
                 ticking || remaining != null || alarmPlaying || Boolean(sessionId)
               }

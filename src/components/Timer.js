@@ -10,6 +10,8 @@ export default function PomodoroTimer({
   onPlayPause,
   onReset,
   canReset = false,
+  remainingSeconds = null,
+  onAddMinutes,
   isTimesUp,
   muteAlarm,
   boxStyle,
@@ -24,6 +26,10 @@ export default function PomodoroTimer({
   const mins = String(getTime()).padStart(2, "0");
   const secs = String(seconds).padStart(2, "0");
   const showNameInput = selected === 0;
+  const showExtendButtons =
+    remainingSeconds != null &&
+    remainingSeconds > 0 &&
+    remainingSeconds <= 300;
 
   return (
     <div
@@ -144,6 +150,24 @@ export default function PomodoroTimer({
               />
             </button>
           </div>
+          {showExtendButtons && (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => onAddMinutes?.(1)}
+                className="rounded-lg border border-white/25 bg-white/10 px-3 py-1.5 text-xs font-medium text-white transition-all hover:bg-white/20 active:scale-[0.96] sm:text-sm"
+              >
+                +1 min
+              </button>
+              <button
+                type="button"
+                onClick={() => onAddMinutes?.(5)}
+                className="rounded-lg border border-white/25 bg-white/10 px-3 py-1.5 text-xs font-medium text-white transition-all hover:bg-white/20 active:scale-[0.96] sm:text-sm"
+              >
+                +5 min
+              </button>
+            </div>
+          )}
           {isTimesUp && (
             <button
               type="button"
