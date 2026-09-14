@@ -13,7 +13,7 @@ const SAMPLE_CONTEXT = {
   streak: 7,
   daysAway: 5,
   today: new Date().toISOString().slice(0, 10),
-  username: "username",
+  username: "Rajeev",
 };
 
 const NOTIFICATION_TYPES = [
