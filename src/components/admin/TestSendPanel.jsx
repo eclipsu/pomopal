@@ -193,7 +193,13 @@ export default function TestSendPanel({ templates = [] }) {
             <span className="text-gray-400">Body:</span> {result.body}
           </p>
           <p className="text-gray-500 text-xs">
-            Email {result.emailSent ? "sent" : "skipped (SMTP off or unchecked)"}
+            {!sendEmail
+              ? "Email skipped (unchecked)"
+              : result.emailConfigured === false
+                ? "Email not sent — SMTP is not configured on the server"
+                : result.emailSent
+                  ? "Email sent"
+                  : "In-app notification saved, but email delivery failed — check server logs"}
           </p>
         </div>
       )}
