@@ -70,12 +70,26 @@ function StreakEmailPreview({ title, plainBody, imageUrl, type, showProgress = t
   const footer =
     type === "streak_milestone"
       ? "You're on fire — keep it going tomorrow!"
-      : "Keep your streak alive with a pomodoro!";
+      : type === "daily_nudge"
+        ? "A short focus session is enough to get back into rhythm."
+        : type === "comeback"
+          ? "We're glad you're here — start with one pomodoro."
+          : type === "announcement"
+            ? "Thanks for being part of pomopal."
+            : "Keep your streak alive with a pomodoro!";
+
+  const canShowProgress =
+    showProgress &&
+    (type === "streak_update" ||
+      type === "streak_at_risk" ||
+      type === "streak_milestone" ||
+      type === "daily_nudge" ||
+      type === "comeback");
 
   return (
     <div className="bg-white px-5 py-8 text-center">
       <p className="mb-6 text-[10px] font-bold uppercase tracking-[0.14em] text-[#afafaf]">
-        Email · Streak update
+        Email
       </p>
 
       <p className="text-[22px] font-extrabold tracking-tight text-[#e53e3e]">
@@ -102,10 +116,10 @@ function StreakEmailPreview({ title, plainBody, imageUrl, type, showProgress = t
         type="button"
         className="mt-6 rounded-2xl border-b-4 border-[#1899d6] bg-[#1cb0f6] px-7 py-3.5 text-[13px] font-extrabold uppercase tracking-wide text-white"
       >
-        Start a pomodoro
+        {type === "announcement" ? "Open pomopal" : "Start a pomodoro"}
       </button>
 
-      {showProgress ? (
+      {canShowProgress ? (
         <>
           <p className="mt-10 text-lg font-extrabold text-[#3c3c3c]">
             Your weekly progress
@@ -223,37 +237,6 @@ function LeaderboardEmailPreview({
   );
 }
 
-function EmailPreview({ title, body, imageUrl }) {
-  return (
-    <div className="bg-white px-6 py-8 text-center">
-      <p className="mb-6 text-[10px] font-bold uppercase tracking-[0.14em] text-[#afafaf]">
-        Email
-      </p>
-      <div className="mb-6">
-        <span className="text-4xl">🍅</span>
-        <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#e53e3e]">
-          Pomopal
-        </p>
-      </div>
-      {imageUrl && (
-        <NonDragImg
-          src={imageUrl}
-          className="mx-auto mb-6 max-h-28 w-auto object-contain"
-        />
-      )}
-      <h3 className="text-lg font-bold leading-tight text-[#3c3c3c]">
-        {title || "Title"}
-      </h3>
-      <div
-        className="mt-3 text-center text-sm leading-relaxed text-[#777777] [&_a]:text-[#e53e3e] [&_ul]:inline-block [&_ul]:list-disc [&_ul]:text-left"
-        dangerouslySetInnerHTML={{
-          __html: body || "<p>Body text</p>",
-        }}
-      />
-    </div>
-  );
-}
-
 export default function NotificationPreview({
   title,
   body,
@@ -266,10 +249,6 @@ export default function NotificationPreview({
   const resolvedImage = imageUrl ? mediaUrl(imageUrl) : null;
   const plainBody = stripHtml(body || "");
   const show = hasPreviewContent(title, body);
-  const isStreakUpdate =
-    type === "streak_update" ||
-    type === "streak_at_risk" ||
-    type === "streak_milestone";
   const isLeaderboard =
     type === "weekly_rank" ||
     type === "rank_passed" ||
@@ -285,15 +264,7 @@ export default function NotificationPreview({
     <div className="space-y-3">
       <p className="text-xs uppercase tracking-wide text-gray-500">Preview</p>
       <div className="overflow-hidden rounded-xl border border-white/10">
-        {isStreakUpdate ? (
-          <StreakEmailPreview
-            title={title}
-            plainBody={plainBody}
-            imageUrl={resolvedImage}
-            type={type}
-            showProgress={showProgress}
-          />
-        ) : isLeaderboard ? (
+        {isLeaderboard ? (
           <LeaderboardEmailPreview
             title={title}
             plainBody={plainBody}
@@ -302,7 +273,13 @@ export default function NotificationPreview({
             showLeaderboard={showLeaderboard}
           />
         ) : (
-          <EmailPreview title={title} body={body} imageUrl={resolvedImage} />
+          <StreakEmailPreview
+            title={title}
+            plainBody={plainBody}
+            imageUrl={resolvedImage}
+            type={type}
+            showProgress={showProgress}
+          />
         )}
       </div>
     </div>

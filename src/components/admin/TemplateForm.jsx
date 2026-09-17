@@ -42,7 +42,9 @@ function supportsWeeklyProgress(type) {
   return (
     type === "streak_update" ||
     type === "streak_at_risk" ||
-    type === "streak_milestone"
+    type === "streak_milestone" ||
+    type === "daily_nudge" ||
+    type === "comeback"
   );
 }
 

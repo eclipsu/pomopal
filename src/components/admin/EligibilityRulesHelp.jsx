@@ -78,7 +78,8 @@ export default function EligibilityRulesHelp() {
         </li>
         <li>
           <code className="text-gray-300">showProgress</code> — set by the
-          &quot;Include weekly progress&quot; checkbox (streak templates)
+          &quot;Include weekly progress&quot; checkbox (streak / daily nudge /
+          comeback)
         </li>
         <li>
           <code className="text-gray-300">showLeaderboard</code> — set by the
@@ -133,8 +134,10 @@ export default function EligibilityRulesHelp() {
       </p>
 
       <p className="text-xs text-gray-500">
-        Streak update / at risk / milestone emails use the weekly-progress layout.
-        If templates exist for a type but none match the user, no notification is sent.
+        Emails use the flat pomopal layout (no cards). Weekly progress circles
+        show for streak / daily nudge / comeback when enabled. Leaderboard types
+        get the ranked list graphic. If templates exist for a type but none match
+        the user, no notification is sent.
       </p>
     </aside>
   );
