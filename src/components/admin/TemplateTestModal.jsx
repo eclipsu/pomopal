@@ -6,7 +6,7 @@ import Button from "@/components/Button";
 import Input from "@/components/Input";
 import NotificationPreview from "@/components/admin/NotificationPreview";
 import { useAdminUsers, useTestSendNotification } from "@/hooks/useAdminTestSend";
-import { renderTemplate } from "@/utils/renderTemplate";
+import { renderPlainTemplate } from "@/utils/renderTemplate";
 
 const SAMPLE_CONTEXT = {
   streak: 7,
@@ -28,8 +28,8 @@ export default function TemplateTestModal({ template, onClose }) {
   const preview = useMemo(() => {
     if (!template) return null;
     return {
-      title: renderTemplate(template.title, SAMPLE_CONTEXT),
-      body: renderTemplate(template.body, SAMPLE_CONTEXT),
+      title: renderPlainTemplate(template.title, SAMPLE_CONTEXT),
+      body: renderPlainTemplate(template.body, SAMPLE_CONTEXT),
       imageUrl: template.image_url,
       type: template.type,
     };

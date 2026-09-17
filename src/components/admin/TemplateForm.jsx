@@ -7,7 +7,7 @@ import ImageLibrarySelect from "@/components/admin/ImageLibrarySelect";
 import EligibilityRulesHelp from "@/components/admin/EligibilityRulesHelp";
 import RichTextEditor from "@/components/admin/RichTextEditor";
 import NotificationPreview from "@/components/admin/NotificationPreview";
-import { renderTemplate } from "@/utils/renderTemplate";
+import { renderPlainTemplate } from "@/utils/renderTemplate";
 import { NOTIFICATION_TYPE_OPTIONS } from "@/constants/notificationTypes";
 
 const SAMPLE_CONTEXT = {
@@ -112,11 +112,11 @@ export default function TemplateForm({ initial, saving, onSubmit, onCancel }) {
   const update = (field, value) => setForm((prev) => ({ ...prev, [field]: value }));
 
   const previewTitle = useMemo(
-    () => renderTemplate(form.title, SAMPLE_CONTEXT),
+    () => renderPlainTemplate(form.title, SAMPLE_CONTEXT),
     [form.title],
   );
   const previewBody = useMemo(
-    () => renderTemplate(form.body, SAMPLE_CONTEXT),
+    () => renderPlainTemplate(form.body, SAMPLE_CONTEXT),
     [form.body],
   );
 

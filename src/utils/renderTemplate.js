@@ -251,6 +251,23 @@ function renderBlocks(text, context) {
   return out;
 }
 
+export function stripHtml(html) {
+  if (!html) return "";
+  return html
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n")
+    .replace(/<\/div>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 export function renderTemplate(text, context = {}) {
   if (!text) return "";
   return renderBlocks(text, context).replace(/\{\{(\w+)\}\}/g, (_, key) => {
@@ -259,15 +276,9 @@ export function renderTemplate(text, context = {}) {
   });
 }
 
-export function stripHtml(html) {
-  if (!html) return "";
-  return html
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/p>/gi, "\n")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&nbsp;/gi, " ")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
+/** Notification templates: strip rich-text tags before {{randomize}} / if-else. */
+export function renderPlainTemplate(text, context = {}) {
+  return renderTemplate(stripHtml(text ?? ""), context);
 }
 
 export function hasPreviewContent(title, body) {

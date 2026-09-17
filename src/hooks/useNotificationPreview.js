@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { hasPreviewContent, renderTemplate } from "@/utils/renderTemplate";
+import { hasPreviewContent, renderPlainTemplate } from "@/utils/renderTemplate";
 
 const DEFAULT_CONTEXT = () => ({
   streak: 7,
@@ -24,15 +24,15 @@ export function buildLocalPreview({
     const t = templates.find((x) => x.id === templateId);
     if (!t) return null;
     return {
-      title: renderTemplate(t.title, ctx),
-      body: renderTemplate(t.body, ctx),
+      title: renderPlainTemplate(t.title, ctx),
+      body: renderPlainTemplate(t.body, ctx),
       type: t.type,
       imageUrl: t.image_url,
     };
   }
 
-  const renderedTitle = renderTemplate(title.trim() || fallbackTitle, ctx);
-  const renderedBody = renderTemplate(body || fallbackBody, ctx);
+  const renderedTitle = renderPlainTemplate(title.trim() || fallbackTitle, ctx);
+  const renderedBody = renderPlainTemplate(body || fallbackBody, ctx);
 
   if (!hasPreviewContent(renderedTitle, renderedBody)) return null;
 
