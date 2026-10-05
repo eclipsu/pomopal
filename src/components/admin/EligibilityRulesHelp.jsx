@@ -77,6 +77,20 @@ export default function EligibilityRulesHelp() {
           <em>last</em> grace day only
         </li>
         <li>
+          <code className="text-gray-300">requiresWinbackDay</code> — win-back
+          only: <code className="text-gray-300">3</code>,{" "}
+          <code className="text-gray-300">6</code>,{" "}
+          <code className="text-gray-300">9</code>,{" "}
+          <code className="text-gray-300">15</code> or{" "}
+          <code className="text-gray-300">30</code> days after suppression
+        </li>
+        <li>
+          <code className="text-gray-300">requiresLengthAdvice</code> — focus
+          insights only: <code className="text-gray-300">&quot;shorter&quot;</code>,{" "}
+          <code className="text-gray-300">&quot;longer&quot;</code> or{" "}
+          <code className="text-gray-300">&quot;keep&quot;</code>
+        </li>
+        <li>
           <code className="text-gray-300">showProgress</code> — set by the
           &quot;Include weekly progress&quot; checkbox (streak / daily nudge /
           comeback)

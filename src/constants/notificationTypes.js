@@ -11,6 +11,8 @@ export const NOTIFICATION_TYPE_OPTIONS = [
   { value: "weekly_rank", label: "Weekly rank" },
   { value: "rank_passed", label: "Rank passed" },
   { value: "global_top", label: "Global top" },
+  { value: "focus_insights", label: "Focus insights" },
+  { value: "winback", label: "Win-back (suppressed users)" },
   { value: "announcement", label: "Announcement" },
 ];
 
@@ -27,4 +29,6 @@ export const NOTIFICATION_TYPE_META = {
   weekly_rank: { emoji: "📊", bg: "bg-[#ddf4ff]", ring: "ring-[#84d8ff]" },
   rank_passed: { emoji: "📈", bg: "bg-[#fff4e5]", ring: "ring-[#ff9600]" },
   global_top: { emoji: "👑", bg: "bg-[#fff4e5]", ring: "ring-[#ffc800]" },
+  focus_insights: { emoji: "🧠", bg: "bg-[#f3e8ff]", ring: "ring-[#ce82ff]" },
+  winback: { emoji: "🥺", bg: "bg-[#ffdfe0]", ring: "ring-[#ff4b4b]" },
 };

@@ -13,6 +13,28 @@ const SAMPLE_CONTEXT = {
   daysAway: 5,
   today: new Date().toISOString().slice(0, 10),
   username: "username",
+  minutes: 25,
+  goal: 25,
+  sessionCount: 3,
+  weekMinutes: 120,
+  weekSessions: 6,
+  rank: 15,
+  otherName: "Alex",
+  direction: "passed_you",
+  // focus_insights
+  bestWindow: "9–11am",
+  bestWindowRate: 82,
+  otherWindowRate: 41,
+  windowIsClear: true,
+  currentLength: 50,
+  recommendedLength: 35,
+  lengthDelta: 15,
+  lengthAdvice: "shorter",
+  completionRate: 53,
+  sessionsAnalyzed: 24,
+  quitMinute: 34,
+  // winback: 3 | 6 | 9 | 15 | 30
+  winbackDay: 3,
 };
 
 export default function TemplateTestModal({ template, onClose }) {

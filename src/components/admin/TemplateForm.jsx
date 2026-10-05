@@ -23,6 +23,22 @@ const SAMPLE_CONTEXT = {
   rank: 15,
   rankLabel: "#15",
   otherName: "Alex",
+  direction: "passed_you",
+  sessionCount: 3,
+  // focus_insights
+  bestWindow: "9–11am",
+  bestWindowRate: 82,
+  otherWindowRate: 41,
+  windowIsClear: true,
+  currentLength: 50,
+  recommendedLength: 35,
+  lengthDelta: 15,
+  lengthAdvice: "shorter",
+  completionRate: 53,
+  sessionsAnalyzed: 24,
+  quitMinute: 34,
+  // winback: 3 | 6 | 9 | 15 | 30
+  winbackDay: 3,
 };
 
 const NOTIFICATION_TYPES = NOTIFICATION_TYPE_OPTIONS;
