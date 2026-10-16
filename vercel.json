@@ -2,11 +2,11 @@
   "rewrites": [
     {
       "source": "/fonts/:path*",
-      "destination": "http://3.150.110.6/fonts/:path*"
+      "destination": "http://13.232.92.224/fonts/:path*"
     },
     {
       "source": "/api/:path*",
-      "destination": "http://3.150.110.6/:path*"
+      "destination": "http://13.232.92.224/:path*"
     }
   ]
 }
