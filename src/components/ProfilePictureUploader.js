@@ -94,6 +94,7 @@ export default function ProfilePictureUploader({
     createPortal(
       <AnimatePresence>
         <motion.div
+          data-keep-open
           className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 p-4"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

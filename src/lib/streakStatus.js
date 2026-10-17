@@ -29,6 +29,14 @@ export function deriveStreakStatus(streak) {
 
   if (lastActive === today || lastFocusLocal === today) return "active";
 
+  // Backend status accounts for freezes and streak pauses.
+  if (streak?.status === "active" || streak?.status === "at_risk") {
+    return streak.status;
+  }
+  if (streak?.status === "broken" || streak?.status === "none") {
+    return "inactive";
+  }
+
   if (lastActive) {
     const gap = daysBetweenYmd(lastActive, today);
     if (gap >= 1 && gap <= STREAK_GRACE_DAYS) return "at_risk";
@@ -55,7 +63,15 @@ export const STREAK_STATUS_LABELS = {
   inactive: "No active streak",
 };
 
-export function streakAtRiskMessage(streakCount, graceDaysRemaining) {
+export function streakAtRiskMessage(
+  streakCount,
+  graceDaysRemaining,
+  freezesPending = 0,
+) {
+  if (freezesPending > 0) {
+    const n = freezesPending === 1 ? "a freeze" : `${freezesPending} freezes`;
+    return `Your ${streakCount}-day streak is safe — ${n} covered the days you missed. Focus today to keep it.`;
+  }
   const days =
     typeof graceDaysRemaining === "number" ? graceDaysRemaining : null;
   if (days === 0) {

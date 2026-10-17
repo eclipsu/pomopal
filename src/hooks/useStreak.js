@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axiosClient from "@/utils/axios";
 import { useUser } from "@/hooks/useUser";
 import { deriveStreakStatus } from "@/lib/streakStatus";
@@ -30,6 +30,23 @@ export function useStreak(options = {}) {
     longestStreak: query.data?.longest_streak ?? 0,
     lastActiveDate: query.data?.last_active_date ?? null,
     graceDaysRemaining: query.data?.grace_days_remaining ?? null,
+    freezes: query.data?.freezes ?? 0,
+    maxFreezes: query.data?.max_freezes ?? 2,
+    freezeProgress: query.data?.freeze_progress ?? 0,
+    freezeEarnEvery: query.data?.freeze_earn_every ?? 5,
+    freezesPending: query.data?.freezes_pending ?? 0,
+    pausedToday: query.data?.paused_today ?? false,
+    repair: query.data?.repair ?? null,
+    /** Older backends don't have freezes/repair; hide that UI. */
+    protectionSupported: query.data?.max_freezes != null,
     status,
   };
+}
+
+export function useRepairStreak() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => (await axiosClient.post("/streaks/repair")).data,
+    onSuccess: (data) => queryClient.setQueryData(["streak"], data),
+  });
 }

@@ -1,4 +1,29 @@
 import { Minimize2, Pause, Play, RotateCcw } from "lucide-react";
+import TimerFace from "@/components/timer/TimerFace";
+
+/** Round iOS-style button, themed: glass fill inside a thin outer ring. */
+function GlassButton({ label, onClick, disabled, primary = false }) {
+  return (
+    <span
+      className={`inline-flex rounded-full border p-[3px] transition ${
+        primary ? "border-white/40" : "border-white/20"
+      } ${disabled ? "opacity-40" : ""}`}
+    >
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={disabled}
+        className={`flex h-16 w-16 items-center justify-center rounded-full text-sm font-semibold backdrop-blur transition active:scale-95 disabled:cursor-not-allowed sm:h-[4.5rem] sm:w-[4.5rem] ${
+          primary
+            ? "bg-white text-gray-900 hover:bg-red-50"
+            : "bg-white/10 text-white hover:bg-white/20"
+        }`}
+      >
+        {label}
+      </button>
+    </span>
+  );
+}
 
 export default function PomodoroTimer({
   selected,
@@ -21,6 +46,12 @@ export default function PomodoroTimer({
   sessionNameDisabled = false,
   pageFullscreen = false,
   onExitPageFullscreen,
+  timerStyle = "digital",
+  progress = 1,
+  totalSeconds = 0,
+  hasStarted = false,
+  cycleDone = 0,
+  cycleTotal = 0,
 }) {
   const options = ["Pomodoro", "Short Break", "Long Break"];
   const mins = String(getTime()).padStart(2, "0");
@@ -74,6 +105,25 @@ export default function PomodoroTimer({
           ))}
         </div>
 
+        {cycleTotal > 1 && (
+          <div
+            className={`mt-2 flex items-center gap-1.5 transition-opacity duration-500 ${
+              hideSessionTabs ? "opacity-0" : "opacity-100"
+            }`}
+            title={`${cycleDone} of ${cycleTotal} pomodoros until a long break`}
+            aria-label={`${cycleDone} of ${cycleTotal} pomodoros until a long break`}
+          >
+            {Array.from({ length: cycleTotal }, (_, i) => (
+              <span
+                key={i}
+                className={`h-1.5 w-1.5 rounded-full ${
+                  i < cycleDone ? "bg-white/80" : "bg-white/20"
+                }`}
+              />
+            ))}
+          </div>
+        )}
+
         <div
           className={`group/name w-full max-w-[12rem] transition-all duration-500 ease-in-out sm:max-w-[14rem] ${
             showNameInput && !ticking
@@ -108,16 +158,30 @@ export default function PomodoroTimer({
             hideSessionTabs ? "my-2 sm:my-4" : "my-4 sm:my-8 md:my-10"
           }`}
         >
-          <p
-            className="m-0 max-w-full min-w-[7ch] select-none text-center font-bold tabular-nums tracking-wider sm:min-w-[9ch] md:min-w-[10ch]"
-            style={textStyle}
-            aria-live="polite"
-          >
-            {mins}:{secs}
-          </p>
+          <TimerFace
+            timerStyle={timerStyle}
+            mins={mins}
+            secs={secs}
+            progress={progress}
+            totalSeconds={totalSeconds}
+            remainingSeconds={remainingSeconds}
+            ticking={ticking}
+            mode={selected}
+            textStyle={textStyle}
+          />
         </div>
 
         <div className="flex shrink-0 flex-col items-center gap-1.5 sm:gap-3">
+          {timerStyle === "glass" ? (
+            <div className="mt-1 flex w-[min(68vmin,20rem)] items-center justify-between sm:mt-0">
+              <GlassButton label="Cancel" onClick={onReset} disabled={!canReset} />
+              <GlassButton
+                label={ticking ? "Pause" : hasStarted ? "Resume" : "Start"}
+                onClick={onPlayPause}
+                primary={!ticking}
+              />
+            </div>
+          ) : (
           <div className="flex items-center gap-2 sm:gap-3">
             <button
               type="button"
@@ -150,6 +214,7 @@ export default function PomodoroTimer({
               />
             </button>
           </div>
+          )}
           {showExtendButtons && (
             <div className="flex items-center gap-2">
               <button

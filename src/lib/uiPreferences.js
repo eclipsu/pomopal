@@ -5,6 +5,8 @@ export const DEFAULT_UI_PREFERENCES = {
   hideChromeWhileFocusing: false,
   /** Permanently hide the footer on the timer page */
   hideFooter: false,
+  /** Timer face: digital | ring | ios | clock | line (a space can override) */
+  timerStyle: "digital",
 };
 
 export function readUiPreferences() {

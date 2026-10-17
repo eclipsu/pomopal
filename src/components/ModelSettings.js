@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { FiX } from "react-icons/fi";
 import Button from "./Button";
 import { useUser } from "@/hooks/useUser";
@@ -7,6 +7,10 @@ import PrivacySettings from "./PrivacySettings";
 import NotificationSettings from "./NotificationSettings";
 import SoundSettings from "./SoundSettings";
 import AvatarSettings from "./AvatarSettings";
+import { useDismiss } from "@/hooks/useDismiss";
+import { TIMER_STYLES } from "@/lib/timerStyles";
+import TimerStyleIcon from "@/components/timer/TimerStyleIcon";
+import { DEFAULT_LONG_BREAK_INTERVAL } from "@/lib/pomodoroCycle";
 
 function ModelSettings({
   pomodoro,
@@ -22,18 +26,29 @@ function ModelSettings({
   setHideChromeWhileFocusing,
   hideFooter = false,
   setHideFooter,
+  longBreakInterval = DEFAULT_LONG_BREAK_INTERVAL,
+  longBreakIntervalRef,
+  timerStyle = "digital",
+  setTimerStyle,
+  spaceTimerStyle = null,
 }) {
   const { user } = useUser();
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState([]);
   const [success, setSuccess] = useState(false);
   const successTimerRef = useRef(null);
+  const panelRef = useRef(null);
+  const close = useCallback(() => setOpenSettings(false), [setOpenSettings]);
+  useDismiss(panelRef, openSettings, close);
 
   useEffect(() => {
     if (pomodoroRef.current) pomodoroRef.current.value = pomodoro;
     if (shortBreakRef.current) shortBreakRef.current.value = shortBreaks;
     if (longBreakRef.current) longBreakRef.current.value = longBreaks;
-  }, [pomodoro, shortBreaks, longBreaks, openSettings]);
+    if (longBreakIntervalRef?.current) {
+      longBreakIntervalRef.current.value = longBreakInterval;
+    }
+  }, [pomodoro, shortBreaks, longBreaks, longBreakInterval, openSettings]);
 
   useEffect(() => {
     if (openSettings) {
@@ -91,6 +106,7 @@ function ModelSettings({
     >
       <div>
         <div
+          ref={panelRef}
           className={`p-5 rounded-md max-w-xl max-h-[90vh] overflow-y-auto bg-white absolute z-50 sm:w-86 w-11/12 left-1/2 top-1/2 ${openSettings ? "" : "hidden"}`}
           style={{ transform: "translate(-50%, -50%)" }}
         >
@@ -127,6 +143,23 @@ function ModelSettings({
               </div>
             ))}
           </div>
+
+          <label className="mt-4 flex items-center justify-between gap-4">
+            <span className="text-sm text-gray-500">
+              Long break after every
+            </span>
+            <span className="flex items-center gap-2 text-sm text-gray-500">
+              <input
+                ref={longBreakIntervalRef}
+                type="number"
+                min={1}
+                max={12}
+                aria-label="Pomodoros until a long break"
+                className="w-16 bg-gray-400 bg-opacity-30 py-2 rounded outline-none text-center text-gray-800"
+              />
+              pomodoros
+            </span>
+          </label>
 
           {errors.length > 0 && (
             <div className="mt-4 p-3 rounded-lg bg-red-50 border border-red-200">
@@ -167,6 +200,36 @@ function ModelSettings({
               <div className="flex items-center gap-2">Update Settings</div>
             )}
           </Button>
+
+          <div className="mt-5">
+            <div className="h-px w-full bg-gray-200 mb-4" />
+            <h2 className="text-sm font-medium text-gray-700">Timer style</h2>
+            {spaceTimerStyle && (
+              <p className="mt-1 text-xs text-gray-400">
+                Your current space sets its own style. This is used everywhere else.
+              </p>
+            )}
+            <div className="mt-2 grid grid-cols-5 gap-2" role="radiogroup" aria-label="Timer style">
+              {TIMER_STYLES.map((s) => (
+                <button
+                  key={s.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={timerStyle === s.value}
+                  title={s.hint}
+                  onClick={() => setTimerStyle?.(s.value)}
+                  className={`flex flex-col items-center gap-1 rounded-lg border px-1 py-2 text-xs transition ${
+                    timerStyle === s.value
+                      ? "border-blue-500 bg-blue-50 text-blue-700"
+                      : "border-gray-200 text-gray-600 hover:border-gray-300"
+                  }`}
+                >
+                  <TimerStyleIcon style={s.value} />
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          </div>
 
           <SoundSettings />
 

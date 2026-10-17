@@ -2,6 +2,7 @@ import axiosClient from "@/utils/axios";
 import { getApiBaseUrl, getUploadApiBaseUrl } from "@/utils/apiBase";
 import { librarySoundStreamUrl } from "@/lib/librarySoundSelection";
 import { resolveFontFaceUrl } from "@/lib/fontUrl";
+import { SPACE_TIMER_STYLE_ENABLED } from "@/lib/timerStyles";
 
 /** Canonical public path: /username/spacename-uuid */
 export function spacePath(space) {
@@ -244,6 +245,7 @@ export function appearanceToLayout(appearance, prefs) {
     timerOffsetX: appearance.timerOffsetX,
     timerOffsetY: appearance.timerOffsetY,
     timerScale: appearance.timerScale,
+    ...(SPACE_TIMER_STYLE_ENABLED ? { timerStyle: appearance.timerStyle ?? null } : {}),
     ringSoundId,
     focusSoundId,
   };
@@ -268,6 +270,7 @@ export function layoutToAppearancePatch(layout, title) {
     timerOffsetX: layout.timerOffsetX ?? 0,
     timerOffsetY: layout.timerOffsetY ?? 0,
     timerScale: layout.timerScale ?? 1,
+    timerStyle: SPACE_TIMER_STYLE_ENABLED ? (layout.timerStyle ?? null) : null,
     ringSoundId: layout.ringSoundId ?? null,
     focusSoundId: layout.focusSoundId ?? null,
   };

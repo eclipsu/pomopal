@@ -58,6 +58,25 @@ import {
 import Button from "@/components/Button";
 import { toast } from "react-toastify";
 import { bgLog } from "@/lib/backgroundAudioLog";
+import { SPACE_TIMER_STYLE_ENABLED, resolveTimerStyle } from "@/lib/timerStyles";
+import {
+  DEFAULT_LONG_BREAK_INTERVAL,
+  nextInCycle,
+  readCycleCount,
+  readLongBreakInterval,
+  writeCycleCount,
+  writeLongBreakInterval,
+} from "@/lib/pomodoroCycle";
+import {
+  cancelPauseNudge,
+  ensureNotificationPermission,
+  finishedCopy,
+  pauseNudgeCopy,
+  randomPauseNudgeDelay,
+  schedulePauseNudge,
+  showSystemNotification,
+} from "@/lib/focusNudges";
+import { useQueryClient } from "@tanstack/react-query";
 import { prefetchAudioSelection } from "@/lib/audioCache";
 
 function sessionSoundSnapshot(selection, fallback = {}) {
@@ -173,7 +192,15 @@ export default function Home() {
 function HomeContent() {
   const { user } = useUser();
   const [selected, setSelected] = useState(0);
-  const [defaults, setDefaults] = useState({ pomodoro: 25, shortBreak: 5, longBreak: 10 });
+  const [defaults, setDefaults] = useState({
+    pomodoro: 25,
+    shortBreak: 5,
+    longBreak: 10,
+    longBreakInterval: DEFAULT_LONG_BREAK_INTERVAL,
+  });
+  const [cycleCount, setCycleCount] = useState(0);
+  const [timerStylePref, setTimerStylePrefState] = useState("digital");
+  const queryClient = useQueryClient();
   const [openSettings, setOpenSettings] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [showFriends, setShowFriends] = useState(false);
@@ -198,12 +225,20 @@ function HomeContent() {
   const pomodoroRef = useRef();
   const shortBreakRef = useRef();
   const longBreakRef = useRef();
+  const longBreakIntervalRef = useRef();
   const alarmRef = useRef();
 
   useEffect(() => {
     const prefs = readUiPreferences();
     setHideChromeWhileFocusingState(Boolean(prefs.hideChromeWhileFocusing));
     setHideFooterState(Boolean(prefs.hideFooter));
+    setTimerStylePrefState(prefs.timerStyle);
+    setCycleCount(readCycleCount());
+  }, []);
+
+  const setTimerStylePref = useCallback((style) => {
+    setTimerStylePrefState(style);
+    writeUiPreferences({ ...readUiPreferences(), timerStyle: style });
   }, []);
 
   const setHideChromeWhileFocusing = useCallback((enabled) => {
@@ -459,6 +494,10 @@ function HomeContent() {
         pomodoro: user.pomodoro_minutes || 25,
         shortBreak: user.short_break_minutes || 5,
         longBreak: user.long_break_minutes || 15,
+        longBreakInterval:
+          user.long_break_interval ||
+          readLongBreakInterval() ||
+          DEFAULT_LONG_BREAK_INTERVAL,
       });
     } else {
       const stored = localStorage.getItem("pomodoroSettings");
@@ -469,6 +508,8 @@ function HomeContent() {
             pomodoro: parsed.pomodoro || 25,
             shortBreak: parsed.shortBreak || 5,
             longBreak: parsed.longBreak || 15,
+            longBreakInterval:
+              parsed.longBreakInterval || DEFAULT_LONG_BREAK_INTERVAL,
           });
         } catch {}
       }
@@ -528,15 +569,22 @@ function HomeContent() {
       } catch (e) {}
     }
 
+    ensureNotificationPermission();
+
     if (ticking) {
       pause();
       if (sessionId) await updateSession(false, user?.id);
+      if (selected === 0) void armPauseNudge();
       return;
     }
 
     if (sessionId && remaining != null && timerDuration != null) {
       const newStart = Date.now() - (timerDuration - remaining) * 1000;
       begin(newStart, timerDuration);
+      cancelPauseNudge();
+      if (!sessionId.startsWith("guest_")) {
+        axiosClient.patch(`/sessions/${sessionId}/resume`).catch(() => {});
+      }
       const savedStr = localStorage.getItem("activeSession");
       if (savedStr) {
         try {
@@ -554,10 +602,50 @@ function HomeContent() {
     );
   };
 
+  /**
+   * Paused a pomodoro: the backend schedules the in-app nudge (10–20 min);
+   * we mirror it as a system notification at the same moment. Guests, and
+   * backends without the pause endpoint, get a local-only nudge.
+   */
+  const armPauseNudge = async () => {
+    const minutesLeft = Math.max(1, Math.ceil((remaining ?? 0) / 60));
+    let nudgeAt = Date.now() + randomPauseNudgeDelay();
+    let serverNudge = false;
+    if (sessionId && !sessionId.startsWith("guest_") && user?.id) {
+      try {
+        const { data } = await axiosClient.patch(`/sessions/${sessionId}/pause`);
+        // Capped or turned off server-side — stay quiet.
+        if (!data?.nudge_at) return;
+        nudgeAt = new Date(data.nudge_at).getTime();
+        serverNudge = true;
+      } catch (err) {
+        if (err?.response?.status !== 404) return;
+      }
+    }
+
+    // Small buffer so the server-side notification exists before we read it.
+    schedulePauseNudge(nudgeAt + (serverNudge ? 5000 : 0), async () => {
+      let copy = pauseNudgeCopy(minutesLeft);
+      if (serverNudge) {
+        await queryClient.invalidateQueries({ queryKey: ["notifications"] });
+        const list = queryClient.getQueryData(["notifications", "list"]);
+        const items = Array.isArray(list) ? list : list?.items;
+        const latest = items?.find((n) => n.type === "focus_paused" && !n.read_at);
+        // No server nudge means it was capped or turned off — stay quiet.
+        if (!latest) return;
+        copy = { title: latest.title, body: latest.body };
+      }
+      if (!showSystemNotification({ ...copy, tag: "pause-nudge" })) {
+        toast(copy.body, { icon: "⏸️" });
+      }
+    });
+  };
+
   const handleStartOrPauseRef = useRef(handleStartOrPause);
   handleStartOrPauseRef.current = handleStartOrPause;
 
   const handleReset = async () => {
+    cancelPauseNudge();
     if (sessionId) await updateSession(false, user?.id);
     reset();
     clearSession();
@@ -590,6 +678,7 @@ function HomeContent() {
   );
 
   const handleSwitchRequest = async (idx) => {
+    cancelPauseNudge();
     if (ticking) {
       setPendingSelected(idx);
       setShowSwitchDialog(true);
@@ -707,8 +796,19 @@ function HomeContent() {
 
       if (!homeMountedRef.current) return;
 
-      const next = snapSelected === 0 ? 1 : snapSelected === 1 ? 2 : 0;
+      const cycle = nextInCycle(
+        snapSelected,
+        readCycleCount(),
+        snapDefaults.longBreakInterval,
+      );
+      const next = cycle.next;
+      writeCycleCount(cycle.count);
+      setCycleCount(cycle.count);
       setSelected(next);
+      showSystemNotification({
+        ...finishedCopy(snapSelected, next),
+        tag: "session-finished",
+      });
 
       if (!snapAutoStart) return;
       const minutes =
@@ -753,6 +853,7 @@ function HomeContent() {
     const pomodoroVal = Number(pomodoroRef.current.value);
     const shortVal = Number(shortBreakRef.current.value);
     const longVal = Number(longBreakRef.current.value);
+    const intervalVal = Number(longBreakIntervalRef.current.value);
 
     if (
       !Number.isInteger(pomodoroVal) ||
@@ -767,13 +868,19 @@ function HomeContent() {
     if (pomodoroVal > 120 || shortVal > 120 || longVal > 120) {
       throw new Error("Values must not exceed 120.");
     }
+    if (!Number.isInteger(intervalVal) || intervalVal < 1 || intervalVal > 12) {
+      throw new Error("Long break frequency must be between 1 and 12 pomodoros.");
+    }
 
     if (user?.id) {
       await axiosClient.patch("/user/settings", {
         pomodoro_minutes: pomodoroVal,
         short_break_minutes: shortVal,
         long_break_minutes: longVal,
+        // Older backends reject unknown fields; only send it when the API has it.
+        ...("long_break_interval" in user ? { long_break_interval: intervalVal } : {}),
       });
+      writeLongBreakInterval(intervalVal);
     } else {
       localStorage.setItem(
         "pomodoroSettings",
@@ -781,11 +888,17 @@ function HomeContent() {
           pomodoro: pomodoroVal,
           shortBreak: shortVal,
           longBreak: longVal,
+          longBreakInterval: intervalVal,
         }),
       );
     }
 
-    setDefaults({ pomodoro: pomodoroVal, shortBreak: shortVal, longBreak: longVal });
+    setDefaults({
+      pomodoro: pomodoroVal,
+      shortBreak: shortVal,
+      longBreak: longVal,
+      longBreakInterval: intervalVal,
+    });
     handleReset();
     setSelected(0);
   };
@@ -969,6 +1082,14 @@ function HomeContent() {
     sidebarOpen || (ticking && hideChromeWhileFocusing) || pageFullscreen;
   const hideFooterBar = hideFooter || hideNavFooter;
   const hideSessionTabs = ticking && hideChromeWhileFocusing;
+  const timerStyle = resolveTimerStyle(
+    SPACE_TIMER_STYLE_ENABLED ? spaceAppearance.timerStyle : null,
+    timerStylePref,
+  );
+  const totalSeconds = timerDuration ?? getModeDefaultMinutes() * 60;
+  const timerProgress =
+    remaining != null && totalSeconds > 0 ? remaining / totalSeconds : 1;
+  const longBreakEvery = defaults.longBreakInterval || DEFAULT_LONG_BREAK_INTERVAL;
 
   return (
     <>
@@ -1035,6 +1156,12 @@ function HomeContent() {
               sessionNameDisabled={Boolean(sessionId) || ticking}
               pageFullscreen={pageFullscreen}
               onExitPageFullscreen={exitPageFullscreen}
+              timerStyle={timerStyle}
+              progress={timerProgress}
+              totalSeconds={totalSeconds}
+              hasStarted={remaining != null}
+              cycleDone={cycleCount % longBreakEvery}
+              cycleTotal={longBreakEvery}
             />
             <SessionNamesPanel sessions={namedSessions} />
           </div>
@@ -1074,6 +1201,13 @@ function HomeContent() {
         pomodoroRef={pomodoroRef}
         shortBreakRef={shortBreakRef}
         longBreakRef={longBreakRef}
+        longBreakInterval={defaults.longBreakInterval}
+        longBreakIntervalRef={longBreakIntervalRef}
+        timerStyle={timerStylePref}
+        setTimerStyle={setTimerStylePref}
+        spaceTimerStyle={
+          SPACE_TIMER_STYLE_ENABLED ? (spaceAppearance.timerStyle ?? null) : null
+        }
         alarmRef={alarmRef}
         openSettings={openSettings}
         setOpenSettings={setOpenSettings}

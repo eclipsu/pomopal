@@ -12,6 +12,7 @@ import TemplateImage from "@/components/admin/TemplateImage";
 import TemplateTestModal from "@/components/admin/TemplateTestModal";
 import TestSendPanel from "@/components/admin/TestSendPanel";
 import ReviveStreakPanel from "@/components/admin/ReviveStreakPanel";
+import StreakPausesPanel from "@/components/admin/StreakPausesPanel";
 import AnnouncementPanel from "@/components/admin/AnnouncementPanel";
 import ImageLibraryPanel from "@/components/admin/ImageLibraryPanel";
 import BlogImagesPanel from "@/components/admin/BlogImagesPanel";
@@ -37,6 +38,7 @@ const TABS = [
   { id: "sounds", label: "Sounds" },
   { id: "fonts", label: "Fonts" },
   { id: "revive", label: "Revive streak" },
+  { id: "pauses", label: "Streak pauses" },
   { id: "announcement", label: "Announcement" },
 ];
 
@@ -200,6 +202,7 @@ function AdminContent() {
 
       <main className="max-w-6xl mx-auto px-4 py-8 space-y-8">
         {tab === "revive" && <ReviveStreakPanel templates={templates} />}
+        {tab === "pauses" && <StreakPausesPanel />}
         {tab === "announcement" && <AnnouncementPanel templates={templates} />}
         {tab === "images" && <ImageLibraryPanel />}
         {tab === "blog" && <BlogImagesPanel />}

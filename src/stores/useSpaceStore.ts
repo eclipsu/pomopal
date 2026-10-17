@@ -91,9 +91,13 @@ export interface SpaceAppearance {
   timerOffsetX: number;
   timerOffsetY: number;
   timerScale: number;
+  /** Timer face for this space; null = each viewer's own preference. */
+  timerStyle: TimerStyle | null;
   ringSoundId: string | null;
   focusSoundId: string | null;
 }
+
+export type TimerStyle = "digital" | "ring" | "glass" | "clock" | "line";
 
 interface SpaceState extends SpaceAppearance {
   sidebarOpen: boolean;
@@ -145,6 +149,7 @@ interface SpaceState extends SpaceAppearance {
   setTimerOffsetX: (x: number) => void;
   setTimerOffsetY: (y: number) => void;
   setTimerScale: (scale: number) => void;
+  setTimerStyle: (style: TimerStyle | null) => void;
   applyAppearance: (patch: Partial<SpaceAppearance>) => void;
   resetAppearance: () => void;
 }
@@ -420,6 +425,7 @@ const DEFAULT_APPEARANCE: SpaceAppearance = {
   timerOffsetX: 0,
   timerOffsetY: 0,
   timerScale: 1,
+  timerStyle: null,
   ringSoundId: null,
   focusSoundId: null,
 };
@@ -581,6 +587,11 @@ export const useSpaceStore = create<SpaceState>((set, get) => ({
     set({
       timerScale: Math.min(1.5, Math.max(0.5, Math.round(scale * 100) / 100)),
     });
+  },
+
+  setTimerStyle: (style) => {
+    if (!get().spaceCanEdit) return;
+    set({ timerStyle: style });
   },
 
   /** Apply a remote layout (Use / fork load) — allowed even when read-only. */

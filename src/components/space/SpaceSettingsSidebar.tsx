@@ -26,6 +26,8 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
+import TimerStyleIcon from "@/components/timer/TimerStyleIcon";
+import { SPACE_TIMER_STYLE_ENABLED, TIMER_STYLES } from "@/lib/timerStyles";
 import {
   BACKGROUND_FITS,
   TIMER_ANCHORS,
@@ -443,6 +445,8 @@ function TimerPanel() {
   const setTimerOffsetX = useSpaceStore((s) => s.setTimerOffsetX);
   const setTimerOffsetY = useSpaceStore((s) => s.setTimerOffsetY);
   const setTimerScale = useSpaceStore((s) => s.setTimerScale);
+  const timerStyle = useSpaceStore((s) => s.timerStyle);
+  const setTimerStyle = useSpaceStore((s) => s.setTimerStyle);
   const { data: customFonts = [] } = useFontLibrary(true) as {
     data?: Array<{
       id: string;
@@ -482,6 +486,36 @@ function TimerPanel() {
             }
           `}</style>
         ) : null,
+      )}
+      {SPACE_TIMER_STYLE_ENABLED && (
+      <ConfigCard title="Style" icon={Timer}>
+        <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Timer style for this space">
+          {[{ value: null, label: "Viewer's choice", hint: "Each person keeps their own style" }, ...TIMER_STYLES].map(
+            (s) => (
+              <button
+                key={s.value ?? "none"}
+                type="button"
+                role="radio"
+                aria-checked={timerStyle === s.value}
+                title={s.hint}
+                onClick={() => setTimerStyle(s.value as typeof timerStyle)}
+                className={`flex flex-col items-center gap-1 rounded-lg border px-1 py-2 text-xs transition ${
+                  timerStyle === s.value
+                    ? "border-sky-400 bg-sky-400/10 text-white"
+                    : "border-white/10 text-white/60 hover:border-white/25 hover:text-white"
+                }`}
+              >
+                {s.value ? (
+                  <TimerStyleIcon style={s.value} />
+                ) : (
+                  <span className="flex h-6 items-center text-base" aria-hidden>👤</span>
+                )}
+                {s.label}
+              </button>
+            ),
+          )}
+        </div>
+      </ConfigCard>
       )}
       <ConfigCard title="Countdown" icon={Type}>
         <div className="flex flex-col gap-3.5">

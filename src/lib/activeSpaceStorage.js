@@ -19,6 +19,7 @@ const APPEARANCE_KEYS = [
   "timerOffsetX",
   "timerOffsetY",
   "timerScale",
+  "timerStyle",
   "ringSoundId",
   "focusSoundId",
 ];

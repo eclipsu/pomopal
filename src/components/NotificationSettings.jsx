@@ -5,6 +5,7 @@ import { useNotificationPreferences } from "@/hooks/useNotifications";
 const TOGGLES = [
   { key: "streak_updates", label: "Streak & session updates (app + email)" },
   { key: "streak_nudges", label: "Streak reminders & daily nudges (app + email)" },
+  { key: "pause_nudges", label: "Nudge me when I pause and don't come back (app only)" },
   { key: "inactive_reminders", label: "Comeback reminders (app + email)" },
   { key: "goal_updates", label: "Goals & focus milestones (app + email)" },
   { key: "league_updates", label: "Leaderboard & weekly rank (app + email)" },
@@ -23,7 +24,7 @@ export default function NotificationSettings() {
         Notifications
       </h2>
       <div className="space-y-2">
-        {TOGGLES.map(({ key, label }) => (
+        {TOGGLES.filter(({ key }) => key in preferences).map(({ key, label }) => (
           <div key={key} className="flex items-center justify-between">
             <span className="text-gray-600 text-sm">{label}</span>
             <button

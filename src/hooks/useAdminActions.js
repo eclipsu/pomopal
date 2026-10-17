@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axiosClient from "@/utils/axios";
 
 export function useUserStreakStatus(userId) {
@@ -37,5 +37,41 @@ export function usePreviewNotification() {
       const { data } = await axiosClient.post("/admin/preview-notification", payload);
       return data;
     },
+  });
+}
+
+export function useStreakPauses() {
+  return useQuery({
+    queryKey: ["admin", "streak-pauses"],
+    queryFn: async () => {
+      const { data } = await axiosClient.get("/admin/streak-pauses");
+      return data;
+    },
+    // 404 = backend without streak pauses; don't keep retrying.
+    retry: (count, error) => error?.response?.status !== 404 && count < 3,
+  });
+}
+
+export function useAddStreakPause() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload) => {
+      const { data } = await axiosClient.post("/admin/streak-pauses", payload);
+      return data;
+    },
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["admin", "streak-pauses"] }),
+  });
+}
+
+export function useRemoveStreakPause() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id) => {
+      const { data } = await axiosClient.delete(`/admin/streak-pauses/${id}`);
+      return data;
+    },
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["admin", "streak-pauses"] }),
   });
 }

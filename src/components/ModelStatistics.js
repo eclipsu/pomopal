@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect, useCallback } from "react";
+import React, { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { FiX } from "react-icons/fi";
 import { GrFormPreviousLink, GrFormNextLink } from "react-icons/gr";
@@ -16,6 +16,7 @@ import { useGlobalLeaderboard } from "@/hooks/useGlobalLeaderboard";
 import { usePrivacy } from "@/hooks/usePrivacy";
 import { getWeekRange, datesInRange, todayYmdInTz } from "@/lib/weekDates";
 import { STYLES } from "@/components/StreakIndicator";
+import { useDismiss } from "@/hooks/useDismiss";
 
 const ACCENT = "#6366f1";
 const BASE = "#cbd5e1";
@@ -78,6 +79,9 @@ function formatShortDate(ymd) {
 function ModelStatistics({ setOpenSettings, openSettings }) {
   const { user } = useUser();
   const guest = !user;
+  const panelRef = useRef(null);
+  const closeStats = useCallback(() => setOpenSettings(false), [setOpenSettings]);
+  useDismiss(panelRef, openSettings, closeStats);
   const [tab, setTab] = useState(guest ? "leaderboard" : "summary");
   const [leaderboardPeriod, setLeaderboardPeriod] = useState("week");
   const [weekOffset, setWeekOffset] = useState(0);
@@ -384,7 +388,7 @@ function ModelStatistics({ setOpenSettings, openSettings }) {
 
   return (
     <div className="absolute inset-0 z-50 overflow-x-hidden bg-black/30">
-      <div className="absolute left-1/2 top-1/2 z-50 flex max-h-[92dvh] w-[calc(100%-1rem)] max-w-xl -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-md bg-white p-3 sm:max-h-[90dvh] sm:w-[min(92vw,36rem)] sm:p-5 landscape:max-h-[96dvh] landscape:p-3">
+      <div ref={panelRef} className="absolute left-1/2 top-1/2 z-50 flex max-h-[92dvh] w-[calc(100%-1rem)] max-w-xl -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-md bg-white p-3 sm:max-h-[90dvh] sm:w-[min(92vw,36rem)] sm:p-5 landscape:max-h-[96dvh] landscape:p-3">
         <div className="flex shrink-0 items-center justify-between gap-2">
           {user?.avatar ? (
             // eslint-disable-next-line @next/next/no-img-element
