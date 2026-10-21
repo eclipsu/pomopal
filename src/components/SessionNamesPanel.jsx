@@ -1,6 +1,8 @@
 "use client";
 
-export default function SessionNamesPanel({ sessions = [] }) {
+import { memo } from "react";
+
+function SessionNamesPanel({ sessions = [] }) {
   const visible = sessions.filter(
     (s) => s?.session_name && s.session_name !== "Untitled Session",
   );
@@ -8,7 +10,7 @@ export default function SessionNamesPanel({ sessions = [] }) {
 
   return (
     <aside
-      className="pointer-events-none absolute inset-y-0 right-0 z-[2] hidden w-36 flex-col justify-center pr-2 opacity-40 transition-opacity duration-300 hover:opacity-90 sm:flex sm:w-44 sm:pr-4 md:w-48"
+      className="pointer-events-none absolute inset-y-0 right-0 z-[2] hidden w-48 flex-col justify-center pr-4 opacity-40 transition-opacity duration-300 hover:opacity-90 lg:flex"
       aria-label="Today's sessions"
     >
       <div className="pointer-events-auto max-h-[50vh] overflow-y-auto px-1 py-2">
@@ -27,3 +29,5 @@ export default function SessionNamesPanel({ sessions = [] }) {
     </aside>
   );
 }
+
+export default memo(SessionNamesPanel);

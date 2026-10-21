@@ -8,15 +8,18 @@ import Alarm from "@/components/Alarm";
 import BackgroundAudio from "@/components/BackgroundAudio";
 import SessionNamesPanel from "@/components/SessionNamesPanel";
 
-const ModelSettings = dynamic(() => import("@/components/ModelSettings"), { ssr: false });
-const ModelStatistics = dynamic(() => import("@/components/ModelStatistics"), { ssr: false });
-const FriendsSidebar = dynamic(() => import("@/components/FriendsSidebar"), { ssr: false });
-const SpaceSettingsSidebar = dynamic(
-  () =>
-    import("@/components/space/SpaceSettingsSidebar").then((m) => m.SpaceSettingsSidebar),
-  { ssr: false },
+// Memoized so the once-a-second timer tick doesn't re-render these heavy panels.
+const ModelSettings = memo(dynamic(() => import("@/components/ModelSettings"), { ssr: false }));
+const ModelStatistics = memo(dynamic(() => import("@/components/ModelStatistics"), { ssr: false }));
+const FriendsSidebar = memo(dynamic(() => import("@/components/FriendsSidebar"), { ssr: false }));
+const SpaceSettingsSidebar = memo(
+  dynamic(
+    () =>
+      import("@/components/space/SpaceSettingsSidebar").then((m) => m.SpaceSettingsSidebar),
+    { ssr: false },
+  ),
 );
-import { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import { memo, useEffect, useRef, useState, useCallback, useMemo } from "react";
 import {
   buildBackgroundCss,
   buildTimerBoxCss,
@@ -55,7 +58,6 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import Button from "@/components/Button";
 import { toast } from "react-toastify";
 import { bgLog } from "@/lib/backgroundAudioLog";
 import { SPACE_TIMER_STYLE_ENABLED, resolveTimerStyle } from "@/lib/timerStyles";
@@ -78,6 +80,14 @@ import {
 } from "@/lib/focusNudges";
 import { useQueryClient } from "@tanstack/react-query";
 import { prefetchAudioSelection } from "@/lib/audioCache";
+
+// `dark` rebinds the shadcn tokens so the dialog matches the dark app shell.
+const DARK_DIALOG =
+  "dark w-[calc(100%-2rem)] rounded-2xl border-white/10 bg-gray-900 text-white sm:rounded-2xl";
+const DIALOG_PRIMARY_BTN =
+  "inline-flex h-11 items-center justify-center rounded-xl bg-white text-sm font-semibold transition-colors active:scale-[0.97] px-5 text-gray-900 hover:bg-red-50 sm:h-10";
+const DIALOG_SECONDARY_BTN =
+  "inline-flex h-11 items-center justify-center rounded-xl text-sm font-medium transition-colors active:scale-[0.97] border border-white/20 bg-white/5 px-5 text-white hover:bg-white/10 sm:h-10";
 
 function sessionSoundSnapshot(selection, fallback = {}) {
   if (!selection) {
@@ -204,6 +214,8 @@ function HomeContent() {
   const [openSettings, setOpenSettings] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [showFriends, setShowFriends] = useState(false);
+  // Stays mounted after the first open so the sidebar can slide in and out.
+  const [friendsMounted, setFriendsMounted] = useState(false);
   const [showRecoverDialog, setShowRecoverDialog] = useState(false);
   const [recoveredSession, setRecoveredSession] = useState(null);
   const [showSwitchDialog, setShowSwitchDialog] = useState(false);
@@ -903,6 +915,20 @@ function HomeContent() {
     setSelected(0);
   };
 
+  // Stable identity so the memoized settings modal skips per-tick renders.
+  const updateTimeDefaultValueRef = useRef(updateTimeDefaultValue);
+  updateTimeDefaultValueRef.current = updateTimeDefaultValue;
+  const saveTimeDefaults = useCallback(
+    () => updateTimeDefaultValueRef.current(),
+    [],
+  );
+
+  const closeFriends = useCallback(() => setShowFriends(false), []);
+
+  useEffect(() => {
+    if (showFriends) setFriendsMounted(true);
+  }, [showFriends]);
+
   const spaceAppearance = useSpaceStore();
   const { data: customFonts = [] } = useFontLibrary(true);
   const {
@@ -1108,7 +1134,7 @@ function HomeContent() {
           />
         ) : null}
         <div
-          className={`relative z-[1] flex h-full min-w-0 flex-1 flex-col overflow-visible transition-all duration-200 ease-in-out ${
+          className={`relative z-[1] flex h-full min-w-0 flex-1 flex-col overflow-visible transition-[margin] duration-200 ease-in-out ${
             showFriends ? "md:mr-60" : ""
           }`}
         >
@@ -1170,16 +1196,16 @@ function HomeContent() {
             className={`relative z-10 mx-auto w-full max-w-2xl shrink-0 overflow-hidden transition-all duration-500 ease-in-out ${
               hideFooterBar
                 ? "pointer-events-none max-h-0 translate-y-2 opacity-0"
-                : "max-h-28 translate-y-0 opacity-100 sm:max-h-48"
+                : "max-h-24 translate-y-0 opacity-100"
             }`}
             aria-hidden={hideFooterBar}
           >
-            <Footer />
+            <Footer compact />
           </div>
         </div>
 
-        {showFriends && (
-          <FriendsSidebar open={showFriends} onClose={() => setShowFriends(false)} />
+        {friendsMounted && (
+          <FriendsSidebar open={showFriends} onClose={closeFriends} />
         )}
         <SpaceSettingsSidebar />
       </div>
@@ -1211,7 +1237,7 @@ function HomeContent() {
         alarmRef={alarmRef}
         openSettings={openSettings}
         setOpenSettings={setOpenSettings}
-        updateTimeDefaultValue={updateTimeDefaultValue}
+        updateTimeDefaultValue={saveTimeDefaults}
         hideChromeWhileFocusing={hideChromeWhileFocusing}
         setHideChromeWhileFocusing={setHideChromeWhileFocusing}
         hideFooter={hideFooter}
@@ -1220,43 +1246,46 @@ function HomeContent() {
       <ModelStatistics openSettings={showStats} setOpenSettings={setShowStats} />
 
       <Dialog open={showRecoverDialog} onOpenChange={setShowRecoverDialog}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Resume Previous Pomodoro?</DialogTitle>
-                <DialogDescription>
-                  You have an unfinished session from{" "}
-                  {recoveredSession
-                    ? Math.floor((Date.now() - recoveredSession.startTime) / 60000)
-                    : 0}{" "}
-                  minute(s) ago. Continue or discard it?
-                </DialogDescription>
-              </DialogHeader>
-              <DialogFooter className="flex justify-end gap-2">
-                <Button variant="outline" onClick={handleDiscardSession}>
-                  Discard
-                </Button>
-                <Button onClick={handleRecoverSession}>Continue</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+        <DialogContent className={DARK_DIALOG}>
+          <DialogHeader>
+            <DialogTitle>Resume previous pomodoro?</DialogTitle>
+            <DialogDescription>
+              You have an unfinished session from{" "}
+              {recoveredSession
+                ? Math.floor((Date.now() - recoveredSession.startTime) / 60000)
+                : 0}{" "}
+              minute(s) ago. Continue or discard it?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <button type="button" className={DIALOG_SECONDARY_BTN} onClick={handleDiscardSession}>
+              Discard
+            </button>
+            <button type="button" className={DIALOG_PRIMARY_BTN} onClick={handleRecoverSession}>
+              Continue
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-          <Dialog open={showSwitchDialog} onOpenChange={setShowSwitchDialog}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Switch Session?</DialogTitle>
-                <DialogDescription>
-                  You have an active timer. Switching modes will pause and save the current session.
-                  Continue?
-                </DialogDescription>
-              </DialogHeader>
-              <DialogFooter className="flex justify-end gap-2">
-                <Button variant="outline" onClick={cancelSwitch}>
-                  Cancel
-                </Button>
-                <Button onClick={confirmSwitch}>Switch</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+      <Dialog open={showSwitchDialog} onOpenChange={setShowSwitchDialog}>
+        <DialogContent className={DARK_DIALOG}>
+          <DialogHeader>
+            <DialogTitle>Switch session?</DialogTitle>
+            <DialogDescription>
+              You have an active timer. Switching modes will pause and save the current session.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <button type="button" className={DIALOG_SECONDARY_BTN} onClick={cancelSwitch}>
+              Cancel
+            </button>
+            <button type="button" className={DIALOG_PRIMARY_BTN} onClick={confirmSwitch}>
+              Switch
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

@@ -12,8 +12,13 @@ import axiosClient from "@/utils/axios";
 const STATUS_DOT = {
   online: "bg-green-400",
   idle: "bg-yellow-400",
-  offline: "bg-gray-600",
+  offline: "bg-white/25",
 };
+
+const TAB_ON = "bg-white/15 text-white";
+const TAB_OFF = "text-white/60 hover:bg-white/10 hover:text-white";
+const ICON_BTN =
+  "inline-flex h-9 w-9 items-center justify-center rounded-lg text-white/70 transition-colors hover:bg-white/10 hover:text-white";
 
 const MEDAL = { 1: "🥇", 2: "🥈", 3: "🥉" };
 
@@ -26,7 +31,7 @@ function Avatar({ name, avatarUrl, status }) {
     .slice(0, 2);
   return (
     <div className="relative shrink-0">
-      <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center overflow-hidden text-xs font-medium text-gray-300">
+      <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center overflow-hidden text-xs font-medium text-white/70">
         {avatarUrl ? (
           <img src={avatarUrl} alt={name} className="w-full h-full object-cover" />
         ) : (
@@ -35,7 +40,7 @@ function Avatar({ name, avatarUrl, status }) {
       </div>
       {status && (
         <span
-          className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-[#1a1d24] ${STATUS_DOT[status] ?? "bg-gray-600"}`}
+          className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-gray-900 ${STATUS_DOT[status] ?? "bg-white/25"}`}
         />
       )}
     </div>
@@ -67,18 +72,31 @@ function FriendRow({ friend, presence, onUnfriend, onClick }) {
   return (
     <div
       onClick={onClick}
-      className={`flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-white/5 group transition-colors ${
+      onKeyDown={
+        onClick
+          ? (e) => {
+              if (e.target !== e.currentTarget) return;
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      className={`flex min-h-[44px] items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-white/5 group transition-colors focus-visible:outline-none focus-visible:bg-white/10 ${
         onClick ? "cursor-pointer" : ""
       }`}
     >
       <Avatar name={friend.name} avatarUrl={friend.avatar_url} status={status} />
       <div className="flex-1 min-w-0">
         <p
-          className={`text-sm font-medium truncate ${status === "offline" ? "text-gray-400" : "text-white"} ${onClick ? "hover:underline" : ""}`}
+          className={`text-sm font-medium truncate ${status === "offline" ? "text-white/50" : "text-white"}`}
         >
           {friend.name}
         </p>
-        <p className="text-xs text-gray-500 truncate">
+        <p className="text-xs text-white/40 truncate">
           {formatPresenceSubtitle(presence)}
         </p>
       </div>
@@ -86,8 +104,11 @@ function FriendRow({ friend, presence, onUnfriend, onClick }) {
         onClick={handleUnfriend}
         onBlur={() => setConfirming(false)}
         disabled={loading}
-        className={`opacity-0 group-hover:opacity-100 text-xs px-2 py-1 rounded transition-all ${
-          confirming ? "opacity-100 text-red-400" : "text-gray-500 hover:text-red-400"
+        aria-label={confirming ? `Confirm unfriend ${friend.name}` : `Unfriend ${friend.name}`}
+        className={`inline-flex h-8 min-w-[2rem] items-center justify-center rounded-lg px-2 text-xs transition-[opacity,color,background-color] hover:bg-white/10 focus-visible:opacity-100 md:group-hover:opacity-100 ${
+          confirming
+            ? "opacity-100 text-red-400"
+            : "text-white/40 hover:text-red-400 md:opacity-0"
         }`}
       >
         {loading ? "..." : confirming ? "Sure?" : "✕"}
@@ -118,13 +139,13 @@ function LeaderboardTab() {
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
-      <div className="flex gap-1 px-2 py-2 border-b border-gray-700/50 shrink-0">
+      <div className="flex gap-1 p-2 border-b border-white/10 shrink-0">
         {["today", "week", "alltime"].map((p) => (
           <button
             key={p}
             onClick={() => setPeriod(p)}
-            className={`flex-1 text-xs py-1.5 rounded-lg transition-colors ${
-              period === p ? "bg-red-500/20 text-red-400" : "text-gray-500 hover:text-gray-300"
+            className={`flex-1 h-8 text-xs rounded-lg transition-colors ${
+              period === p ? "bg-white/15 text-white" : "text-white/50 hover:bg-white/5 hover:text-white"
             }`}
           >
             {p === "alltime" ? "All Time" : p.charAt(0).toUpperCase() + p.slice(1)}
@@ -135,18 +156,18 @@ function LeaderboardTab() {
         {loading &&
           [...Array(4)].map((_, i) => (
             <div key={i} className="flex items-center gap-2.5 px-2 py-2">
-              <div className="w-6 h-4 bg-gray-700 rounded animate-pulse" />
-              <div className="w-8 h-8 rounded-full bg-gray-700 animate-pulse" />
+              <div className="w-6 h-4 bg-white/10 rounded animate-pulse" />
+              <div className="w-8 h-8 rounded-full bg-white/10 animate-pulse" />
               <div className="flex-1 space-y-1">
-                <div className="h-3 bg-gray-700 rounded animate-pulse w-3/4" />
-                <div className="h-2.5 bg-gray-700/50 rounded animate-pulse w-1/2" />
+                <div className="h-3 bg-white/10 rounded animate-pulse w-3/4" />
+                <div className="h-2.5 bg-white/5 rounded animate-pulse w-1/2" />
               </div>
             </div>
           ))}
         {!loading && entries.length === 0 && (
           <div className="flex flex-col items-center justify-center h-40 text-center">
-            <Trophy className="w-8 h-8 text-gray-700 mb-2" />
-            <p className="text-gray-500 text-xs">No data yet. Start focusing!</p>
+            <Trophy className="w-8 h-8 text-white/20 mb-2" />
+            <p className="text-white/40 text-xs">No data yet. Start focusing!</p>
           </div>
         )}
         {!loading &&
@@ -156,9 +177,9 @@ function LeaderboardTab() {
               className="flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-white/5 transition-colors"
             >
               <span className="w-6 text-center text-sm">
-                {MEDAL[entry.rank] ?? <span className="text-gray-500 text-xs">{entry.rank}</span>}
+                {MEDAL[entry.rank] ?? <span className="text-white/40 text-xs">{entry.rank}</span>}
               </span>
-              <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-xs font-medium text-gray-300 overflow-hidden shrink-0">
+              <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-xs font-medium text-white/70 overflow-hidden shrink-0">
                 {entry.avatar_url ? (
                   <img
                     src={entry.avatar_url}
@@ -171,7 +192,7 @@ function LeaderboardTab() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm text-white font-medium truncate">{entry.name}</p>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-white/40">
                   {Math.floor(entry.focus_minutes / 60)}h {entry.focus_minutes % 60}m
                 </p>
               </div>
@@ -189,7 +210,7 @@ function PendingRequests({ received, sent, onAccept, onCancel }) {
     <div className="mb-4 space-y-3">
       {received.length > 0 && (
         <div>
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-2 mb-1">
+          <p className="text-[11px] font-semibold text-white/40 uppercase tracking-wider px-2 mb-1">
             Requests — {received.length}
           </p>
           {received.map((r) => (
@@ -199,17 +220,18 @@ function PendingRequests({ received, sent, onAccept, onCancel }) {
             >
               <div className="flex-1 min-w-0">
                 <p className="text-sm text-white truncate">{r.requester?.name ?? "Someone"}</p>
-                <p className="text-xs text-gray-500 truncate">Wants to be friends</p>
+                <p className="text-xs text-white/40 truncate">Wants to be friends</p>
               </div>
               <button
                 onClick={() => onAccept(r.id)}
-                className="text-xs text-green-400 hover:text-green-300 px-2"
+                className="h-8 rounded-lg bg-white px-3 text-xs font-semibold text-gray-900 transition-colors hover:bg-red-50"
               >
                 Accept
               </button>
               <button
                 onClick={() => onCancel(r.id)}
-                className="text-xs text-gray-500 hover:text-red-400 px-1"
+                aria-label="Decline request"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-xs text-white/40 transition-colors hover:bg-white/10 hover:text-red-400"
               >
                 ✕
               </button>
@@ -219,7 +241,7 @@ function PendingRequests({ received, sent, onAccept, onCancel }) {
       )}
       {sent.length > 0 && (
         <div>
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-2 mb-1">
+          <p className="text-[11px] font-semibold text-white/40 uppercase tracking-wider px-2 mb-1">
             Sent — {sent.length}
           </p>
           {sent.map((r) => (
@@ -228,14 +250,14 @@ function PendingRequests({ received, sent, onAccept, onCancel }) {
               className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/5"
             >
               <div className="flex-1 min-w-0">
-                <p className="text-sm text-gray-400 truncate">
+                <p className="text-sm text-white/60 truncate">
                   {r.addressee?.email ?? r.addressee?.name ?? "Pending invite"}
                 </p>
-                <p className="text-xs text-gray-600">Awaiting response</p>
+                <p className="text-xs text-white/30">Awaiting response</p>
               </div>
               <button
                 onClick={() => onCancel(r.id)}
-                className="text-xs text-gray-500 hover:text-red-400 px-2"
+                className="h-8 rounded-lg px-2 text-xs text-white/40 transition-colors hover:bg-white/10 hover:text-red-400"
               >
                 Cancel
               </button>
@@ -267,6 +289,22 @@ function FriendsSidebarInner({ open, onClose }) {
   const subscribedRef = useRef(new Set());
   const [showInvite, setShowInvite] = useState(false);
   const [tab, setTab] = useState("friends");
+  // Flip a frame after `open` so the slide transition runs on first mount too.
+  const [shown, setShown] = useState(false);
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setShown(open));
+    return () => cancelAnimationFrame(id);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e) => {
+      if (e.key === "Escape" && !showInvite) onClose?.();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose, showInvite]);
 
   useEffect(() => {
     if (open) refreshAll();
@@ -322,43 +360,60 @@ function FriendsSidebarInner({ open, onClose }) {
 
   return (
     <>
-      <div
-        className={`fixed top-0 right-0 h-full w-60 flex flex-col z-40 border-l border-gray-700/50 transition-transform duration-200 ease-in-out ${
-          open ? "translate-x-0" : "translate-x-full"
+      <aside
+        aria-label="Friends"
+        aria-hidden={!open}
+        inert={!open}
+        className={`fixed top-0 right-0 z-40 flex h-dvh w-[min(20rem,85vw)] flex-col border-l border-white/10 bg-gray-900/95 text-white shadow-2xl shadow-black/40 backdrop-blur-xl transition-transform duration-300 ease-out will-change-transform md:w-60 md:shadow-none ${
+          shown ? "translate-x-0" : "translate-x-full"
         }`}
-        style={{ backgroundColor: "#1a1d24" }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-4 border-b border-gray-700/50 shrink-0">
-          <div className="flex gap-1">
+        <div className="flex items-center justify-between gap-2 px-3 py-3 border-b border-white/10 shrink-0">
+          <div className="flex gap-0.5 rounded-xl bg-white/[0.06] p-0.5 ring-1 ring-white/10" role="tablist">
             <button
+              type="button"
+              role="tab"
+              aria-selected={tab === "friends"}
               onClick={() => setTab("friends")}
-              className={`flex items-center gap-1.5 text-sm font-semibold px-2 py-1 rounded-lg transition-colors ${
-                tab === "friends" ? "text-white bg-white/10" : "text-gray-500 hover:text-gray-300"
+              className={`flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-sm font-medium transition-colors ${
+                tab === "friends" ? TAB_ON : TAB_OFF
               }`}
             >
-              <Users className="w-3.5 h-3.5" /> Friends
+              <Users className="w-4 h-4" strokeWidth={1.75} /> Friends
             </button>
             <button
+              type="button"
+              role="tab"
+              aria-selected={tab === "leaderboard"}
+              aria-label="Leaderboard"
+              title="Leaderboard"
               onClick={() => setTab("leaderboard")}
-              className={`flex items-center gap-1.5 text-sm font-semibold px-2 py-1 rounded-lg transition-colors ${
-                tab === "leaderboard"
-                  ? "text-white bg-white/10"
-                  : "text-gray-500 hover:text-gray-300"
+              className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${
+                tab === "leaderboard" ? TAB_ON : TAB_OFF
               }`}
             >
-              <Trophy className="w-3.5 h-3.5" />
+              <Trophy className="w-4 h-4" strokeWidth={1.75} />
             </button>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-0.5">
             <button
+              type="button"
               onClick={() => setShowInvite(true)}
-              className="text-gray-400 hover:text-white transition-colors"
+              aria-label="Add a friend"
+              title="Add a friend"
+              className={ICON_BTN}
             >
-              <UserPlus className="w-4 h-4" />
+              <UserPlus className="w-[18px] h-[18px]" strokeWidth={1.75} />
             </button>
-            <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
-              <X className="w-4 h-4" />
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close friends"
+              title="Close"
+              className={ICON_BTN}
+            >
+              <X className="w-[18px] h-[18px]" strokeWidth={1.75} />
             </button>
           </div>
         </div>
@@ -380,10 +435,10 @@ function FriendsSidebarInner({ open, onClose }) {
             {loading &&
               [...Array(3)].map((_, i) => (
                 <div key={i} className="flex items-center gap-2.5 mb-2">
-                  <div className="w-8 h-8 rounded-full bg-gray-700 animate-pulse" />
+                  <div className="w-8 h-8 rounded-full bg-white/10 animate-pulse" />
                   <div className="flex-1 space-y-1">
-                    <div className="h-3 bg-gray-700 rounded animate-pulse w-3/4" />
-                    <div className="h-2.5 bg-gray-700/50 rounded animate-pulse w-1/2" />
+                    <div className="h-3 bg-white/10 rounded animate-pulse w-3/4" />
+                    <div className="h-2.5 bg-white/5 rounded animate-pulse w-1/2" />
                   </div>
                 </div>
               ))}
@@ -393,11 +448,11 @@ function FriendsSidebarInner({ open, onClose }) {
               pendingReceived.length === 0 &&
               pendingSent.length === 0 && (
               <div className="flex flex-col items-center justify-center h-48 text-center px-4">
-                <Users className="w-8 h-8 text-gray-700 mb-3" />
-                <p className="text-gray-500 text-xs">No friends yet.</p>
+                <Users className="w-8 h-8 text-white/20 mb-3" />
+                <p className="text-white/40 text-xs">No friends yet.</p>
                 <button
                   onClick={() => setShowInvite(true)}
-                  className="mt-3 text-xs text-red-400 hover:text-red-300"
+                  className="mt-3 h-9 rounded-xl bg-white px-4 text-xs font-semibold text-gray-900 transition-colors hover:bg-red-50"
                 >
                   + Add a friend
                 </button>
@@ -413,7 +468,7 @@ function FriendsSidebarInner({ open, onClose }) {
                 ({ label, list }) =>
                   list.length > 0 && (
                     <div key={label} className="mb-3">
-                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-2 mb-1">
+                      <p className="text-[11px] font-semibold text-white/40 uppercase tracking-wider px-2 mb-1">
                         {label} — {list.length}
                       </p>
                       {list.map((f) => (
@@ -431,9 +486,15 @@ function FriendsSidebarInner({ open, onClose }) {
           </div>
         )}
 
-      </div>
+      </aside>
 
-      {open && <div className="fixed inset-0 z-30 bg-black/40 md:hidden" onClick={onClose} />}
+      <div
+        aria-hidden
+        onClick={onClose}
+        className={`fixed inset-0 z-30 bg-black/50 transition-opacity duration-300 md:hidden ${
+          shown ? "opacity-100" : "pointer-events-none opacity-0"
+        }`}
+      />
       <SendInviteModal open={showInvite} onClose={() => setShowInvite(false)} />
     </>
   );

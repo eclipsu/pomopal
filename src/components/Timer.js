@@ -1,5 +1,8 @@
-import { Minimize2, Pause, Play, RotateCcw } from "lucide-react";
+import { BellOff, Minimize2, Pause, Play, RotateCcw } from "lucide-react";
 import TimerFace from "@/components/timer/TimerFace";
+
+const SECONDARY_PILL =
+  "inline-flex h-10 items-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-4 text-sm font-medium text-white transition-colors hover:bg-white/20 active:scale-[0.96] sm:h-9";
 
 /** Round iOS-style button, themed: glass fill inside a thin outer ring. */
 function GlassButton({ label, onClick, disabled, primary = false }) {
@@ -81,7 +84,7 @@ export default function PomodoroTimer({
         style={{ ...boxStyle, maxHeight: "100%" }}
       >
         <div
-          className={`flex max-w-full flex-wrap justify-center gap-1 rounded-2xl border border-white/10 bg-white/5 p-0.5 transition-all duration-500 ease-in-out sm:gap-2 sm:p-1 ${
+          className={`flex max-w-full flex-wrap justify-center gap-1 rounded-2xl border border-white/10 bg-white/5 p-1 transition-all duration-500 ease-in-out sm:gap-2 sm:p-1 ${
             hideSessionTabs
               ? "pointer-events-none max-h-0 -translate-y-2 scale-95 overflow-hidden border-transparent bg-transparent p-0 opacity-0"
               : "max-h-20 translate-y-0 scale-100 opacity-100"
@@ -93,7 +96,7 @@ export default function PomodoroTimer({
               key={option}
               type="button"
               tabIndex={hideSessionTabs ? -1 : 0}
-              className={`rounded-xl px-2.5 py-1.5 text-xs transition-all sm:px-4 sm:py-2 sm:text-base ${
+              className={`min-h-[36px] rounded-xl px-3 py-1.5 text-sm transition-colors sm:px-4 sm:py-2 sm:text-base ${
                 index === selected
                   ? "bg-white/15 text-white"
                   : "text-white/60 hover:bg-white/5 hover:text-white"
@@ -125,9 +128,9 @@ export default function PomodoroTimer({
         )}
 
         <div
-          className={`group/name w-full max-w-[12rem] transition-all duration-500 ease-in-out sm:max-w-[14rem] ${
+          className={`group/name w-full max-w-[16rem] transition-all duration-500 ease-in-out ${
             showNameInput && !ticking
-              ? "mt-2 max-h-8 translate-y-0 opacity-100"
+              ? "mt-3 max-h-10 translate-y-0 opacity-100"
               : "pointer-events-none mt-0 max-h-0 -translate-y-1 overflow-hidden opacity-0"
           }`}
           aria-hidden={!showNameInput || ticking}
@@ -149,7 +152,7 @@ export default function PomodoroTimer({
                 onPlayPause?.();
               }
             }}
-            className="h-7 w-full border-0 bg-transparent px-1 text-center text-[11px] tracking-wide text-white/55 placeholder:text-white/20 outline-none transition duration-200 hover:text-white/70 hover:placeholder:text-white/35 focus:text-white/85 focus:placeholder:text-white/40 disabled:cursor-default disabled:opacity-50"
+            className="h-9 w-full rounded-lg border-0 bg-transparent px-2 text-center text-sm text-white/60 placeholder:text-white/30 outline-none transition duration-200 hover:text-white/70 hover:bg-white/5 hover:placeholder:text-white/40 focus:bg-white/5 focus:text-white/90 focus:placeholder:text-white/40 disabled:cursor-default disabled:opacity-50"
           />
         </div>
 
@@ -171,7 +174,7 @@ export default function PomodoroTimer({
           />
         </div>
 
-        <div className="flex shrink-0 flex-col items-center gap-1.5 sm:gap-3">
+        <div className="flex shrink-0 flex-col items-center gap-3">
           {timerStyle === "glass" ? (
             <div className="mt-1 flex w-[min(68vmin,20rem)] items-center justify-between sm:mt-0">
               <GlassButton label="Cancel" onClick={onReset} disabled={!canReset} />
@@ -187,7 +190,7 @@ export default function PomodoroTimer({
               type="button"
               onClick={onPlayPause}
               aria-label={ticking ? "Pause" : "Play"}
-              className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-white text-gray-900 shadow-lg shadow-black/25 transition-all hover:bg-red-50 active:scale-[0.96] sm:h-14 sm:w-14"
+              className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-white text-gray-900 shadow-lg shadow-black/25 transition-[background-color,transform] hover:bg-red-50 active:scale-[0.96] sm:h-14 sm:w-14"
             >
               {ticking ? (
                 <Pause
@@ -206,7 +209,7 @@ export default function PomodoroTimer({
               onClick={onReset}
               disabled={!canReset}
               aria-label="Reset"
-              className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/25 bg-white/10 text-white transition-all hover:bg-white/20 active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-35 sm:h-14 sm:w-14"
+              className="inline-flex h-12 w-12 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-white transition-[background-color,transform,opacity] hover:bg-white/20 active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-35 sm:h-14 sm:w-14"
             >
               <RotateCcw
                 className="h-4 w-4 sm:h-5 sm:w-5"
@@ -220,14 +223,14 @@ export default function PomodoroTimer({
               <button
                 type="button"
                 onClick={() => onAddMinutes?.(1)}
-                className="rounded-lg border border-white/25 bg-white/10 px-3 py-1.5 text-xs font-medium text-white transition-all hover:bg-white/20 active:scale-[0.96] sm:text-sm"
+                className={SECONDARY_PILL}
               >
                 +1 min
               </button>
               <button
                 type="button"
                 onClick={() => onAddMinutes?.(5)}
-                className="rounded-lg border border-white/25 bg-white/10 px-3 py-1.5 text-xs font-medium text-white transition-all hover:bg-white/20 active:scale-[0.96] sm:text-sm"
+                className={SECONDARY_PILL}
               >
                 +5 min
               </button>
@@ -236,10 +239,11 @@ export default function PomodoroTimer({
           {isTimesUp && (
             <button
               type="button"
-              className="text-sm text-white/70 underline"
+              className={SECONDARY_PILL}
               onClick={muteAlarm}
             >
-              Mute
+              <BellOff className="h-4 w-4" strokeWidth={2} />
+              Stop alarm
             </button>
           )}
         </div>
