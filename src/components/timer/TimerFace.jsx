@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
+
 /**
  * Timer faces. All take the same inputs; `progress` is the fraction of the
  * session still remaining (1 = full, 0 = done).
@@ -13,6 +15,51 @@ const SVG_BOX = "min(68vmin, 20rem)";
 function clamp01(n) {
   if (!Number.isFinite(n)) return 1;
   return Math.min(1, Math.max(0, n));
+}
+
+/**
+ * Whether the progress bar should animate to its next value. Snaps (no
+ * transition) while the tab is hidden, for the first frames after it becomes
+ * visible again, and on any jump bigger than a normal one-second tick
+ * (reset, mode switch, extend), so the ring never "catches up" slowly.
+ */
+function useProgressAnimation(progress, totalSeconds) {
+  const [tabSnap, setTabSnap] = useState(false);
+  const prev = useRef(progress);
+
+  useEffect(() => {
+    let raf1 = 0;
+    let raf2 = 0;
+    const onVisibility = () => {
+      cancelAnimationFrame(raf1);
+      cancelAnimationFrame(raf2);
+      if (document.hidden) {
+        setTabSnap(true);
+        return;
+      }
+      setTabSnap(true);
+      // Let one frame paint at the current value with no transition first.
+      raf1 = requestAnimationFrame(() => {
+        raf2 = requestAnimationFrame(() => setTabSnap(false));
+      });
+    };
+    if (document.hidden) setTabSnap(true);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      cancelAnimationFrame(raf1);
+      cancelAnimationFrame(raf2);
+    };
+  }, []);
+
+  const deltaSeconds = (prev.current - progress) * (totalSeconds || 0);
+  const bigJump = deltaSeconds < -0.01 || deltaSeconds > 1.5;
+
+  useEffect(() => {
+    prev.current = progress;
+  }, [progress]);
+
+  return !tabSnap && !bigJump;
 }
 
 function TimeText({ mins, secs, style, className = "" }) {
@@ -37,7 +84,7 @@ function DigitalFace({ mins, secs, textStyle }) {
   );
 }
 
-function RingFace({ mins, secs, progress, textStyle, mode }) {
+function RingFace({ mins, secs, progress, textStyle, mode, animate }) {
   const r = 90;
   const c = 2 * Math.PI * r;
   const color = textStyle?.color || "#fff";
@@ -55,7 +102,7 @@ function RingFace({ mins, secs, progress, textStyle, mode }) {
           strokeLinecap="round"
           strokeDasharray={c}
           strokeDashoffset={c * (1 - progress)}
-          style={{ transition: "stroke-dashoffset 1s linear" }}
+          style={{ transition: animate ? "stroke-dashoffset 1s linear" : "none" }}
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
@@ -73,7 +120,7 @@ function RingFace({ mins, secs, progress, textStyle, mode }) {
   );
 }
 
-function GlassFace({ mins, secs, progress, ticking, remainingSeconds, textStyle }) {
+function GlassFace({ mins, secs, progress, ticking, remainingSeconds, textStyle, animate }) {
   const r = 92;
   const c = 2 * Math.PI * r;
   const color = textStyle?.color || "#fff";
@@ -99,7 +146,7 @@ function GlassFace({ mins, secs, progress, ticking, remainingSeconds, textStyle 
           strokeLinecap="round"
           strokeDasharray={c}
           strokeDashoffset={c * (1 - progress)}
-          style={{ transition: "stroke-dashoffset 1s linear" }}
+          style={{ transition: animate ? "stroke-dashoffset 1s linear" : "none" }}
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ color }}>
@@ -194,7 +241,7 @@ function ClockFace({ mins, secs, progress, totalSeconds, mode, textStyle }) {
   );
 }
 
-function LineFace({ mins, secs, progress, mode, textStyle }) {
+function LineFace({ mins, secs, progress, mode, textStyle, animate }) {
   const color = textStyle?.color || "#fff";
   return (
     <div className="flex w-[min(86vw,28rem)] flex-col items-center">
@@ -205,7 +252,7 @@ function LineFace({ mins, secs, progress, mode, textStyle }) {
           style={{
             width: `${progress * 100}%`,
             backgroundColor: color,
-            transition: "width 1s linear",
+            transition: animate ? "width 1s linear" : "none",
           }}
         />
       </div>
@@ -229,7 +276,8 @@ export default function TimerFace({
   textStyle,
 }) {
   const p = clamp01(progress);
-  const props = { mins, secs, progress: p, totalSeconds, remainingSeconds, ticking, mode, textStyle };
+  const animate = useProgressAnimation(p, totalSeconds);
+  const props = { mins, secs, progress: p, totalSeconds, remainingSeconds, ticking, mode, textStyle, animate };
   const face =
     timerStyle === "ring" ? <RingFace {...props} />
     : timerStyle === "glass" ? <GlassFace {...props} />
